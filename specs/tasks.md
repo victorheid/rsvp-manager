@@ -61,9 +61,9 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 - [ ] Close waitlist at event start
 
 ## 7. Event lifecycle
-- [ ] States: Open / Confirmed / Cancelled / Expired
-- [ ] Cancel → full refunds including service fee, release holds
-- [ ] Expire unconfirmed events 48h after start → release holds
+- [x] States: Open / Confirmed / Cancelled / Expired — all four exist and are reachable except Expired (needs the §0 background job)
+- [x] Cancel → full refunds including service fee, release holds — no refunds/holds needed yet since only cash RSVPs exist; revisit once §5 lands
+- [ ] Expire unconfirmed events 48h after start → release holds — rule (`isExpired`) exists and is tested; no job calls it yet
 
 ## 8. Organizer event list
 - [ ] Single list: attendance status + payment status + per-group no-show count

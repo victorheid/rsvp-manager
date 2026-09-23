@@ -4,6 +4,7 @@ import { PricingMode } from "@/generated/prisma/enums";
 import { protectedProcedure, publicProcedure, router } from "@/server/trpc";
 import { createEvent } from "@/server/domains/events/actions/createEvent";
 import { confirmEvent } from "@/server/domains/events/actions/confirmEvent";
+import { cancelEvent } from "@/server/domains/events/actions/cancelEvent";
 import { getEventBySlug } from "@/server/domains/events/getters/getEventBySlug";
 import { costBreakdownSchema } from "@/server/domains/events/costBreakdown";
 
@@ -32,6 +33,10 @@ export const eventsRouter = router({
   confirm: protectedProcedure
     .input(z.object({ eventId: z.string() }))
     .mutation(({ ctx, input }) => confirmEvent(ctx.db, { eventId: input.eventId, organizerId: ctx.user.id })),
+
+  cancel: protectedProcedure
+    .input(z.object({ eventId: z.string() }))
+    .mutation(({ ctx, input }) => cancelEvent(ctx.db, { eventId: input.eventId, organizerId: ctx.user.id })),
 
   getBySlug: publicProcedure
     .input(z.object({ slug: z.string() }))

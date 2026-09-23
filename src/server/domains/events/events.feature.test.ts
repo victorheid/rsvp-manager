@@ -173,4 +173,49 @@ describe.skipIf(!hasTestDb)("events", () => {
       callerAs(impostor.id, impostor.phoneNumber).events.confirm({ eventId: event.id }),
     ).rejects.toThrow("Only the group's organizer");
   });
+
+  it("cancels an open or confirmed event, but not twice", async () => {
+    const { caller, group } = await createOrganizerAndGroup();
+    const startsAt = new Date(Date.now() + 86_400_000);
+
+    const event = await caller.events.create({
+      groupId: group.id,
+      title: "Rainy day game",
+      startsAt,
+      endsAt: new Date(startsAt.getTime() + 60 * 60 * 1000),
+      location: "Court 1",
+      cutoffAt: new Date(Date.now() + 3_600_000),
+      totalCostCents: 5000,
+      pricingMode: PricingMode.FIXED_PER_HEAD,
+    });
+
+    const cancelled = await caller.events.cancel({ eventId: event.id });
+    expect(cancelled.status).toBe("CANCELLED");
+
+    await expect(caller.events.cancel({ eventId: event.id })).rejects.toThrow("already cancelled");
+  });
+
+  it("rejects cancelling someone else's event", async () => {
+    const { caller, group } = await createOrganizerAndGroup();
+    const startsAt = new Date(Date.now() + 86_400_000);
+
+    const event = await caller.events.create({
+      groupId: group.id,
+      title: "Owned event 2",
+      startsAt,
+      endsAt: new Date(startsAt.getTime() + 60 * 60 * 1000),
+      location: "Court 1",
+      cutoffAt: new Date(Date.now() + 3_600_000),
+      totalCostCents: 5000,
+      pricingMode: PricingMode.FIXED_PER_HEAD,
+    });
+
+    const impostor = await db.user.create({
+      data: { phoneNumber: "+353850000004", firstName: "Im", lastInitial: "P" },
+    });
+
+    await expect(
+      callerAs(impostor.id, impostor.phoneNumber).events.cancel({ eventId: event.id }),
+    ).rejects.toThrow("Only the group's organizer");
+  });
 });

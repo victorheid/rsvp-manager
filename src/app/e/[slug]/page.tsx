@@ -41,6 +41,9 @@ export default function EventPage() {
   const confirmEvent = trpc.events.confirm.useMutation({
     onSuccess: () => utils.events.getBySlug.invalidate({ slug }),
   });
+  const cancelEvent = trpc.events.cancel.useMutation({
+    onSuccess: () => utils.events.getBySlug.invalidate({ slug }),
+  });
 
   if (isLoading) {
     return <main className="mx-auto max-w-2xl p-4">Loading…</main>;
@@ -78,17 +81,30 @@ export default function EventPage() {
         </span>
       </div>
 
-      {event.isOrganizer && event.status === "OPEN" && (
+      {event.isOrganizer && canJoin && (
         <div className="flex flex-col gap-2 rounded-lg border border-neutral-200 p-3 dark:border-neutral-800">
-          <button
-            type="button"
-            disabled={confirmEvent.isPending}
-            onClick={() => confirmEvent.mutate({ eventId: event.id })}
-            className="self-start rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
-          >
-            Confirm now
-          </button>
+          <div className="flex gap-2">
+            {event.status === "OPEN" && (
+              <button
+                type="button"
+                disabled={confirmEvent.isPending}
+                onClick={() => confirmEvent.mutate({ eventId: event.id })}
+                className="rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
+              >
+                Confirm now
+              </button>
+            )}
+            <button
+              type="button"
+              disabled={cancelEvent.isPending}
+              onClick={() => cancelEvent.mutate({ eventId: event.id })}
+              className="rounded-md border border-red-300 px-3 py-2 text-sm font-medium text-red-700 disabled:opacity-50 dark:border-red-800 dark:text-red-400"
+            >
+              Cancel event
+            </button>
+          </div>
           {confirmEvent.error && <p className="text-sm text-red-600">{confirmEvent.error.message}</p>}
+          {cancelEvent.error && <p className="text-sm text-red-600">{cancelEvent.error.message}</p>}
         </div>
       )}
 
