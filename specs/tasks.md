@@ -6,6 +6,17 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 - [ ] Legal check: does the wallet need an e-money licence or licensed partner? (blocks §5 wallet only)
 - [ ] Accountant: VAT treatment of our service fee (affects break-even and how the fee is shown)
 
+### Pending from Tech Lead
+Everything else that can be built without these is built (against fakes). These need a person to act or decide:
+- [ ] Stripe account + test keys, so the real `PaymentGateway` adapter, Connect and Stripe Elements (replacing the test-mode `CardForm`) can be built and run against the contract suite in `integrations/stripe/contract.ts`
+- [ ] Pick an SMS/WhatsApp provider (Twilio or similar) and provide an account, to replace the console SMS sender
+- [ ] Decide: allow confirming below the minimum ("confirm anyway", UI spec §10.9)? Today `confirmEvent` refuses and the organizer alert says "wait for more, or cancel"
+- [ ] Design: group admins / co-organizers (schema has one `organizerId`; every organizer check would change)
+- [ ] Wallet refund on request at full value, and the ID check for refunds over €50 — waits on the legal check above
+- [ ] Generate VAPID keys and set the `VAPID_*` and `APP_URL` env vars (`.env.example`) to enable real web push and SMS links
+- [ ] Set `WALLET_ENABLED=true` in production only once the legal check clears (off by default there)
+- [ ] Click through the payment UI signed in (RSVP with wallet/card, waitlist sheet, `/wallet`, `/pay/{token}`, payout setup) using the test-mode card form: only the server side has automated tests
+
 ## 0. Foundations
 - [x] Repo scaffold: Next.js + TypeScript + Postgres + Prisma (+ tRPC, Zod, Vitest — see [CLAUDE.md](../CLAUDE.md))
 - [x] Auth: phone number + SMS code, triggered only at RSVP (real SMS provider not wired up yet — codes log to the server console locally, see the item below)
