@@ -67,11 +67,11 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 
 ## 8. Organizer event list
 - [x] Single list: attendance status + payment status + per-group no-show count (`/e/{slug}/manage`)
-- [x] Mark attendance
-- [x] Mark paid outside app — added `PAID_OUTSIDE_APP` to `PaymentStatus`, per the note in the UI spec
+- [x] Mark attendance — default is "showed"; the organizer only marks no-shows (and can undo). Only offered once the game has started
+- [x] Mark paid outside app — added `PAID_OUTSIDE_APP` to `PaymentStatus`, per the note in the UI spec; reversible via `undoMarkPaidOutsideApp` (the toast's Undo). Only offered once the game is confirmed
 - [x] Add walk-in (name only, doesn't count against max) — `Rsvp.userId` is now optional with a `walkInName` fallback; hidden from the public event page's "Who's in" list, shown (tagged) on the manage screen
 - [x] Dropped-out entries stay on the list marked "Dropped out" with their payment status (organizer can refund as usual)
-- [x] Remove a player (pending confirmation) — no confirmation step in the UI yet, but the action itself is done
+- [x] Remove a player (pending confirmation) — confirmation sheet in the UI; only offered before the game starts (once it's running, not showing up is a no-show)
 - [ ] Refund one / refund all online-paid (price only, service fee kept; until payout) — needs online payments (§5)
 
 ## 9. Notifications
@@ -79,3 +79,21 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 - [ ] SMS/WhatsApp fallback for money-related messages only
 - [ ] Cut-off reminder job
 - [ ] Organizer alert when cut-off passes unconfirmed (confirm anyway / cancel)
+
+## 10. UI & design system
+Design source: the Figma design system (Foundations, Components, Screens, Flows & Audit). Code: [`src/components/ui`](../src/components/ui/README.md), live at `/design`. Spec: [`ui-ux-spec-mvp.md`](./ui-ux-spec-mvp.md) §15.
+- [x] Tokens: colour (Light + Dark), type, radius, elevation in `globals.css`, named to match the Figma variables; Nunito
+- [x] Component kit: buttons, chips, banners, form fields, sheets, toasts, menus, list rows, cards (34 files, documented, gallery at `/design`)
+- [x] All pages rebuilt on the kit: Home, Group, Event, Manage, Create/Edit event, Create/Edit group
+- [x] Sign-in as a bottom sheet (phone → 6-digit code with auto-submit and resend timer → name), resuming the interrupted action
+- [x] RSVP sheet (cash only for now), drop-out consequence sheet (before / after confirmation), confirm and cancel sheets on Manage
+- [x] Share sheet (link, copy, WhatsApp, native share) on event, group and Manage; opens automatically after creating a group or game
+- [x] Manage: one screen per phase (Open / Confirmed / Live / Finished), server-driven actions (`eventPhase`, `organizerEventActions`, `organizerRowActions`), informational rows with a ••• menu, filters with counts, toast + Undo
+- [x] Create event: date leads; title, times, cut-off and details default from the last game and follow the date until edited (`events.suggestDefaults`); "Same as your last game" summary
+- [ ] Mount the bottom `TabBar` (needs `/me` and Wallet)
+- [ ] Wallet, top-up, `/me`, `/pay/{token}` screens (§5, §9; blocked on wallet legal check / Stripe)
+- [ ] RSVP payment choice with wallet and card (needs §5); the sheet has only Cash today
+- [ ] Refund and "Send pay link again" in the row menu (needs §5)
+- [ ] Section-level skeletons, sheet animation, `ActionMenu` flip-up near the viewport bottom
+- [ ] Decide: allow confirming below the minimum ("confirm anyway", UI spec §10.9)? `confirmEvent` currently refuses; the Manage screen disables the button and explains (UI spec open question 9)
+- [ ] Server-side guards for the phase rules (attendance only after start, remove only before start): today only the UI offers them at the right time

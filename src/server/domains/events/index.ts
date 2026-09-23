@@ -8,3 +8,5 @@ export { autoConfirmDueEvents } from "./actions/autoConfirmDueEvents";
 export { expireOverdueEvents } from "./actions/expireOverdueEvents";
 export { getEventBySlug } from "./getters/getEventBySlug";
 export * as eventRules from "./rules";
+export { getEventDefaults } from "./getters/getEventDefaults";
+export type { EventPhase, OrganizerEventAction, OrganizerEventActions } from "./rules";

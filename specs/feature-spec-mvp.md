@@ -111,7 +111,7 @@ The cut-off is the auto-confirm moment, not an RSVP deadline.
 
 Attendance, reconciliation and refunds all happen on **one screen per event**. Each person has:
 
-- **Attendance**: unmarked / showed / no-show.
+- **Attendance**: everyone counts as **showed** unless the organizer marks them a **no-show**, so the organizer only records the exception. (Stored as `attended`: `null`/`true` = showed, `false` = no-show.) It can only be marked once the game has started.
 - **Payment**: held (not charged yet) / paid online / owes (cash due or failed card) / paid outside app / refunded.
 - Players who dropped out (or were removed) after confirmation stay on the list marked **Dropped out**, with their payment status clearly visible (e.g. paid online €8.50). No decision is required; the organizer can use the normal refund or mark-paid actions if they want.
 - **No-show count** for this group, shown next to their name.

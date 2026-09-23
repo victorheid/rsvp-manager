@@ -4,7 +4,7 @@ Group sports RSVP + payments app. Product spec: [specs/feature-spec-mvp.md](spec
 
 ## Stack
 
-Next.js (App Router) · TypeScript (strict) · tRPC · Prisma + Postgres · Zod · Vitest · Stripe
+Next.js (App Router) · TypeScript (strict) · tRPC · Prisma + Postgres · Zod · Vitest · Stripe · Tailwind v4
 
 ## Commands
 
@@ -14,6 +14,7 @@ Next.js (App Router) · TypeScript (strict) · tRPC · Prisma + Postgres · Zod 
 - `pnpm test` — Vitest (unit + feature; feature tests need `DATABASE_URL` pointed at a disposable Postgres and skip themselves otherwise)
 - `pnpm db:migrate` — apply a schema change (`prisma migrate dev`)
 - `pnpm db:studio` — browse the database
+- `/design` (with `pnpm dev`) — the living UI-kit gallery
 
 A change is done only when typecheck, lint and tests pass.
 
@@ -103,6 +104,16 @@ Vitest. Tests sit next to the code they cover (`confirmEvent.test.ts` beside `co
 - Time-dependent logic takes `now` as an argument, so tests pass fixed dates.
 - A bug fix starts with a failing test.
 - Money paths (charges, holds, refunds, price lock, payouts) need feature tests for both the success and the failure path.
+
+## UI
+
+Screens are built from one kit, [`src/components/ui`](src/components/ui/README.md), whose source of truth is the Figma design system (Foundations, Components, Screens). Read that README before adding UI. The rules that matter:
+
+- **Import from `@/components/ui`**, and build every page in `<Screen>`. Don't restyle a button, field or banner inline; if the kit lacks something, add it there (Figma first, then a documented component, then the `/design` gallery).
+- **Semantic tokens only** (`bg-bg-surface`, `text-text-secondary`, `bg-accent-default`, `text-title`…). No raw colours, no `dark:` variants: dark mode is handled by the tokens in `globals.css`.
+- **One primary action per screen**; consequences are stated before irreversible actions (`ConfirmSheet`); reversible actions get a toast with Undo instead of a confirmation.
+- **The UI doesn't decide what's allowed.** The organizer's Manage screen renders `eventActions` and each person's `actions` as returned by the server (from `eventPhase`, `organizerEventActions` and `organizerRowActions` in the domain rules). Add or change what's possible in `rules.ts`, with a test, not in a component.
+- Feature-specific UI lives beside its page in `_components/`; it moves into the kit only when a second place needs it.
 
 ## Domain conventions
 

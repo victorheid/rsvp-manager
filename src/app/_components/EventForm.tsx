@@ -1,224 +1,261 @@
 "use client";
 
-export interface EventFormValues {
-  title: string;
-  description: string;
-  startsAt: string;
-  endsAt: string;
-  location: string;
-  cutoffAt: string;
-  minPlayers: number;
-  noMax: boolean;
-  maxPlayers: number;
-  pricingMode: "FIXED_PER_HEAD" | "SPLIT_EVENLY";
-  totalCostEuros: string;
-  cashAllowed: boolean;
-  autoChargeAtCutoff: boolean;
-}
-
-export const EMPTY_EVENT_FORM_VALUES: EventFormValues = {
-  title: "",
-  description: "",
-  startsAt: "",
-  endsAt: "",
-  location: "",
-  cutoffAt: "",
-  minPlayers: 1,
-  noMax: true,
-  maxPlayers: 10,
-  pricingMode: "FIXED_PER_HEAD",
-  totalCostEuros: "",
-  cashAllowed: true,
-  autoChargeAtCutoff: true,
-};
+import { useState, type ReactNode } from "react";
+import {
+  Banner,
+  Button,
+  KeyFact,
+  SegmentedControl,
+  Stepper,
+  StatusChip,
+  TextArea,
+  TextField,
+  ToggleRow,
+} from "@/components/ui";
+import { formatCents, formatDateTime } from "@/lib/format";
+import { perHeadPriceCents, splitPriceRangeCents } from "@/server/domains/events/rules";
+import type { EventFormValues } from "./eventFormValues";
 
 /**
- * Shared by create ("New game") and edit — same fields either way
- * (§10.3, §10.4). The caller owns the values (controlled) and submit
- * handling; this is just the form body.
+ * The create and edit event form (UI spec §10.3, §10.4). One scrolling
+ * form in sections — When, Title, then the details — with the date first:
+ * once it's picked, the title, end time, cut-off and everything else can
+ * default from the group's last game.
+ *
+ * When there IS a last game (`lastGame`), the details collapse into a
+ * "Same as your last game" summary with a "Change details" button, so a
+ * repeat game is date → Publish. Without one (a group's first game, or
+ * editing) every field is shown.
+ *
+ * The form is controlled: the caller owns `values`, and `onChange` says
+ * which field changed so the caller can stop auto-filling fields the
+ * organizer has edited. It renders no submit button — put one in a
+ * `StickyActionBar` with `form={formId}`.
  */
-export function EventForm({
-  values,
-  onChange,
-  onSubmit,
-  submitLabel,
-  submitting,
-  error,
-}: {
+export interface EventFormProps {
+  formId: string;
   values: EventFormValues;
-  onChange: (values: EventFormValues) => void;
+  onChange: (next: EventFormValues, changed: keyof EventFormValues) => void;
   onSubmit: () => void;
-  submitLabel: string;
-  submitting: boolean;
   error?: string;
-}) {
-  function set<K extends keyof EventFormValues>(key: K, value: EventFormValues[K]) {
-    onChange({ ...values, [key]: value });
+  /** Present when the details were defaulted from a previous game. */
+  lastGame?: { title: string };
+  /** The title still holds the auto-suggestion (the organizer hasn't typed one). */
+  titleIsSuggested?: boolean;
+}
+
+function playersSummary(values: EventFormValues): string {
+  return values.noMax
+    ? `${values.minPlayers}+ players`
+    : `${values.minPlayers} to ${values.maxPlayers} players`;
+}
+
+/** Price as players will see it: "€8.00 each", "€6.67–€10.00 each". Null until an amount is entered. */
+function pricePreview(values: EventFormValues): string | null {
+  const totalCostCents = Math.round(Number(values.totalCostEuros) * 100);
+  if (!Number.isFinite(totalCostCents) || totalCostCents <= 0) return null;
+
+  const pricing = { pricingMode: values.pricingMode, totalCostCents };
+
+  if (values.pricingMode === "FIXED_PER_HEAD") {
+    return `${formatCents(perHeadPriceCents(pricing, 1))} each`;
   }
+
+  const range = splitPriceRangeCents(pricing, Math.max(values.minPlayers, 1), values.noMax ? null : values.maxPlayers);
+  return range.minCents === null
+    ? `Up to ${formatCents(range.maxCents)} each`
+    : `${formatCents(range.minCents)}–${formatCents(range.maxCents)} each`;
+}
+
+function hoursBefore(startsAt: Date, cutoffAt: Date): string {
+  const hours = Math.round((startsAt.getTime() - cutoffAt.getTime()) / (60 * 60 * 1000));
+  return hours > 0 ? `${hours} hours before the start` : "At the start";
+}
+
+export function EventForm({ formId, values, onChange, onSubmit, error, lastGame, titleIsSuggested = false }: EventFormProps) {
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
+  const showSummary = lastGame !== undefined && !detailsExpanded;
+
+  function set<K extends keyof EventFormValues>(key: K, value: EventFormValues[K]) {
+    onChange({ ...values, [key]: value }, key);
+  }
+
+  const preview = pricePreview(values);
+  const startsAt = values.date && values.startTime ? new Date(`${values.date}T${values.startTime}`) : null;
+  const cutoffAt = values.cutoff ? new Date(values.cutoff) : null;
 
   return (
     <form
-      className="flex flex-col gap-4"
-      onSubmit={(e) => {
-        e.preventDefault();
+      id={formId}
+      className="flex flex-col gap-8"
+      onSubmit={(event) => {
+        event.preventDefault();
         onSubmit();
       }}
     >
-      <label className="flex flex-col gap-1 text-sm">
-        Title
-        <input
-          type="text"
+      <Section title="When" hint={lastGame ? "Pick the date first. We’ll fill in the rest from your last game." : undefined}>
+        <TextField label="Date" type="date" required value={values.date} onChange={(e) => set("date", e.target.value)} />
+        <div className="grid grid-cols-2 gap-3">
+          <TextField
+            label="Starts"
+            type="time"
+            required
+            value={values.startTime}
+            onChange={(e) => set("startTime", e.target.value)}
+          />
+          <TextField label="Ends" type="time" required value={values.endTime} onChange={(e) => set("endTime", e.target.value)} />
+        </div>
+        <TextField label="Location" required value={values.location} onChange={(e) => set("location", e.target.value)} />
+      </Section>
+
+      <Section title="Title">
+        {titleIsSuggested && (
+          <p className="flex items-center gap-2 text-small text-text-secondary">
+            <StatusChip tone="accent">Suggested</StatusChip>
+            {lastGame ? "from the date and your last game" : "from the date and your group name"}
+          </p>
+        )}
+        <TextField
+          label="Game title"
           required
           value={values.title}
           onChange={(e) => set("title", e.target.value)}
-          className="rounded-md border border-neutral-300 px-3 py-2 text-base dark:border-neutral-700 dark:bg-neutral-800"
+          helper={titleIsSuggested ? "Edit it and we’ll stop changing it when you change the date." : undefined}
         />
-      </label>
-
-      <label className="flex flex-col gap-1 text-sm">
-        Description (optional)
-        <textarea
+        <TextArea
+          label="Description (optional)"
           value={values.description}
           onChange={(e) => set("description", e.target.value)}
-          className="rounded-md border border-neutral-300 px-3 py-2 text-base dark:border-neutral-700 dark:bg-neutral-800"
         />
-      </label>
+      </Section>
 
-      <div className="grid grid-cols-2 gap-3">
-        <label className="flex flex-col gap-1 text-sm">
-          Starts
-          <input
-            type="datetime-local"
-            required
-            value={values.startsAt}
-            onChange={(e) => set("startsAt", e.target.value)}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-base dark:border-neutral-700 dark:bg-neutral-800"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Ends
-          <input
-            type="datetime-local"
-            required
-            value={values.endsAt}
-            onChange={(e) => set("endsAt", e.target.value)}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-base dark:border-neutral-700 dark:bg-neutral-800"
-          />
-        </label>
-      </div>
+      {showSummary ? (
+        <Section title="Same as your last game" hint="Change anything that’s different this week.">
+          <div className="flex flex-col gap-3 rounded-lg border border-border-default bg-bg-surface p-4">
+            <KeyFact icon="users" primary={playersSummary(values)} secondary={`Game confirms once ${values.minPlayers} are in`} />
+            <KeyFact
+              icon="wallet"
+              primary={values.pricingMode === "FIXED_PER_HEAD" ? "Fixed per person" : `Split the cost · ${formatCents(Math.round(Number(values.totalCostEuros) * 100))} total`}
+              secondary={preview ?? undefined}
+            />
+            <KeyFact
+              icon="lock"
+              primary={values.cashAllowed ? "Cash on the day" : "No cash"}
+              secondary="Online payments are coming soon"
+            />
+            {startsAt && cutoffAt && (
+              <KeyFact
+                icon="clock"
+                primary={`Confirms ${formatDateTime(cutoffAt)}`}
+                secondary={hoursBefore(startsAt, cutoffAt)}
+              />
+            )}
+            <Button variant="secondary" fullWidth onClick={() => setDetailsExpanded(true)}>
+              Change details
+            </Button>
+          </div>
+        </Section>
+      ) : (
+        <>
+          <Section title="Players" hint="The game only confirms once the minimum is in.">
+            <Stepper
+              label="Min players"
+              hint="Game confirms once this many are in"
+              value={values.minPlayers}
+              min={1}
+              onChange={(n) => set("minPlayers", n)}
+            />
+            <ToggleRow
+              label="No maximum"
+              description={values.noMax ? "As many players as want to join." : undefined}
+              checked={values.noMax}
+              onChange={(checked) => set("noMax", checked)}
+            />
+            {!values.noMax && (
+              <Stepper
+                label="Max players"
+                hint="Once it’s full, new players join the waitlist"
+                value={values.maxPlayers}
+                min={values.minPlayers}
+                onChange={(n) => set("maxPlayers", n)}
+              />
+            )}
+          </Section>
 
-      <label className="flex flex-col gap-1 text-sm">
-        Location
-        <input
-          type="text"
-          required
-          value={values.location}
-          onChange={(e) => set("location", e.target.value)}
-          className="rounded-md border border-neutral-300 px-3 py-2 text-base dark:border-neutral-700 dark:bg-neutral-800"
-        />
-      </label>
+          <Section title="Price">
+            <SegmentedControl
+              label="Pricing mode"
+              value={values.pricingMode}
+              onChange={(mode) => set("pricingMode", mode)}
+              options={[
+                { value: "FIXED_PER_HEAD", label: "Fixed per person" },
+                { value: "SPLIT_EVENLY", label: "Split the cost" },
+              ]}
+            />
+            <TextField
+              label={values.pricingMode === "FIXED_PER_HEAD" ? "Amount per person (€)" : "Total cost (€)"}
+              type="number"
+              min={0}
+              step="0.01"
+              inputMode="decimal"
+              required
+              value={values.totalCostEuros}
+              onChange={(e) => set("totalCostEuros", e.target.value)}
+              helper={values.pricingMode === "SPLIT_EVENLY" ? "Everyone who plays splits this evenly." : undefined}
+            />
+            {preview && <Banner tone="info" title={`Players pay ${preview}`} />}
+          </Section>
 
-      <label className="flex flex-col gap-1 text-sm">
-        Confirms on (cut-off)
-        <input
-          type="datetime-local"
-          required
-          value={values.cutoffAt}
-          onChange={(e) => set("cutoffAt", e.target.value)}
-          className="rounded-md border border-neutral-300 px-3 py-2 text-base dark:border-neutral-700 dark:bg-neutral-800"
-        />
-      </label>
+          <Section title="How players pay">
+            <ToggleRow
+              label="Cash on the day"
+              description="Players pay you in person. No fees."
+              checked={values.cashAllowed}
+              onChange={(checked) => set("cashAllowed", checked)}
+            />
+            <Banner tone="info" title="Online payments are coming soon">
+              Wallet and card payments need payouts set up, which isn’t available yet.
+            </Banner>
+          </Section>
 
-      <div className="grid grid-cols-2 gap-3">
-        <label className="flex flex-col gap-1 text-sm">
-          Min players
-          <input
-            type="number"
-            min={1}
-            required
-            value={values.minPlayers}
-            onChange={(e) => set("minPlayers", Number(e.target.value))}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-base dark:border-neutral-700 dark:bg-neutral-800"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Max players
-          <input
-            type="number"
-            min={values.minPlayers}
-            disabled={values.noMax}
-            value={values.maxPlayers}
-            onChange={(e) => set("maxPlayers", Number(e.target.value))}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-base disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800"
-          />
-        </label>
-      </div>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={values.noMax} onChange={(e) => set("noMax", e.target.checked)} />
-        No limit
-      </label>
+          <Section title="Confirmation">
+            <TextField
+              label="Confirms on"
+              type="datetime-local"
+              required
+              value={values.cutoff}
+              onChange={(e) => set("cutoff", e.target.value)}
+              helper={`At this time, if at least ${values.minPlayers} are in, the game confirms. Before this, anyone can drop out for free.`}
+            />
+            <ToggleRow
+              label="Confirm automatically"
+              description={
+                values.autoChargeAtCutoff ? undefined : "You’ll confirm it yourself. Nobody is charged until you do."
+              }
+              checked={values.autoChargeAtCutoff}
+              onChange={(checked) => set("autoChargeAtCutoff", checked)}
+            />
+          </Section>
+        </>
+      )}
 
-      <fieldset className="flex flex-col gap-1 text-sm">
-        <legend className="mb-1">Price</legend>
-        <label className="flex items-center gap-2">
-          <input
-            type="radio"
-            name="pricingMode"
-            checked={values.pricingMode === "FIXED_PER_HEAD"}
-            onChange={() => set("pricingMode", "FIXED_PER_HEAD")}
-          />
-          Fixed per person
-        </label>
-        <label className="flex items-center gap-2">
-          <input
-            type="radio"
-            name="pricingMode"
-            checked={values.pricingMode === "SPLIT_EVENLY"}
-            onChange={() => set("pricingMode", "SPLIT_EVENLY")}
-          />
-          Split the cost
-        </label>
-      </fieldset>
-
-      <label className="flex flex-col gap-1 text-sm">
-        {values.pricingMode === "FIXED_PER_HEAD" ? "Amount per person (€)" : "Total cost (€)"}
-        <input
-          type="number"
-          min={0}
-          step="0.01"
-          required
-          value={values.totalCostEuros}
-          onChange={(e) => set("totalCostEuros", e.target.value)}
-          className="rounded-md border border-neutral-300 px-3 py-2 text-base dark:border-neutral-700 dark:bg-neutral-800"
-        />
-      </label>
-
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={values.cashAllowed} onChange={(e) => set("cashAllowed", e.target.checked)} />
-        Accept cash on the day
-      </label>
-      <p className="text-xs text-neutral-500">
-        Online payment (wallet/card) isn&apos;t available yet — this is the only way to accept payment for now.
-      </p>
-
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={values.autoChargeAtCutoff}
-          onChange={(e) => set("autoChargeAtCutoff", e.target.checked)}
-        />
-        Auto-confirm at cut-off if the minimum is met
-      </label>
-
-      {error && <p className="text-sm text-red-600">{error}</p>}
-
-      <button
-        type="submit"
-        disabled={submitting}
-        className="rounded-md bg-neutral-900 px-4 py-3 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
-      >
-        {submitting ? "Saving…" : submitLabel}
-      </button>
+      {error && (
+        <Banner tone="danger" title="Couldn’t save this game">
+          {error}
+        </Banner>
+      )}
     </form>
+  );
+}
+
+function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
+  return (
+    <section className="flex flex-col gap-4">
+      <div>
+        <h2 className="text-title text-text-primary">{title}</h2>
+        {hint && <p className="text-small text-text-secondary">{hint}</p>}
+      </div>
+      {children}
+    </section>
   );
 }

@@ -7,6 +7,7 @@ import { editEvent } from "@/server/domains/events/actions/editEvent";
 import { confirmEvent } from "@/server/domains/events/actions/confirmEvent";
 import { cancelEvent } from "@/server/domains/events/actions/cancelEvent";
 import { getEventBySlug } from "@/server/domains/events/getters/getEventBySlug";
+import { getEventDefaults } from "@/server/domains/events/getters/getEventDefaults";
 import { costBreakdownSchema } from "@/server/domains/events/costBreakdown";
 
 // Shared by create and edit — same shape both ways (§10.4: "same form").
@@ -42,6 +43,10 @@ export const eventsRouter = router({
   cancel: protectedProcedure
     .input(z.object({ eventId: z.string() }))
     .mutation(({ ctx, input }) => cancelEvent(ctx.db, { eventId: input.eventId, organizerId: ctx.user.id })),
+
+  suggestDefaults: protectedProcedure
+    .input(z.object({ groupId: z.string(), startsAt: z.date() }))
+    .query(({ ctx, input }) => getEventDefaults(ctx.db, { ...input, organizerId: ctx.user.id })),
 
   getBySlug: publicProcedure
     .input(z.object({ slug: z.string() }))

@@ -5,8 +5,12 @@ import { trpc } from "@/lib/trpc/client";
 
 /**
  * UI spec §3: "Defer sign-in until it's needed." Wrap an action in
- * `requireAuth`; if signed out, the sign-in flow renders (caller reads
- * `isSigningIn`) and the action resumes automatically once it succeeds.
+ * `requireAuth`; if signed out, the sign-in sheet opens and the action
+ * resumes automatically once it succeeds. Render the sheet once per page:
+ *
+ *     const { requireAuth, signInSheetProps } = useRequireAuth();
+ *     …
+ *     <SignInSheet {...signInSheetProps} />
  */
 export function useRequireAuth() {
   const { data: me } = trpc.auth.me.useQuery();
@@ -27,9 +31,11 @@ export function useRequireAuth() {
 
   return {
     me,
-    isSigningIn: pendingAction !== null,
     requireAuth,
-    handleSignedIn,
-    cancelSignIn: () => setPendingAction(null),
+    signInSheetProps: {
+      open: pendingAction !== null,
+      onClose: () => setPendingAction(null),
+      onSuccess: handleSignedIn,
+    },
   };
 }

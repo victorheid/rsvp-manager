@@ -1,5 +1,6 @@
 import { PricingMode } from "@/generated/prisma/enums";
 import type { EventModel } from "@/generated/prisma/models";
+import { EVENT_TIME_ZONE } from "@/lib/format";
 
 /**
  * Business rules for events (spec §2, §3). Pure functions only: no Prisma
@@ -93,4 +94,175 @@ export function shouldAutoConfirmAtCutoff(
 export function isExpired(event: Pick<EventModel, "status" | "startsAt">, now: Date): boolean {
   const expiryMs = event.startsAt.getTime() + 48 * 60 * 60 * 1000;
   return event.status === "OPEN" && now.getTime() >= expiryMs;
+}
+
+/**
+ * The organizer's view of where an event is in its life. Derived, never
+ * stored: the Manage screen shows only what serves the current phase, so
+ * the whole UI keys off this one value (UI spec §10.5, "one screen per
+ * phase").
+ *
+ *   OPEN → CONFIRMED → LIVE → FINISHED   (or CANCELLED / EXPIRED)
+ *
+ * Payout isn't modelled yet (§5), so FINISHED is the last phase.
+ */
+export const EVENT_PHASES = ["OPEN", "CONFIRMED", "LIVE", "FINISHED", "CANCELLED", "EXPIRED"] as const;
+export type EventPhase = (typeof EVENT_PHASES)[number];
+
+export function eventPhase(
+  event: Pick<EventModel, "status" | "startsAt" | "endsAt">,
+  now: Date,
+): EventPhase {
+  if (event.status === "CANCELLED") return "CANCELLED";
+  if (event.status === "EXPIRED") return "EXPIRED";
+  if (now >= event.endsAt) return "FINISHED";
+  if (now >= event.startsAt) return "LIVE";
+  return event.status === "OPEN" ? "OPEN" : "CONFIRMED";
+}
+
+/** Everything the organizer can do to the event as a whole. */
+export type OrganizerEventAction =
+  | "SHARE"
+  | "CONFIRM"
+  | "EDIT"
+  | "REPEAT"
+  | "ADD_WALK_IN"
+  | "VIEW_PUBLIC_PAGE"
+  | "CANCEL";
+
+export interface OrganizerEventActions {
+  phase: EventPhase;
+  /** The one thing the screen leads with. */
+  primary: OrganizerEventAction;
+  /** At most one supporting button next to it. */
+  secondary: OrganizerEventAction | null;
+  /** Everything else, in the game-options menu. Cancel is always last. */
+  menu: OrganizerEventAction[];
+}
+
+/**
+ * Which event-level actions exist in each phase (UI spec §10.5). Each phase
+ * is deliberately minimal: e.g. nothing about attendance before the game,
+ * no cancel once it's running, no share once it's over.
+ *
+ * While the event is still Open, "Share" leads (fill the game) and
+ * "Confirm now" supports it — unless auto-charge is off or the cut-off has
+ * passed, when confirming *is* the decision the organizer has to make (§3,
+ * §10.9), so it leads instead.
+ */
+export function organizerEventActions(
+  event: Pick<EventModel, "status" | "startsAt" | "endsAt" | "cutoffAt" | "autoChargeAtCutoff">,
+  now: Date,
+): OrganizerEventActions {
+  const phase = eventPhase(event, now);
+
+  switch (phase) {
+    case "OPEN": {
+      const confirmIsTheDecision = !event.autoChargeAtCutoff || now >= event.cutoffAt;
+      return {
+        phase,
+        primary: confirmIsTheDecision ? "CONFIRM" : "SHARE",
+        secondary: confirmIsTheDecision ? "SHARE" : "CONFIRM",
+        menu: ["EDIT", "REPEAT", "ADD_WALK_IN", "VIEW_PUBLIC_PAGE", "CANCEL"],
+      };
+    }
+    case "CONFIRMED":
+      return { phase, primary: "SHARE", secondary: null, menu: ["REPEAT", "ADD_WALK_IN", "VIEW_PUBLIC_PAGE", "CANCEL"] };
+    case "LIVE":
+      return { phase, primary: "ADD_WALK_IN", secondary: null, menu: ["REPEAT", "VIEW_PUBLIC_PAGE"] };
+    case "FINISHED":
+    case "CANCELLED":
+    case "EXPIRED":
+      return { phase, primary: "REPEAT", secondary: null, menu: ["VIEW_PUBLIC_PAGE"] };
+  }
+}
+
+const DEFAULT_DURATION_MS = 90 * 60 * 1000;
+const DEFAULT_CUTOFF_LEAD_MS = 24 * 60 * 60 * 1000;
+
+const WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+function weekdayName(date: Date): string {
+  return new Intl.DateTimeFormat("en-IE", { weekday: "long", timeZone: EVENT_TIME_ZONE }).format(date);
+}
+
+/**
+ * UI spec §10.3: the date leads the create form and the title follows it.
+ * A recurring game is nearly always "<weekday> <thing>", so: take the last
+ * game's title (or the group's name) and swap in the new date's weekday.
+ * "Thursday 5-a-side" on a Saturday date becomes "Saturday 5-a-side"; a
+ * title with no weekday gets one put in front.
+ */
+export function suggestEventTitle(
+  source: { groupName: string; lastTitle: string | null },
+  startsAt: Date,
+): string {
+  const base = (source.lastTitle ?? source.groupName).trim();
+  const weekday = weekdayName(startsAt);
+  const leading = WEEKDAY_NAMES.find((name) => base.toLowerCase().startsWith(name.toLowerCase()));
+
+  if (leading) {
+    return `${weekday}${base.slice(leading.length)}`;
+  }
+
+  return `${weekday} ${base}`;
+}
+
+type LastEvent = Pick<
+  EventModel,
+  | "title"
+  | "startsAt"
+  | "endsAt"
+  | "cutoffAt"
+  | "location"
+  | "minPlayers"
+  | "maxPlayers"
+  | "pricingMode"
+  | "totalCostCents"
+  | "cashAllowed"
+  | "autoChargeAtCutoff"
+>;
+
+export interface SuggestedEventDefaults {
+  title: string;
+  endsAt: Date;
+  cutoffAt: Date;
+  location: string;
+  minPlayers: number;
+  maxPlayers: number | null;
+  pricingMode: EventModel["pricingMode"];
+  totalCostCents: number;
+  cashAllowed: boolean;
+  autoChargeAtCutoff: boolean;
+  /** Title of the game the rest was copied from; null for a group's first game. */
+  basedOnTitle: string | null;
+}
+
+/**
+ * UI spec §10.3: once the organizer picks a date, everything else defaults
+ * to "same as last game" — same length, same cut-off lead time, location,
+ * player limits, price. A group's first game gets sensible blanks (90
+ * minutes, cut-off 24h before start).
+ */
+export function suggestEventDefaults(
+  input: { groupName: string; lastEvent: LastEvent | null },
+  startsAt: Date,
+): SuggestedEventDefaults {
+  const { groupName, lastEvent } = input;
+  const durationMs = lastEvent ? lastEvent.endsAt.getTime() - lastEvent.startsAt.getTime() : DEFAULT_DURATION_MS;
+  const leadMs = lastEvent ? lastEvent.startsAt.getTime() - lastEvent.cutoffAt.getTime() : DEFAULT_CUTOFF_LEAD_MS;
+
+  return {
+    title: suggestEventTitle({ groupName, lastTitle: lastEvent?.title ?? null }, startsAt),
+    endsAt: new Date(startsAt.getTime() + (durationMs > 0 ? durationMs : DEFAULT_DURATION_MS)),
+    cutoffAt: new Date(startsAt.getTime() - (leadMs > 0 ? leadMs : DEFAULT_CUTOFF_LEAD_MS)),
+    location: lastEvent?.location ?? "",
+    minPlayers: lastEvent?.minPlayers ?? 1,
+    maxPlayers: lastEvent?.maxPlayers ?? null,
+    pricingMode: lastEvent?.pricingMode ?? PricingMode.FIXED_PER_HEAD,
+    totalCostCents: lastEvent?.totalCostCents ?? 0,
+    cashAllowed: lastEvent?.cashAllowed ?? true,
+    autoChargeAtCutoff: lastEvent?.autoChargeAtCutoff ?? true,
+    basedOnTitle: lastEvent?.title ?? null,
+  };
 }

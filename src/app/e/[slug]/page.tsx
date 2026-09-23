@@ -1,272 +1,339 @@
 "use client";
 
+import Link from "next/link";
+import { useState } from "react";
 import { useParams } from "next/navigation";
+import {
+  Button,
+  ConfirmSheet,
+  EmptyState,
+  HeadcountBar,
+  IconButton,
+  KeyFact,
+  PersonRow,
+  PriceBlock,
+  Screen,
+  ScreenSkeleton,
+  SectionHeader,
+  SharePreview,
+  ShareSheet,
+  StatusChip,
+  StickyActionBar,
+  TopBar,
+  useToast,
+} from "@/components/ui";
 import { trpc } from "@/lib/trpc/client";
-import { SignInFlow } from "@/app/_components/SignInFlow";
+import { formatCents, formatDateTime, formatPlayerName, formatRelativeDay, formatTimeRange } from "@/lib/format";
+import { eventChip } from "@/app/_components/eventPhase";
+import { headcountText } from "@/app/_components/eventPrice";
+import { SignInSheet } from "@/app/_components/SignInSheet";
+import { useNow } from "@/app/_components/useNow";
+import { useOpenShareOnArrival } from "@/app/_components/useOpenShareOnArrival";
+import { useOrigin } from "@/app/_components/useOrigin";
 import { useRequireAuth } from "@/app/_components/useRequireAuth";
+import { eventPhase } from "@/server/domains/events/rules";
+import { countsTowardMax, hasCapacity } from "@/server/domains/rsvps/rules";
+import { IsItOnBanner, ViewerStatusBanner, expectedPriceCents } from "./_components/EventStatusBanners";
+import { RsvpSheet } from "./_components/RsvpSheet";
 
-function formatCents(cents: number): string {
-  return `€${(cents / 100).toFixed(2)}`;
-}
+const NAMES_SHOWN = 6;
 
-function formatDateTime(date: Date): string {
-  return new Intl.DateTimeFormat("en-IE", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
-
-const STATUS_LABEL: Record<string, string> = {
-  OPEN: "Open",
-  CONFIRMED: "Game on",
-  CANCELLED: "Cancelled",
-  EXPIRED: "Didn't go ahead",
-};
-
+/**
+ * UI spec §4: the event page — where almost everyone lands, usually from a
+ * link in a group chat with no account. It answers, in this order:
+ * what/when/where → is it on → how much → who's in → what do I do.
+ */
 export default function EventPage() {
   const { slug } = useParams<{ slug: string }>();
   const utils = trpc.useUtils();
-  const { data: event, isLoading, error } = trpc.events.getBySlug.useQuery({ slug });
-  const { requireAuth, isSigningIn, handleSignedIn, cancelSignIn } = useRequireAuth();
+  const toast = useToast();
+  const now = useNow();
+  const origin = useOrigin();
+  // Headcount and spots change fast before a game (UI spec §4.3): refetch on focus and every 30s.
+  const { data: event, isLoading, error } = trpc.events.getBySlug.useQuery({ slug }, { refetchInterval: 30_000 });
+  const { requireAuth, signInSheetProps } = useRequireAuth();
+  const { shareOpen, setShareOpen } = useOpenShareOnArrival();
+
+  const [rsvpOpen, setRsvpOpen] = useState(false);
+  const [dropOpen, setDropOpen] = useState(false);
+  const [showAllNames, setShowAllNames] = useState(false);
+  const [showWaitlist, setShowWaitlist] = useState(false);
+
+  const refresh = () => utils.events.getBySlug.invalidate({ slug });
+  const failed = (message: string) => toast({ message, tone: "error" });
 
   const createRsvp = trpc.rsvps.create.useMutation({
-    onSuccess: () => utils.events.getBySlug.invalidate({ slug }),
+    onSuccess: () => {
+      setRsvpOpen(false);
+      toast({ message: "You’re in" });
+      return refresh();
+    },
   });
   const dropRsvp = trpc.rsvps.drop.useMutation({
-    onSuccess: () => utils.events.getBySlug.invalidate({ slug }),
+    onSuccess: () => {
+      setDropOpen(false);
+      toast({ message: "You’ve dropped out" });
+      return refresh();
+    },
   });
   const joinWaitlist = trpc.waitlist.join.useMutation({
-    onSuccess: () => utils.events.getBySlug.invalidate({ slug }),
+    onSuccess: () => {
+      toast({ message: "You’re on the waitlist" });
+      return refresh();
+    },
+    onError: (err) => failed(err.message),
   });
   const leaveWaitlist = trpc.waitlist.leave.useMutation({
-    onSuccess: () => utils.events.getBySlug.invalidate({ slug }),
-  });
-  const confirmEvent = trpc.events.confirm.useMutation({
-    onSuccess: () => utils.events.getBySlug.invalidate({ slug }),
-  });
-  const cancelEvent = trpc.events.cancel.useMutation({
-    onSuccess: () => utils.events.getBySlug.invalidate({ slug }),
+    onSuccess: () => {
+      toast({ message: "You’ve left the waitlist" });
+      return refresh();
+    },
+    onError: (err) => failed(err.message),
   });
 
   if (isLoading) {
-    return <main className="mx-auto max-w-2xl p-4">Loading…</main>;
+    return <ScreenSkeleton backHref="/" />;
   }
 
   if (error || !event) {
-    return <main className="mx-auto max-w-2xl p-4">Event not found.</main>;
+    return (
+      <Screen topBar={<TopBar backHref="/" title="Game" />}>
+        <EmptyState icon="info" title="Game not found" description="Check the link, or ask the organizer to send it again." />
+      </Screen>
+    );
   }
 
-  const goingCount = event.rsvps.length;
-  const spotsLeft = event.maxPlayers !== null ? event.maxPlayers - goingCount : null;
-  const isFull = event.maxPlayers !== null && goingCount >= event.maxPlayers;
+  const phase = eventPhase(event, now);
+  const players = event.rsvps.filter(countsTowardMax);
   const isGoing = event.viewerRsvp?.status === "GOING";
-  const canJoin = event.status === "OPEN" || event.status === "CONFIRMED";
   const isWaitlisted = event.viewerWaitlistPosition !== null;
+  const isFull = !hasCapacity(event, players.length);
+  const isJoinable = phase === "OPEN" || phase === "CONFIRMED";
+  const price = formatCents(expectedPriceCents(event));
+  const startsAt = new Date(event.startsAt);
+  const spotsLeft = event.maxPlayers === null ? null : Math.max(0, event.maxPlayers - players.length);
+  const shareUrl = `${origin}/e/${slug}`;
+  const chip = eventChip(event, now);
 
-  function priceLine() {
-    if (!event) return null;
-    const { priceDisplay } = event;
-    if (priceDisplay.mode === "fixed") return `${formatCents(priceDisplay.amountCents)} each`;
-    if (priceDisplay.mode === "locked") return `${formatCents(priceDisplay.amountCents)} each (locked)`;
-    return priceDisplay.minCents !== null
-      ? `${formatCents(priceDisplay.minCents)}–${formatCents(priceDisplay.maxCents)} each`
-      : `Up to ${formatCents(priceDisplay.maxCents)} each`;
+  // ---- The sticky bar: one primary action for this viewer in this state (UI spec §4.2).
+  let actionBar = null;
+  if (isJoinable && !isGoing && !isWaitlisted && !isFull && event.cashAllowed) {
+    actionBar = (
+      <StickyActionBar context={phase === "OPEN" ? "Nothing charged now · drop out free until it’s confirmed" : `Pay ${price} in cash on the day`}>
+        <Button size="lg" fullWidth onClick={() => requireAuth(() => setRsvpOpen(true))}>
+          I’m in
+        </Button>
+      </StickyActionBar>
+    );
+  } else if (isJoinable && !isGoing && !isWaitlisted && !isFull) {
+    actionBar = (
+      <StickyActionBar context="Online payments aren’t set up for this game yet">
+        <Button size="lg" fullWidth disabled>
+          I’m in
+        </Button>
+      </StickyActionBar>
+    );
+  } else if (isJoinable && !isGoing && !isWaitlisted && isFull) {
+    actionBar = (
+      <StickyActionBar context="Nothing charged now · you can claim a spot if one opens">
+        <Button size="lg" fullWidth loading={joinWaitlist.isPending} onClick={() => requireAuth(() => joinWaitlist.mutate({ eventId: event.id }))}>
+          Join waitlist
+        </Button>
+      </StickyActionBar>
+    );
+  } else if (isJoinable && isWaitlisted) {
+    actionBar = (
+      <StickyActionBar context="We’ll keep your place in the queue">
+        <Button size="lg" fullWidth variant="secondary" loading={leaveWaitlist.isPending} onClick={() => leaveWaitlist.mutate({ eventId: event.id })}>
+          Leave waitlist
+        </Button>
+      </StickyActionBar>
+    );
+  } else if (isJoinable && isGoing) {
+    actionBar = (
+      <StickyActionBar context={phase === "OPEN" ? "Free to drop out until the game is confirmed" : "No automatic refund if you drop out"}>
+        <Button size="lg" fullWidth variant="secondary" onClick={() => setDropOpen(true)}>
+          Can’t make it
+        </Button>
+      </StickyActionBar>
+    );
   }
+
+  const visiblePlayers = showAllNames ? players : players.slice(0, NAMES_SHOWN);
+  const priceNote =
+    event.priceDisplay.mode === "range"
+      ? `Court costs ${formatCents(event.totalCostCents)}, split between everyone who plays. The more who join, the less each pays. Final price is set when the game confirms.`
+      : event.priceDisplay.mode === "locked"
+        ? "Locked when the game confirmed."
+        : undefined;
 
   return (
-    <main className="mx-auto flex max-w-2xl flex-col gap-6 p-4 pb-24">
-      <div>
-        <a href={`/g/${event.group.slug}`} className="text-sm text-neutral-500 underline">
+    <Screen
+      topBar={
+        <TopBar
+          backHref={`/g/${event.group.slug}`}
+          title={event.group.name}
+          actions={<IconButton icon="share" label="Share this game" onClick={() => setShareOpen(true)} />}
+        />
+      }
+      actionBar={actionBar}
+    >
+      <div className="flex flex-col gap-2">
+        <Link href={`/g/${event.group.slug}`} className="text-small-strong text-text-link">
           {event.group.name}
-        </a>
-        <h1 className="text-2xl font-semibold">{event.title}</h1>
-        <span className="mt-1 inline-block rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium dark:bg-neutral-800">
-          {STATUS_LABEL[event.status] ?? event.status}
-        </span>
+        </Link>
+        <h2 className="text-display text-text-primary">{event.title}</h2>
+        <div className="flex flex-wrap gap-2">
+          <StatusChip tone={chip.tone}>{chip.label}</StatusChip>
+        </div>
       </div>
 
       {event.isOrganizer && (
-        <div className="flex flex-col gap-2 rounded-lg border border-neutral-200 p-3 dark:border-neutral-800">
-          <div className="flex flex-wrap gap-2">
-            <a
-              href={`/e/${slug}/manage`}
-              className="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium dark:border-neutral-700"
-            >
-              Manage
-            </a>
-            <a
-              href={`/g/${event.group.slug}/events/new?from=${slug}`}
-              className="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium dark:border-neutral-700"
-            >
-              Repeat this game
-            </a>
-            {event.status === "OPEN" && (
-              <a
-                href={`/e/${slug}/edit`}
-                className="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium dark:border-neutral-700"
-              >
-                Edit
-              </a>
-            )}
-            {canJoin && event.status === "OPEN" && (
-              <button
-                type="button"
-                disabled={confirmEvent.isPending}
-                onClick={() => confirmEvent.mutate({ eventId: event.id })}
-                className="rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
-              >
-                Confirm now
-              </button>
-            )}
-            {canJoin && (
-              <button
-                type="button"
-                disabled={cancelEvent.isPending}
-                onClick={() => cancelEvent.mutate({ eventId: event.id })}
-                className="rounded-md border border-red-300 px-3 py-2 text-sm font-medium text-red-700 disabled:opacity-50 dark:border-red-800 dark:text-red-400"
-              >
-                Cancel event
-              </button>
-            )}
-          </div>
-          {confirmEvent.error && <p className="text-sm text-red-600">{confirmEvent.error.message}</p>}
-          {cancelEvent.error && <p className="text-sm text-red-600">{cancelEvent.error.message}</p>}
-        </div>
+        <Button href={`/e/${slug}/manage`} variant="secondary" fullWidth>
+          Manage this game
+        </Button>
       )}
 
-      {isGoing && (
-        <div className="rounded-lg bg-green-50 p-3 text-sm text-green-900 dark:bg-green-950 dark:text-green-100">
-          You&apos;re in
-          {event.viewerRsvp?.paymentMethod === "CASH" && ` · paying ${priceLine()} cash on the day`}
-        </div>
-      )}
+      <ViewerStatusBanner event={event} now={now} />
 
-      {isWaitlisted && (
-        <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-100">
-          You&apos;re on the waitlist · #{event.viewerWaitlistPosition} · we&apos;ll notify you if a spot opens
-        </div>
-      )}
-
-      <div className="flex flex-col gap-1 text-sm text-neutral-700 dark:text-neutral-300">
-        <p>{formatDateTime(new Date(event.startsAt))} – {new Intl.DateTimeFormat("en-IE", { hour: "2-digit", minute: "2-digit" }).format(new Date(event.endsAt))}</p>
-        <p>{event.location}</p>
+      <div className="flex flex-col gap-3">
+        <KeyFact
+          icon="calendar"
+          primary={formatTimeRange(startsAt, new Date(event.endsAt))}
+          secondary={formatRelativeDay(startsAt, now)}
+        />
+        <KeyFact
+          icon="pin"
+          primary={event.location}
+          secondary="Open in Maps"
+          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`}
+        />
       </div>
 
-      <div className="flex flex-col gap-1">
-        <p className="text-lg font-medium">
-          {goingCount} in{event.maxPlayers !== null ? ` · needs ${event.minPlayers} · ${event.maxPlayers} max` : ` · needs ${event.minPlayers} · no limit`}
-        </p>
-        {spotsLeft !== null && spotsLeft >= 0 && <p className="text-sm text-neutral-500">{spotsLeft} spots left</p>}
-      </div>
+      <IsItOnBanner event={event} now={now} />
 
-      <div>
-        <p className="text-lg font-medium">{priceLine()}</p>
-        {event.costBreakdown.length > 0 && (
-          <ul className="mt-1 text-sm text-neutral-500">
-            {event.costBreakdown.map((item) => (
-              <li key={item.label}>
-                {item.label} — {formatCents(item.amountCents)}
-              </li>
-            ))}
-          </ul>
+      <HeadcountBar
+        count={event.rsvps.length}
+        min={event.minPlayers}
+        max={event.maxPlayers}
+        note={spotsLeft === null ? undefined : `${spotsLeft} ${spotsLeft === 1 ? "spot" : "spots"} left`}
+      />
+
+      <PriceBlock
+        amount={
+          event.priceDisplay.mode === "range"
+            ? event.priceDisplay.minCents !== null
+              ? `${formatCents(event.priceDisplay.minCents)}–${formatCents(event.priceDisplay.maxCents)} each`
+              : `Up to ${formatCents(event.priceDisplay.maxCents)} each`
+            : `${formatCents(event.priceDisplay.amountCents)} each`
+        }
+        note={
+          <>
+            {priceNote}
+            {event.costBreakdown.length > 0 && (
+              <ul className="mt-2 flex flex-col gap-0.5">
+                {event.costBreakdown.map((item) => (
+                  <li key={item.label}>
+                    {item.label} — {formatCents(item.amountCents)}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        }
+        fee={event.cashAllowed ? "Pay the organizer in cash on the day · no fee" : undefined}
+      />
+
+      <section className="flex flex-col gap-1">
+        <SectionHeader
+          title={`Who’s in · ${players.length}`}
+          action={
+            players.length > NAMES_SHOWN
+              ? { label: showAllNames ? "Show fewer" : `Show all ${players.length}`, onClick: () => setShowAllNames((current) => !current) }
+              : undefined
+          }
+        />
+        {/* §4: walk-ins aren't shown publicly — they're organizer records (manage screen). */}
+        {visiblePlayers.map((rsvp) =>
+          rsvp.user ? (
+            <PersonRow
+              key={rsvp.id}
+              name={formatPlayerName(rsvp.user)}
+              trailing={rsvp.userId === event.group.organizerId ? <StatusChip tone="accent">Organizer</StatusChip> : undefined}
+            />
+          ) : null,
         )}
-      </div>
-
-      <div>
-        <h2 className="mb-2 text-sm font-medium text-neutral-500">Who&apos;s in</h2>
-        <ul className="flex flex-col gap-1">
-          {/* §4: walk-ins aren't shown publicly — they're organizer records (manage screen). */}
-          {event.rsvps
-            .filter((rsvp) => rsvp.user !== null)
-            .map((rsvp) => (
-              <li key={rsvp.id} className="text-sm">
-                {rsvp.user?.firstName} {rsvp.user?.lastInitial}.
-              </li>
-            ))}
-          {event.rsvps.length === 0 && <li className="text-sm text-neutral-500">No one yet — be the first.</li>}
-        </ul>
-      </div>
+        {players.length === 0 && <p className="text-small text-text-secondary">No one yet — be the first.</p>}
+      </section>
 
       {event.waitlistEntries.length > 0 && (
-        <details>
-          <summary className="cursor-pointer text-sm font-medium text-neutral-500">
-            Waitlist ({event.waitlistEntries.length})
-          </summary>
-          <ul className="mt-2 flex flex-col gap-1">
-            {event.waitlistEntries.map((entry, index) => (
-              <li key={entry.id} className="text-sm">
-                {index + 1}. {entry.user.firstName} {entry.user.lastInitial}.
-              </li>
+        <section className="flex flex-col gap-1">
+          <SectionHeader
+            title={`Waitlist · ${event.waitlistEntries.length}`}
+            action={{ label: showWaitlist ? "Hide" : "Show", onClick: () => setShowWaitlist((current) => !current) }}
+          />
+          {showWaitlist &&
+            event.waitlistEntries.map((entry, index) => (
+              <PersonRow key={entry.id} name={formatPlayerName(entry.user)} trailing={`#${index + 1}`} />
             ))}
-          </ul>
-        </details>
+        </section>
       )}
 
-      {isSigningIn && (
-        <div className="flex flex-col gap-2">
-          <SignInFlow onSuccess={handleSignedIn} />
-          <button type="button" className="self-start text-sm text-neutral-500 underline" onClick={cancelSignIn}>
-            Cancel
-          </button>
-        </div>
+      {event.description && (
+        <section className="flex flex-col gap-1">
+          <SectionHeader title="About this game" />
+          <p className="whitespace-pre-line text-body text-text-secondary">{event.description}</p>
+        </section>
       )}
 
-      {createRsvp.error && <p className="text-sm text-red-600">{createRsvp.error.message}</p>}
-      {dropRsvp.error && <p className="text-sm text-red-600">{dropRsvp.error.message}</p>}
-      {joinWaitlist.error && <p className="text-sm text-red-600">{joinWaitlist.error.message}</p>}
-      {leaveWaitlist.error && <p className="text-sm text-red-600">{leaveWaitlist.error.message}</p>}
+      <RsvpSheet
+        open={rsvpOpen}
+        onClose={() => setRsvpOpen(false)}
+        confirmed={phase === "CONFIRMED"}
+        price={price}
+        pending={createRsvp.isPending}
+        error={createRsvp.error?.message}
+        onJoin={() => createRsvp.mutate({ eventId: event.id, paymentMethod: "CASH" })}
+      />
 
-      <div className="sticky bottom-0 -mx-4 border-t border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
-        {!isGoing && !isWaitlisted && canJoin && !isFull && event.cashAllowed && (
-          <button
-            type="button"
-            disabled={createRsvp.isPending}
-            onClick={() => requireAuth(() => createRsvp.mutate({ eventId: event.id, paymentMethod: "CASH" }))}
-            className="w-full rounded-md bg-neutral-900 px-4 py-3 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
-          >
-            I&apos;m in — nothing charged now
-          </button>
-        )}
-        {!isGoing && !isWaitlisted && canJoin && !event.cashAllowed && (
-          <p className="text-center text-sm text-neutral-500">
-            Online payments aren&apos;t set up for this event yet.
-          </p>
-        )}
-        {!isGoing && !isWaitlisted && canJoin && isFull && (
-          <button
-            type="button"
-            disabled={joinWaitlist.isPending}
-            onClick={() => requireAuth(() => joinWaitlist.mutate({ eventId: event.id }))}
-            className="w-full rounded-md bg-neutral-900 px-4 py-3 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
-          >
-            Join waitlist — nothing charged now
-          </button>
-        )}
-        {isWaitlisted && canJoin && (
-          <button
-            type="button"
-            disabled={leaveWaitlist.isPending}
-            onClick={() => leaveWaitlist.mutate({ eventId: event.id })}
-            className="w-full rounded-md border border-neutral-300 px-4 py-3 text-sm font-medium disabled:opacity-50 dark:border-neutral-700"
-          >
-            Leave waitlist
-          </button>
-        )}
-        {isGoing && canJoin && (
-          <button
-            type="button"
-            disabled={dropRsvp.isPending}
-            onClick={() => dropRsvp.mutate({ eventId: event.id })}
-            className="w-full rounded-md border border-neutral-300 px-4 py-3 text-sm font-medium disabled:opacity-50 dark:border-neutral-700"
-          >
-            Can&apos;t make it
-          </button>
-        )}
-        {!canJoin && <p className="text-center text-sm text-neutral-500">{STATUS_LABEL[event.status]}</p>}
-      </div>
-    </main>
+      <ConfirmSheet
+        open={dropOpen}
+        onClose={() => setDropOpen(false)}
+        title={`Drop out of ${event.title}?`}
+        tone={phase === "CONFIRMED" ? "destructive" : "default"}
+        banner={
+          phase === "CONFIRMED"
+            ? {
+                tone: "warning",
+                title: "This game is confirmed",
+                body: `The organizer may still ask you to pay ${price}. Your spot goes to the waitlist.`,
+              }
+            : { tone: "info", title: "Nothing has been charged", body: "Your spot goes to the next person on the waitlist." }
+        }
+        confirmLabel={phase === "CONFIRMED" ? "Drop out anyway" : "Drop out"}
+        cancelLabel="Stay in"
+        pending={dropRsvp.isPending}
+        error={dropRsvp.error?.message}
+        onConfirm={() => dropRsvp.mutate({ eventId: event.id })}
+      />
+
+      <ShareSheet
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        title="Share this game"
+        url={shareUrl}
+        message={`${event.title} · ${formatDateTime(startsAt)} · ${event.location}`}
+        preview={
+          <SharePreview
+            title={event.title}
+            details={`${formatDateTime(startsAt)} · ${event.location}`}
+            summary={`${headcountText(event.rsvps.length, event.maxPlayers)}${
+              spotsLeft !== null ? ` · ${spotsLeft} ${spotsLeft === 1 ? "spot" : "spots"} left` : ""
+            } · ${price} each`}
+          />
+        }
+      />
+      <SignInSheet {...signInSheetProps} />
+    </Screen>
   );
 }

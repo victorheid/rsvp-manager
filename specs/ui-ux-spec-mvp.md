@@ -1,6 +1,6 @@
 # RSVP Manager — MVP UI/UX Spec
 
-Companion to [`feature-spec-mvp.md`](./feature-spec-mvp.md). That file says **what the system does**; this one says **what each screen contains, what people can do on it, and how the flows move between screens**. Visual design (colours, type, spacing, illustration) is deliberately out of scope. Section references like "§3" point to the feature spec.
+Companion to [`feature-spec-mvp.md`](./feature-spec-mvp.md). That file says **what the system does**; this one says **what each screen contains, what people can do on it, and how the flows move between screens**. Visual design lives in the Figma design system and its code twin, the UI kit ([`src/components/ui`](../src/components/ui/README.md), live at `/design`); see [§15](#15-visual-design-and-components). Section references like "§3" point to the feature spec.
 
 Status: first draft. Gaps found in the feature spec while writing this are collected in [Open questions](#open-questions).
 
@@ -385,8 +385,11 @@ Name and description. Slug doesn't change (links already shared).
 
 One scrolling form with sections (short enough on mobile; no multi-page wizard). Sticky bar: **Publish**.
 
-1. **Basics**: Title (placeholder from group, e.g. "Thursday Basketball"), Description.
-2. **When & where**: Date, start time, **end time** (required; defaults to start + the duration of this group's last game, or 1h30 for the first; must be after start; overnight end rolls to the next day), Location (free text; recent locations for this group offered as chips).
+**The date leads** (§15 explains the reasoning): the form starts with *When*, and once a date is chosen the rest defaults from the group's last game and re-anchors to the new date. A group that already has games opens on the next likely date (last game + 7 days, at the same time).
+
+1. **When & where**: Date, start time, **end time** (required; defaults to start + the duration of this group's last game, or 1h30 for the first; must be after start; overnight end rolls to the next day), Location (defaults to the last game's).
+2. **Title** and Description. The title is **suggested** from the date and the last game ("Thursday 5-a-side" on a Saturday date becomes "Saturday 5-a-side"; a title with no weekday gets one in front) and marked "Suggested". Changing the date moves the suggestion, but **once the organizer has typed a title it's never overwritten**. The same holds for every field: only fields the organizer hasn't touched follow the date.
+   - **Same as your last game**: when a previous game exists, the details below (players, price, payment, cut-off) collapse into a summary card with a **Change details** button, so a repeat game is *pick a date → Publish*. A group's first game shows every field, empty.
 3. **Players**: Min players (stepper, default 1, hint "Game only confirms automatically once this many are in"), Max players (stepper, optional, "No limit" toggle).
 4. **Price**
    - Mode: segmented control **Fixed per person** / **Split the cost**.
@@ -420,27 +423,36 @@ Same form, with constraints shown inline rather than as errors on submit:
 
 One screen for everything about one event. Mobile: card list. Desktop: table (§12).
 
+**One screen per phase.** What the screen shows and offers depends on where the game is, so each stage is minimal and useful for that stage. The phase is derived (never stored) by `eventPhase` in the events domain, and the server returns the allowed actions with the data (`eventActions` for the event, `actions` for each person), so the screen only renders them:
+
+| Phase | Job | Primary | Supporting | ••• game menu |
+|---|---|---|---|---|
+| **Open** | Fill the game, decide when to lock it | Share game | Confirm now | Edit, Repeat, Add walk-in, View public page, Cancel |
+| **Confirmed** | Fill the last spots, chase failed payments | Share game | — | Repeat, Add walk-in, View public page, Cancel |
+| **Live** (started) | Collect cash, note no-shows | Add walk-in | — | Repeat, View public page |
+| **Finished** | Reconcile | Repeat this game | — | View public page |
+| **Cancelled / Expired** | — | Repeat this game | — | View public page |
+
+While Open, **Confirm now** leads instead of Share once the cut-off has passed or auto-confirm is off — then confirming *is* the decision (§3, §10.9). Cancel exists only before the game starts and only in the menu, never next to a primary action. (Payout isn't modelled yet, so there's no separate "paid out" phase.)
+
 **Top summary**
-- Title, date, status chip, headcount "10/12 in · min 6", waitlist count.
-- **Money summary**: Collected online €80.00 · Held (not charged yet) €40.00 · Owes €16.50 (2) · Cash expected €16.00 (2) · Refunded €8.00. Payout status: "Payout €80.00 on Sat 27 Sep" / "Paid out".
-- **Primary action by state**:
-  - Open → **Confirm now** (with "Auto-confirms Wed 19:00 if 6+ are in" or "Auto-charge is off").
-  - Confirmed, before start → **Share** (to fill remaining spots).
-  - After start → **Mark attendance**.
-  - After payout → none; note "Refunds are no longer available in the app."
-- Overflow: Edit, Repeat this game, Add walk-in, Refund all online-paid, Cancel event, View public page.
+- Phase chip, title, date and place, headcount bar with the minimum marked ("7 in · needs 4 · 10 max · 5 spots left"; once the game has started: "6 came · 1 no-show"). Walk-ins count toward the minimum and the price split, not toward the maximum (§8).
+- A banner that explains the phase: how it confirms (Open), "Everyone counts as showed" (Live), "it's your call" once the cut-off passes without confirmation (§10.9).
+- *Money summary and payout status arrive with §5 (online payments).*
 
-**Filters (chips)**: All · Owes · Held · Cash · Unmarked attendance · Waitlist.
+**Filters (chips)**, shown once the game is confirmed and only when someone is in them: All · Owes · Cash (or Cash to collect once started) · No-shows. Counts are on the chips.
 
-**Person row**
-- Name ("Aoife Murphy" — organizers see the full name *(confirm)*), no-show badge for this group ("2 no-shows"), walk-in tag if applicable.
-- Payment chip: Held · Paid online · Owes · Cash due · Paid outside app · Refunded (§8 vocabulary) + method icon and amount.
-- Attendance control (after start only): three-state segmented **✓ Showed / ✗ No-show / –**. One tap per person; no confirmation needed.
-- Tap row → **person sheet**: contact (call / WhatsApp / SMS via phone number), payment detail and history for this event, and actions allowed in the current state:
-  - **Mark paid outside app** (when Owes / Cash due). Toast with Undo.
-  - **Refund** (when Paid online, until payout) → refund sheet.
-  - **Remove from game** *(proposed, see open question 1)* → sheet: before confirmation "Remove Aoife M.? Their hold is released and they're notified."; after confirmation "Remove Aoife M.? They paid €8.50; this doesn't refund them. You can refund them afterwards." The spot goes to the waitlist.
-  - **Resend pay link** (when Owes).
+**Person row — informational, no buttons.** One line under the name says where they stand, and how loudly:
+- **red**: owes money, or was a no-show · **amber**: cash still to collect (once the game has started) · **grey**: everything fine (paid, held, cash on the day).
+- Tags: *Dropped out*, *Walk-in*, *Organizer*, and "N past no-shows" for this group. Organizers see "First L." like everyone else *(full names: open question 4)*.
+- Rows that need attention sort first; the list doesn't reorder otherwise.
+- **Every change happens in the ••• menu, which opens from anywhere on the row.** The menu leads with the action that row most likely needs (bold), has a second line explaining anything with side effects, and puts destructive actions last. Which actions exist comes from `organizerRowActions`:
+  - **Mark as paid** (owes or cash due; only once confirmed — before that nothing has been charged, and cash is collected on the day). Toast with Undo.
+  - **Mark as no-show / Undo no-show** (only once the game has started, never on the organizer's own row). Toast with Undo.
+  - **Message player** (WhatsApp link, when the person has a number).
+  - **Remove from game** (**only before the game starts**; once it's running, someone who isn't there is a no-show). Opens a sheet stating what happens: their spot goes to the waitlist, and after confirmation their payment stays on record.
+  - *Planned with §5:* Refund, and Send pay link again for failed cards.
+- **Why menus, not buttons:** a button next to a name is easy to hit by mistake while standing at the pitch, and the common actions are reversible anyway (toast + Undo). Two taps for "mark paid" is the price; the whole row being tappable and the menu leading with the right action keep it cheap.
 
 **Sections** in order: Going · Walk-ins · Waitlist (order, Auto-join / Notify-me tag and payment method; read-only in MVP) · **Dropped out**.
 
@@ -451,7 +463,7 @@ Dropped out: everyone who dropped out or was removed, each row tagged **Dropped 
 **Confirm now** (sheet)
 - "Confirm Thu 5-a-side?"
 - What happens, as a list with real numbers: "Price locks at **€8.00** each (10 players, €80 split)" · "**7** online payers charged now" · "**2** paying cash on the day" · "**1** manual confirmation can't be undone."
-- If min isn't met: warning "Only 4 of the minimum 6 are in. Price per person will be €20.00." (split mode makes this very visible). Still allowed (§3).
+- If min isn't met: warning "Only 4 of the minimum 6 are in." **Today the server refuses to confirm below the minimum** ("Minimum players not met"), so the button is disabled and the sheet says how to proceed (lower the minimum by editing the game). The spec's intent — "Confirm anyway", with the higher split price shown (§10.9, §3) — needs the `confirmEvent` rule relaxed; see [open question 9](#open-questions).
 - CTA **Confirm and charge 7 people**. Result screen shows successes and any failed charges ("1 card failed — Seán K. now owes €8.50, pay link sent").
 
 **Cancel event** (sheet)
@@ -472,11 +484,13 @@ Dropped out: everyone who dropped out or was removed, each row tagged **Dropped 
 
 ### 10.7 After the game (attendance and reconciliation)
 
-The loop organizers do on the phone right after the game, so it must be fast:
-1. Push/Home attention item "Mark attendance for Thu 5-a-side" (optional, at end time) → Manage screen opens in **attendance mode**: filter "Unmarked", big tap targets.
-2. **Mark everyone as showed** bulk button, then flip the no-shows individually.
-3. Filter **Owes / Cash due** → mark paid outside app as cash is collected.
-4. Refunds if needed, before the payout date (banner counts down: "Payout in 2 days. Refunds after that happen outside the app.").
+**Everybody counts as having shown up unless the organizer marks them a no-show.** Attendance is an exception to record, not a task to complete: there's no "unmarked" state, no progress to finish, and nothing to do if everyone came (`attended: null` reads as showed; only `attended: false` is a no-show, and only that counts toward a player's no-show total).
+
+The loop on the phone, during or right after the game:
+1. Open the **Live** (or Finished) Manage screen. The banner says "Everyone counts as showed".
+2. For anyone who didn't turn up: their ••• menu → **Mark as no-show** (toast with Undo). A no-show row turns red, and its menu leads with **Undo no-show**.
+3. Filter **Cash to collect** → ••• → **Mark as paid** as cash is handed over.
+4. Refunds if needed, before the payout date (arrives with §5).
 
 ### 10.8 Payouts `/payouts`
 - **Stripe onboarding status**: Not started / In progress / Needs more info / Active. Primary CTA **Set up payouts** → Stripe-hosted onboarding → return URL back here (or back to the event being published).
@@ -595,3 +609,22 @@ Still open:
 6. **Saved cards management** in `/me` — needed for trust and for card removal requests.
 7. **Partial refunds.** §8 says refund the price in full; organizers will want partial (e.g. game cut short). MVP = full only?
 8. **Default cut-off.** Proposed 24h before start; the §9 cut-off reminder then fires ~48h before start. Confirm both.
+9. **Confirming below the minimum.** §10.6/§10.9 say the organizer can "confirm anyway" (with a higher split price), but `confirmEvent` rejects a headcount below `minPlayers`, and the Manage screen follows the code for now (button disabled, with an explanation). Relax the rule, or drop "confirm anyway" from the spec?
+10. **Bulk cash collection.** "Mark all cash as paid" would speed up game day but records money that hasn't been handed over; left out deliberately. Revisit if game-day taps prove too many.
+
+---
+
+## 15. Visual design and components
+
+The look is **friendly and social**: warm sand surfaces, one coral accent, Nunito, rounded shapes, Light and Dark. It's defined once, in the Figma design system, and implemented once, in [`src/components/ui`](../src/components/ui/README.md) (live gallery at `/design`). Screens are composed from that kit and don't restyle it.
+
+Principles the kit enforces (they're the ones in §1, made concrete):
+- One primary action per screen, in the bottom third (`StickyActionBar`); everything else is secondary.
+- Consequences before irreversible actions (`ConfirmSheet`); reversible actions get a toast with Undo (`useToast`).
+- Status is a word first, colour second (`StatusChip`, `Banner`).
+- Rows inform and menus act (`PersonManageRow`, `ActionMenu`).
+- Tap targets ≥ 44px; sheets are native dialogs (focus trap, Esc); no hover-only behaviour.
+
+**Sharing.** Every game and group has a share sheet: the link with a Copy button, a WhatsApp button, and the device's native share sheet when available, with a preview of what people will see in the chat. It opens from the share icon on the event and group pages, from "Share game" on Manage (the primary action while a game is Open or Confirmed), and automatically right after a group or game is created (§10.1, §10.3).
+
+**Not built yet:** the bottom TabBar (component exists; Wallet and `/me` don't), and the wallet, top-up, `/me` and pay-link screens (§7.6, §8, §9).

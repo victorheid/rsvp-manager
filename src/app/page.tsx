@@ -1,95 +1,142 @@
 "use client";
 
+import Link from "next/link";
+import {
+  ActionMenu,
+  Avatar,
+  Button,
+  EmptyState,
+  EventCard,
+  ICON_BUTTON_CLASS,
+  Icon,
+  Screen,
+  ScreenSkeleton,
+  SectionHeader,
+  StatusChip,
+  TopBar,
+} from "@/components/ui";
 import { trpc } from "@/lib/trpc/client";
-
-function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat("en-IE", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
+import { formatDateTime } from "@/lib/format";
+import { eventChip } from "@/app/_components/eventPhase";
+import { eventPriceText } from "@/app/_components/eventPrice";
+import { SignInSheet } from "@/app/_components/SignInSheet";
+import { useRequireAuth } from "@/app/_components/useRequireAuth";
 
 /** UI spec §6: signed-in "Games" home, or a short signed-out landing. */
 export default function HomePage() {
+  const utils = trpc.useUtils();
   const { data: me, isLoading: meLoading } = trpc.auth.me.useQuery();
   const { data: upcoming } = trpc.rsvps.myUpcoming.useQuery(undefined, { enabled: !!me });
   const { data: groups } = trpc.groups.mine.useQuery(undefined, { enabled: !!me });
+  const { requireAuth, signInSheetProps } = useRequireAuth();
+  const logout = trpc.auth.logout.useMutation({ onSuccess: () => utils.invalidate() });
 
   if (meLoading) {
-    return <main className="mx-auto max-w-2xl p-4">Loading…</main>;
+    return <ScreenSkeleton />;
   }
 
   if (!me) {
     return (
-      <main className="mx-auto flex max-w-2xl flex-col gap-4 p-4">
-        <h1 className="text-2xl font-semibold">RSVP Manager</h1>
-        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-          Group sports RSVPs and payments — post a game, share the link, and see who&apos;s in.
-        </p>
-        <a
-          href="/groups/new"
-          className="self-start rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
-        >
+      <Screen
+        topBar={
+          <TopBar
+            brand
+            actions={
+              <Button variant="ghost" onClick={() => requireAuth(() => {})}>
+                Sign in
+              </Button>
+            }
+          />
+        }
+        className="justify-center gap-6"
+      >
+        <div className="flex flex-col gap-3">
+          <h2 className="text-display text-text-primary">Games with your group, sorted.</h2>
+          <p className="text-body text-text-secondary">
+            Post a game, share the link, and see who’s in — and who’s paid and who didn’t show.
+          </p>
+        </div>
+        <Button href="/groups/new" size="lg" fullWidth>
           Create a group
-        </a>
-        <p className="text-sm text-neutral-500">Got a link? Just open it.</p>
-      </main>
+        </Button>
+        <p className="text-center text-small text-text-secondary">Got a link from your group? Just open it.</p>
+        <SignInSheet {...signInSheetProps} />
+      </Screen>
     );
   }
 
+  const now = new Date();
+
   return (
-    <main className="mx-auto flex max-w-2xl flex-col gap-6 p-4">
-      <h1 className="text-2xl font-semibold">Your games</h1>
+    <Screen
+      topBar={
+        <TopBar
+          brand
+          actions={
+            <ActionMenu
+              label="Account"
+              items={[{ label: "Sign out", description: "You can sign back in with a text code.", onSelect: () => logout.mutate() }]}
+              triggerClassName={ICON_BUTTON_CLASS}
+            >
+              <Icon name="user" />
+            </ActionMenu>
+          }
+        />
+      }
+      className="gap-6"
+    >
+      <h2 className="text-display text-text-primary">Your games</h2>
 
-      <section>
-        <h2 className="mb-2 text-sm font-medium text-neutral-500">Upcoming</h2>
+      <section className="flex flex-col gap-3">
+        <SectionHeader title="Upcoming" />
         {upcoming?.length === 0 && (
-          <p className="text-sm text-neutral-500">
-            Your games will show up here. Got a link from your group? Open it to join.
-          </p>
+          <EmptyState
+            icon="calendar"
+            title="No games yet"
+            description="Games you join show up here. Got a link from your group? Open it to join."
+          />
         )}
-        <ul className="flex flex-col gap-2">
-          {upcoming?.map((rsvp) => (
-            <li key={rsvp.id}>
-              <a
-                href={`/e/${rsvp.event.slug}`}
-                className="block rounded-lg border border-neutral-200 p-3 dark:border-neutral-800"
-              >
-                <p className="font-medium">{rsvp.event.title}</p>
-                <p className="text-sm text-neutral-500">
-                  {rsvp.event.group.name} · {formatDate(new Date(rsvp.event.startsAt))}
-                </p>
-              </a>
-            </li>
-          ))}
-        </ul>
+        {upcoming?.map((rsvp) => (
+          <EventCard
+            key={rsvp.id}
+            href={`/e/${rsvp.event.slug}`}
+            when={`${formatDateTime(new Date(rsvp.event.startsAt))} · ${rsvp.event.group.name}`}
+            title={rsvp.event.title}
+            status={eventChip(rsvp.event, now)}
+            headcount={rsvp.event.location}
+            price={eventPriceText(rsvp.event)}
+            mine={{ label: "You’re in", tone: "success" }}
+          />
+        ))}
       </section>
 
-      <section>
-        <h2 className="mb-2 text-sm font-medium text-neutral-500">Your groups</h2>
-        <ul className="flex flex-col gap-2">
-          {groups?.map((group) => (
-            <li key={group.id}>
-              <a href={`/g/${group.slug}`} className="block rounded-lg border border-neutral-200 p-3 dark:border-neutral-800">
-                <p className="font-medium">
-                  {group.name}
-                  {group.organizerId === me.id && (
-                    <span className="ml-2 rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-normal dark:bg-neutral-800">
-                      Organizer
-                    </span>
-                  )}
-                </p>
-              </a>
-            </li>
-          ))}
-        </ul>
-        <a href="/groups/new" className="mt-2 inline-block text-sm underline">
-          Create a group
-        </a>
+      <section className="flex flex-col gap-3">
+        <SectionHeader title="Your groups" action={{ label: "Create a group", href: "/groups/new" }} />
+        {groups?.map((group) => (
+          <Link
+            key={group.id}
+            href={`/g/${group.slug}`}
+            className="flex items-center gap-3 rounded-lg border border-border-default bg-bg-surface p-3 hover:bg-bg-subtle"
+          >
+            <Avatar name={group.name} size="lg" />
+            <span className="min-w-0 flex-1">
+              <span className="flex flex-wrap items-center gap-2 text-body-strong text-text-primary">
+                {group.name}
+                {group.organizerId === me.id && <StatusChip tone="accent">Organizer</StatusChip>}
+              </span>
+            </span>
+            <Icon name="chevron-right" className="text-text-tertiary" />
+          </Link>
+        ))}
+        {groups?.length === 0 && (
+          <EmptyState
+            icon="users"
+            title="No groups yet"
+            description="Running a game? Create a group and share its link."
+            action={<Button href="/groups/new">Create a group</Button>}
+          />
+        )}
       </section>
-    </main>
+    </Screen>
   );
 }

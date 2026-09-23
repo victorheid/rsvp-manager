@@ -165,4 +165,50 @@ describe.skipIf(!hasTestDb)("organizer event management", () => {
     const view = await organizerCaller.rsvps.forOrganizer({ eventId: event.id });
     expect(view.rsvps.filter((r) => r.status === "GOING")).toHaveLength(3);
   });
+  it("undoes marking a payment as paid, restoring what it was", async () => {
+    const { organizerCaller, rsvp } = await setup();
+
+    await organizerCaller.rsvps.markPaidOutsideApp({ rsvpId: rsvp.id });
+    const restored = await organizerCaller.rsvps.undoMarkPaidOutsideApp({ rsvpId: rsvp.id, restoreTo: "PENDING" });
+
+    expect(restored.paymentStatus).toBe("PENDING");
+  });
+
+  it("refuses to undo a payment that isn't marked as paid outside the app", async () => {
+    const { organizerCaller, rsvp } = await setup();
+
+    await expect(
+      organizerCaller.rsvps.undoMarkPaidOutsideApp({ rsvpId: rsvp.id, restoreTo: "PENDING" }),
+    ).rejects.toThrow("isn't marked as paid");
+  });
+
+  it("rejects a non-organizer undoing a paid mark", async () => {
+    const { organizerCaller, rsvp, playerCaller } = await setup();
+    await organizerCaller.rsvps.markPaidOutsideApp({ rsvpId: rsvp.id });
+
+    await expect(
+      playerCaller.rsvps.undoMarkPaidOutsideApp({ rsvpId: rsvp.id, restoreTo: "PENDING" }),
+    ).rejects.toThrow("Only the group's organizer");
+  });
+
+  it("tells the organizer what they can do now: phase, event actions and per-person actions", async () => {
+    const { organizerCaller, event, rsvp } = await setup();
+
+    const view = await organizerCaller.rsvps.forOrganizer({ eventId: event.id });
+
+    // The game is tomorrow and unconfirmed: nothing charged, nothing played.
+    expect(view.eventActions.phase).toBe("OPEN");
+    expect(view.eventActions.primary).toBe("SHARE");
+    expect(view.rsvps.find((r) => r.id === rsvp.id)?.actions).toEqual(["REMOVE"]);
+  });
+
+  it("stops offering Remove once the event is confirmed and offers Mark paid instead", async () => {
+    const { organizerCaller, event, rsvp } = await setup();
+
+    await organizerCaller.events.confirm({ eventId: event.id });
+    const view = await organizerCaller.rsvps.forOrganizer({ eventId: event.id });
+
+    expect(view.eventActions.phase).toBe("CONFIRMED");
+    expect(view.rsvps.find((r) => r.id === rsvp.id)?.actions).toEqual(["MARK_PAID", "REMOVE"]);
+  });
 });

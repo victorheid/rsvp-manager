@@ -1,45 +1,312 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Design tokens — the "Playbook" system. Source of truth is the Figma file
+ * (variables: Primitives, Color, Spacing, Radius; text + effect styles);
+ * this file is its code twin and the names match the variables' code syntax
+ * one-to-one (e.g. Figma `color/bg/canvas` → `--color-bg-canvas` →
+ * `bg-bg-canvas`). See src/components/ui/README.md for the full mapping.
+ *
+ * Two layers:
+ *   1. Primitives: raw ramps (`coral-600`). Never used in components.
+ *   2. Semantic tokens (`bg-canvas`, `text-secondary`, `accent-default`…):
+ *      what components use. They flip between Light and Dark, so components
+ *      never need `dark:` variants.
+ *
+ * `static` keeps every token in the output even when nothing uses it yet,
+ * so the dark-mode overrides below always have something to override.
+ */
+@theme static {
+  /* ---- Primitives -------------------------------------------------- */
+  --color-coral-50: #fff1ec;
+  --color-coral-100: #ffe0d5;
+  --color-coral-200: #ffc2ad;
+  --color-coral-300: #ff9c7d;
+  --color-coral-400: #ff7a55;
+  --color-coral-500: #f55d37;
+  --color-coral-600: #d4421e;
+  --color-coral-700: #a8331a;
+  --color-coral-800: #7f2814;
+  --color-coral-900: #571b0d;
+
+  --color-sand-0: #ffffff;
+  --color-sand-50: #fbf8f5;
+  --color-sand-100: #f5f0eb;
+  --color-sand-200: #eae3dc;
+  --color-sand-300: #d6cdc4;
+  --color-sand-400: #a89e94;
+  --color-sand-500: #766c62;
+  --color-sand-600: #5c534b;
+  --color-sand-700: #423b35;
+  --color-sand-800: #2a2521;
+  --color-sand-900: #1c1815;
+  --color-sand-950: #14110f;
+
+  --color-green-50: #ecf8f0;
+  --color-green-100: #d3f0de;
+  --color-green-300: #7cd3a0;
+  --color-green-500: #2e9e5b;
+  --color-green-700: #1b6e3e;
+  --color-green-900: #0f3d24;
+
+  --color-amber-50: #fff6e0;
+  --color-amber-100: #ffe9b3;
+  --color-amber-300: #f5c451;
+  --color-amber-500: #e39a0b;
+  --color-amber-700: #7a4e05;
+  --color-amber-900: #3f2903;
+
+  --color-red-50: #fdecec;
+  --color-red-100: #fad2d2;
+  --color-red-300: #f08a8a;
+  --color-red-500: #dc3b3b;
+  --color-red-700: #a62525;
+  --color-red-900: #571212;
+
+  --color-blue-50: #eaf2ff;
+  --color-blue-100: #d0e3ff;
+  --color-blue-300: #86b0f2;
+  --color-blue-500: #3c7be6;
+  --color-blue-700: #2455a8;
+  --color-blue-900: #142f5e;
+
+  /* ---- Semantic colours (Light values; Dark overrides below) -------- */
+  --color-bg-canvas: var(--color-sand-50);
+  --color-bg-surface: var(--color-sand-0);
+  --color-bg-subtle: var(--color-sand-100);
+  --color-bg-overlay: var(--color-sand-900);
+
+  --color-text-primary: var(--color-sand-900);
+  --color-text-secondary: var(--color-sand-600);
+  --color-text-tertiary: var(--color-sand-500);
+  --color-text-on-accent: var(--color-sand-0);
+  --color-text-on-overlay: var(--color-sand-50);
+  --color-text-link: var(--color-coral-700);
+
+  --color-border-default: var(--color-sand-200);
+  --color-border-strong: var(--color-sand-300);
+  --color-border-focus: var(--color-coral-500);
+
+  --color-accent-default: var(--color-coral-600);
+  --color-accent-pressed: var(--color-coral-700);
+  --color-accent-subtle: var(--color-coral-50);
+  --color-accent-subtle-text: var(--color-coral-700);
+
+  --color-success-bg: var(--color-green-50);
+  --color-success-border: var(--color-green-300);
+  --color-success-fg: var(--color-green-700);
+  --color-success-solid: var(--color-green-500);
+
+  --color-warning-bg: var(--color-amber-50);
+  --color-warning-border: var(--color-amber-300);
+  --color-warning-fg: var(--color-amber-700);
+  --color-warning-solid: var(--color-amber-500);
+
+  --color-danger-bg: var(--color-red-50);
+  --color-danger-border: var(--color-red-300);
+  --color-danger-fg: var(--color-red-700);
+  --color-danger-solid: var(--color-red-700);
+
+  --color-info-bg: var(--color-blue-50);
+  --color-info-border: var(--color-blue-300);
+  --color-info-fg: var(--color-blue-700);
+  --color-info-solid: var(--color-blue-500);
+
+  /* ---- Radius (Figma: radius/*; `rounded-full` is the built-in pill) - */
+  --radius-sm: 0.5rem; /* 8 */
+  --radius-md: 0.75rem; /* 12 */
+  --radius-lg: 1rem; /* 16 */
+  --radius-xl: 1.5rem; /* 24 */
+
+  /* ---- Elevation (Figma effect styles: Shadow/*) -------------------- */
+  --shadow-sm: 0 1px 2px rgb(28 24 21 / 0.08);
+  --shadow-md: 0 4px 12px rgb(28 24 21 / 0.1);
+  --shadow-lg: 0 12px 32px rgb(28 24 21 / 0.16);
+  --shadow-sheet: 0 -8px 32px rgb(28 24 21 / 0.18);
+
+  /* ---- Type (Figma text styles). Use as `text-title`, `text-small-strong`… */
+  --text-display: 2rem;
+  --text-display--line-height: 2.5rem;
+  --text-display--font-weight: 800;
+  --text-display--letter-spacing: -0.003em;
+
+  --text-title: 1.5rem;
+  --text-title--line-height: 1.875rem;
+  --text-title--font-weight: 700;
+  --text-title--letter-spacing: -0.002em;
+
+  --text-heading: 1.125rem;
+  --text-heading--line-height: 1.5rem;
+  --text-heading--font-weight: 700;
+
+  --text-body: 1rem;
+  --text-body--line-height: 1.5rem;
+  --text-body--font-weight: 400;
+
+  --text-body-strong: 1rem;
+  --text-body-strong--line-height: 1.5rem;
+  --text-body-strong--font-weight: 600;
+
+  --text-small: 0.875rem;
+  --text-small--line-height: 1.25rem;
+  --text-small--font-weight: 400;
+
+  --text-small-strong: 0.875rem;
+  --text-small-strong--line-height: 1.25rem;
+  --text-small-strong--font-weight: 600;
+
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1rem;
+  --text-caption--font-weight: 600;
+  --text-caption--letter-spacing: 0.002em;
+
+  --text-button: 1rem;
+  --text-button--line-height: 1.25rem;
+  --text-button--font-weight: 700;
+
+  --text-number: 1.75rem;
+  --text-number--line-height: 2rem;
+  --text-number--font-weight: 800;
+  --text-number--letter-spacing: -0.003em;
 }
 
+/* Font wiring: the variable comes from next/font in layout.tsx. */
+@theme inline {
+  --font-sans: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
+}
+
+/*
+ * Dark mode: follows the system, and can be forced on any subtree with
+ * `data-theme="dark"` (or back to light with `data-theme="light"`) — the
+ * /design page uses that to show both side by side.
+ */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]) {
+    --color-bg-canvas: var(--color-sand-950);
+    --color-bg-surface: var(--color-sand-900);
+    --color-bg-subtle: var(--color-sand-800);
+    --color-bg-overlay: var(--color-sand-950);
+
+    --color-text-primary: var(--color-sand-50);
+    --color-text-secondary: var(--color-sand-300);
+    --color-text-tertiary: var(--color-sand-400);
+    --color-text-on-accent: var(--color-sand-950);
+    --color-text-link: var(--color-coral-300);
+
+    --color-border-default: var(--color-sand-700);
+    --color-border-strong: var(--color-sand-600);
+    --color-border-focus: var(--color-coral-300);
+
+    --color-accent-default: var(--color-coral-400);
+    --color-accent-pressed: var(--color-coral-300);
+    --color-accent-subtle: var(--color-coral-900);
+    --color-accent-subtle-text: var(--color-coral-200);
+
+    --color-success-bg: var(--color-green-900);
+    --color-success-border: var(--color-green-700);
+    --color-success-fg: var(--color-green-300);
+
+    --color-warning-bg: var(--color-amber-900);
+    --color-warning-border: var(--color-amber-700);
+    --color-warning-fg: var(--color-amber-300);
+
+    --color-danger-bg: var(--color-red-900);
+    --color-danger-border: var(--color-red-700);
+    --color-danger-fg: var(--color-red-300);
+    --color-danger-solid: var(--color-red-500);
+
+    --color-info-bg: var(--color-blue-900);
+    --color-info-border: var(--color-blue-700);
+    --color-info-fg: var(--color-blue-300);
+
+    color-scheme: dark;
   }
 }
 
-html {
-  height: 100%;
+[data-theme="dark"] {
+  --color-bg-canvas: var(--color-sand-950);
+  --color-bg-surface: var(--color-sand-900);
+  --color-bg-subtle: var(--color-sand-800);
+  --color-bg-overlay: var(--color-sand-950);
+
+  --color-text-primary: var(--color-sand-50);
+  --color-text-secondary: var(--color-sand-300);
+  --color-text-tertiary: var(--color-sand-400);
+  --color-text-on-accent: var(--color-sand-950);
+  --color-text-link: var(--color-coral-300);
+
+  --color-border-default: var(--color-sand-700);
+  --color-border-strong: var(--color-sand-600);
+  --color-border-focus: var(--color-coral-300);
+
+  --color-accent-default: var(--color-coral-400);
+  --color-accent-pressed: var(--color-coral-300);
+  --color-accent-subtle: var(--color-coral-900);
+  --color-accent-subtle-text: var(--color-coral-200);
+
+  --color-success-bg: var(--color-green-900);
+  --color-success-border: var(--color-green-700);
+  --color-success-fg: var(--color-green-300);
+
+  --color-warning-bg: var(--color-amber-900);
+  --color-warning-border: var(--color-amber-700);
+  --color-warning-fg: var(--color-amber-300);
+
+  --color-danger-bg: var(--color-red-900);
+  --color-danger-border: var(--color-red-700);
+  --color-danger-fg: var(--color-red-300);
+  --color-danger-solid: var(--color-red-500);
+
+  --color-info-bg: var(--color-blue-900);
+  --color-info-border: var(--color-blue-700);
+  --color-info-fg: var(--color-blue-300);
+
+  color-scheme: dark;
 }
 
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
-}
-
-body {
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-  color: var(--foreground);
-  background: var(--background);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-@media (prefers-color-scheme: dark) {
+/*
+ * Base styles live in the `base` layer so utilities (`text-text-link` on an
+ * <a>, say) can override them. Unlayered CSS would always win.
+ */
+@layer base {
   html {
-    color-scheme: dark;
+    height: 100%;
+  }
+
+  html,
+  body {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  body {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    color: var(--color-text-primary);
+    background: var(--color-bg-canvas);
+    font-family: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  /* One visible focus ring for everything focusable, keyboard users only. */
+  :focus-visible {
+    outline: 2px solid var(--color-border-focus);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }

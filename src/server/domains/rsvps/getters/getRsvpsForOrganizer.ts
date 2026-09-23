@@ -1,5 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import type { Db } from "@/server/db";
+import { eventRules } from "@/server/domains/events";
+import { organizerRowActions } from "@/server/domains/rsvps/rules";
 
 export interface GetRsvpsForOrganizerInput {
   eventId: string;
@@ -9,8 +11,13 @@ export interface GetRsvpsForOrganizerInput {
 /**
  * Organizer event list (§8): every RSVP for the event — going and dropped
  * out alike — with each player's no-show count for this group.
+ *
+ * Also says what the organizer can do *right now*: the event's phase and
+ * event-level actions, and each person's allowed actions. The screen
+ * renders these as given rather than re-deriving them, so "why can't I
+ * remove someone?" is answered by the rules, not by UI code.
  */
-export async function getRsvpsForOrganizer(db: Db, input: GetRsvpsForOrganizerInput) {
+export async function getRsvpsForOrganizer(db: Db, input: GetRsvpsForOrganizerInput, now: Date) {
   const event = await db.event.findUnique({
     where: { id: input.eventId },
     include: {
@@ -37,8 +44,19 @@ export async function getRsvpsForOrganizer(db: Db, input: GetRsvpsForOrganizerIn
   });
   const noShowByUser = new Map(noShowCounts.map((row) => [row.userId, row._count._all]));
 
+  const eventActions = eventRules.organizerEventActions(event, now);
+
   return {
     event,
-    rsvps: event.rsvps.map((rsvp) => ({ ...rsvp, noShowCount: noShowByUser.get(rsvp.userId) ?? 0 })),
+    eventActions,
+    rsvps: event.rsvps.map((rsvp) => ({
+      ...rsvp,
+      noShowCount: noShowByUser.get(rsvp.userId) ?? 0,
+      actions: organizerRowActions({
+        rsvp,
+        phase: eventActions.phase,
+        isOrganizersOwnRsvp: rsvp.userId === input.organizerId,
+      }),
+    })),
   };
 }

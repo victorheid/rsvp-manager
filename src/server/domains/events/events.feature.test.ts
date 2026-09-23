@@ -218,4 +218,65 @@ describe.skipIf(!hasTestDb)("events", () => {
       callerAs(impostor.id, impostor.phoneNumber).events.cancel({ eventId: event.id }),
     ).rejects.toThrow("Only the group's organizer");
   });
+  describe("suggestDefaults", () => {
+    it("copies the last game's setup and re-anchors it to the picked date", async () => {
+      const { caller, group } = await createOrganizerAndGroup();
+      const lastStart = new Date("2030-09-17T18:00:00Z");
+      await caller.events.create({
+        groupId: group.id,
+        title: "Thursday 5-a-side",
+        startsAt: lastStart,
+        endsAt: new Date(lastStart.getTime() + 90 * 60 * 1000),
+        location: "Westside Sports Hall",
+        cutoffAt: new Date(lastStart.getTime() - 6 * 60 * 60 * 1000),
+        minPlayers: 6,
+        maxPlayers: 12,
+        totalCostCents: 8000,
+        pricingMode: PricingMode.SPLIT_EVENLY,
+        cashAllowed: true,
+      });
+
+      const nextStart = new Date("2030-09-24T18:00:00Z");
+      const defaults = await caller.events.suggestDefaults({ groupId: group.id, startsAt: nextStart });
+
+      expect(defaults).toMatchObject({
+        title: "Tuesday 5-a-side",
+        location: "Westside Sports Hall",
+        minPlayers: 6,
+        maxPlayers: 12,
+        totalCostCents: 8000,
+        basedOnTitle: "Thursday 5-a-side",
+      });
+      expect(defaults.endsAt).toEqual(new Date("2030-09-24T19:30:00Z"));
+      expect(defaults.cutoffAt).toEqual(new Date("2030-09-24T12:00:00Z"));
+    });
+
+    it("falls back to the group's name and blanks for a group's first game", async () => {
+      const { caller, group } = await createOrganizerAndGroup();
+
+      const defaults = await caller.events.suggestDefaults({
+        groupId: group.id,
+        startsAt: new Date("2030-09-24T18:00:00Z"),
+      });
+
+      expect(defaults.basedOnTitle).toBeNull();
+      // The group's name already leads with a weekday, so it's swapped, not prefixed.
+      expect(defaults.title).toBe("Tuesday Volleyball");
+      expect(defaults.location).toBe("");
+    });
+
+    it("rejects someone who doesn't organize the group", async () => {
+      const { group } = await createOrganizerAndGroup();
+      const stranger = await db.user.create({
+        data: { phoneNumber: "+353850000002", firstName: "Sam", lastInitial: "S" },
+      });
+
+      await expect(
+        callerAs(stranger.id, stranger.phoneNumber).events.suggestDefaults({
+          groupId: group.id,
+          startsAt: new Date("2030-09-24T18:00:00Z"),
+        }),
+      ).rejects.toThrow("Only the group's organizer");
+    });
+  });
 });

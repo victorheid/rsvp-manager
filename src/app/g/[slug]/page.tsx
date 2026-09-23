@@ -2,134 +2,158 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
+import {
+  Button,
+  EmptyState,
+  EventCard,
+  IconButton,
+  Screen,
+  ScreenSkeleton,
+  SectionHeader,
+  SharePreview,
+  ShareSheet,
+  StatusChip,
+  TopBar,
+} from "@/components/ui";
 import { trpc } from "@/lib/trpc/client";
-import { SignInFlow } from "@/app/_components/SignInFlow";
+import { formatDateTime } from "@/lib/format";
+import type { RouterOutputs } from "@/lib/trpc/types";
+import { eventChip } from "@/app/_components/eventPhase";
+import { eventPriceText, headcountText } from "@/app/_components/eventPrice";
+import { SignInSheet } from "@/app/_components/SignInSheet";
+import { useOpenShareOnArrival } from "@/app/_components/useOpenShareOnArrival";
+import { useOrigin } from "@/app/_components/useOrigin";
 import { useRequireAuth } from "@/app/_components/useRequireAuth";
 
-function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat("en-IE", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
+type GroupEvent = RouterOutputs["groups"]["getBySlug"]["events"][number];
 
-const STATUS_LABEL: Record<string, string> = {
-  OPEN: "Open",
-  CONFIRMED: "Confirmed",
-  CANCELLED: "Cancelled",
-  EXPIRED: "Didn't go ahead",
-};
-
+/** UI spec §5: the group's permanent link — upcoming games first, past ones tucked away. */
 export default function GroupPage() {
   const { slug } = useParams<{ slug: string }>();
   const utils = trpc.useUtils();
+  const origin = useOrigin();
   const { data: group, isLoading, error } = trpc.groups.getBySlug.useQuery({ slug });
-  const { me, requireAuth, isSigningIn, handleSignedIn, cancelSignIn } = useRequireAuth();
-  const [now] = useState(() => Date.now());
+  const { me, requireAuth, signInSheetProps } = useRequireAuth();
+  const { shareOpen, setShareOpen } = useOpenShareOnArrival();
+  const [showPast, setShowPast] = useState(false);
+  const [now] = useState(() => new Date());
 
   const join = trpc.groups.join.useMutation({
     onSuccess: () => utils.groups.getBySlug.invalidate({ slug }),
   });
 
   if (isLoading) {
-    return <main className="mx-auto max-w-2xl p-4">Loading…</main>;
+    return <ScreenSkeleton backHref="/" />;
   }
 
   if (error || !group) {
-    return <main className="mx-auto max-w-2xl p-4">Group not found.</main>;
+    return (
+      <Screen topBar={<TopBar backHref="/" title="Group" />}>
+        <EmptyState icon="info" title="Group not found" description="Check the link, or ask the organizer to send it again." />
+      </Screen>
+    );
   }
 
-  const upcoming = group.events.filter((event) => new Date(event.startsAt).getTime() >= now);
-  const past = group.events.filter((event) => new Date(event.startsAt).getTime() < now);
+  const isOrganizer = me?.id === group.organizerId;
+  const upcoming = group.events.filter((event) => new Date(event.startsAt) >= now);
+  const past = group.events.filter((event) => new Date(event.startsAt) < now).reverse();
+
+  function card(event: GroupEvent) {
+    return (
+      <EventCard
+        key={event.id}
+        href={`/e/${event.slug}`}
+        when={formatDateTime(new Date(event.startsAt))}
+        title={event.title}
+        status={eventChip(event, now)}
+        headcount={headcountText(event.goingCount, event.maxPlayers)}
+        price={eventPriceText(event)}
+      />
+    );
+  }
 
   return (
-    <main className="mx-auto flex max-w-2xl flex-col gap-6 p-4">
-      <div>
-        <h1 className="text-2xl font-semibold">{group.name}</h1>
-        {group.description && <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">{group.description}</p>}
-        <p className="mt-1 text-sm text-neutral-500">{group.memberCount} members</p>
+    <Screen
+      topBar={<TopBar backHref="/" title="Group" actions={<IconButton icon="share" label="Share group" onClick={() => setShareOpen(true)} />} />}
+    >
+      <div className="flex flex-col gap-2">
+        <h2 className="text-display text-text-primary">{group.name}</h2>
+        {group.description && <p className="text-body text-text-secondary">{group.description}</p>}
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusChip>{group.memberCount} {group.memberCount === 1 ? "member" : "members"}</StatusChip>
+          {isOrganizer && <StatusChip tone="accent">You organize this group</StatusChip>}
+          {group.isMember && !isOrganizer && <StatusChip tone="success">You’re a member</StatusChip>}
+        </div>
       </div>
 
-      {group.isMember ? (
-        <p className="text-sm text-neutral-500">You&apos;re a member</p>
-      ) : (
-        <button
-          type="button"
-          disabled={join.isPending}
-          onClick={() => requireAuth(() => join.mutate({ slug }))}
-          className="self-start rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
-        >
-          Join group
-        </button>
-      )}
-
-      {isSigningIn && (
-        <div className="flex flex-col gap-2">
-          <SignInFlow onSuccess={handleSignedIn} />
-          <button type="button" className="self-start text-sm text-neutral-500 underline" onClick={cancelSignIn}>
-            Cancel
-          </button>
-        </div>
-      )}
-
-      {join.error && <p className="text-sm text-red-600">{join.error.message}</p>}
-
-      {me?.id === group.organizerId && (
-        <div className="flex gap-2">
-          <a
-            href={`/g/${slug}/events/new`}
-            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
-          >
+      {isOrganizer ? (
+        <div className="flex flex-wrap gap-3">
+          <Button href={`/g/${slug}/events/new`} leadingIcon="plus">
             New game
-          </a>
-          <a
-            href={`/g/${slug}/edit`}
-            className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium dark:border-neutral-700"
-          >
+          </Button>
+          <Button href={`/g/${slug}/edit`} variant="secondary">
             Edit group
-          </a>
+          </Button>
+          <Button variant="secondary" onClick={() => setShareOpen(true)}>
+            Share link
+          </Button>
         </div>
+      ) : (
+        !group.isMember && (
+          <div className="flex flex-col gap-2">
+            <Button size="lg" fullWidth loading={join.isPending} onClick={() => requireAuth(() => join.mutate({ slug }))}>
+              Join group
+            </Button>
+            {join.error && <p role="alert" className="text-small text-danger-fg">{join.error.message}</p>}
+          </div>
+        )
       )}
 
-      <section>
-        <h2 className="mb-2 text-sm font-medium text-neutral-500">Upcoming games</h2>
-        {upcoming.length === 0 && <p className="text-sm text-neutral-500">No games yet.</p>}
-        <ul className="flex flex-col gap-2">
-          {upcoming.map((event) => (
-            <li key={event.id}>
-              <a
-                href={`/e/${event.slug}`}
-                className="block rounded-lg border border-neutral-200 p-3 dark:border-neutral-800"
-              >
-                <p className="font-medium">{event.title}</p>
-                <p className="text-sm text-neutral-500">
-                  {formatDate(new Date(event.startsAt))} · {STATUS_LABEL[event.status] ?? event.status} ·{" "}
-                  {event.goingCount}
-                  {event.maxPlayers !== null ? `/${event.maxPlayers}` : ""} in
-                </p>
-              </a>
-            </li>
-          ))}
-        </ul>
+      <section className="flex flex-col gap-3">
+        <SectionHeader title="Upcoming games" />
+        {upcoming.length === 0 ? (
+          <EmptyState
+            icon="calendar"
+            title={past.length > 0 ? "No upcoming games" : "No games yet"}
+            description={
+              isOrganizer
+                ? past.length > 0
+                  ? "Post the next one — it starts from your last game, so it only takes a date."
+                  : "Create the first game, then share the link in your group chat."
+                : "The organizer will post the next game here."
+            }
+            action={
+              isOrganizer ? (
+                <Button href={`/g/${slug}/events/new`} leadingIcon="plus">
+                  {past.length > 0 ? "New game" : "Create the first game"}
+                </Button>
+              ) : undefined
+            }
+          />
+        ) : (
+          upcoming.map(card)
+        )}
       </section>
 
       {past.length > 0 && (
-        <details className="mt-2">
-          <summary className="cursor-pointer text-sm font-medium text-neutral-500">Past games ({past.length})</summary>
-          <ul className="mt-2 flex flex-col gap-2">
-            {past.map((event) => (
-              <li key={event.id}>
-                <a href={`/e/${event.slug}`} className="block rounded-lg border border-neutral-200 p-3 text-sm dark:border-neutral-800">
-                  {event.title} · {formatDate(new Date(event.startsAt))}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </details>
+        <section className="flex flex-col gap-3">
+          <SectionHeader
+            title={`Past games · ${past.length}`}
+            action={{ label: showPast ? "Hide" : "Show", onClick: () => setShowPast((current) => !current) }}
+          />
+          {showPast && past.slice(0, 10).map(card)}
+        </section>
       )}
-    </main>
+
+      <ShareSheet
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        title="Share this group"
+        url={`${origin}/g/${slug}`}
+        message={`Join ${group.name} to see and RSVP for games.`}
+        preview={<SharePreview title={group.name} details="Join to see and RSVP for games." />}
+      />
+      <SignInSheet {...signInSheetProps} />
+    </Screen>
   );
 }

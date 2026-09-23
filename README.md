@@ -32,4 +32,5 @@ Without `.env.test`, `pnpm test` still runs — feature tests just skip themselv
 | `pnpm db:migrate` | Apply a Prisma schema change (dev DB) |
 | `pnpm db:test:migrate` | Apply migrations to the test DB (`.env.test`) |
 | `pnpm db:studio` | Browse the database |
+| `/design` | (with `pnpm dev`) Live gallery of every UI component, Light and Dark. Docs: [`src/components/ui/README.md`](src/components/ui/README.md) |
 | `pnpm worker` | Background worker: cut-off auto-confirm, event expiry (§3, §7) |
