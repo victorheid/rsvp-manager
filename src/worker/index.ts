@@ -1,4 +1,5 @@
 import { db } from "@/server/db";
+import { retryCancelledEventRefunds } from "@/server/domains/payments";
 import { getPaymentGateway } from "@/server/integrations/stripe";
 import { alertOrganizersOfUnconfirmedEvents, autoConfirmDueEvents, expireOverdueEvents, sendCutoffReminders } from "@/server/domains/events";
 
@@ -27,6 +28,11 @@ async function tick() {
   const alerted = await alertOrganizersOfUnconfirmedEvents(db, now);
   if (alerted.length > 0) {
     console.log(`[worker] alerted organizers about ${alerted.length} event(s): ${alerted.map((e) => e.slug).join(", ")}`);
+  }
+
+  const retriedRefunds = await retryCancelledEventRefunds(db, getPaymentGateway());
+  if (retriedRefunds > 0) {
+    console.log(`[worker] retried ${retriedRefunds} refund(s) for cancelled events`);
   }
 
   const expired = await expireOverdueEvents(db, now);

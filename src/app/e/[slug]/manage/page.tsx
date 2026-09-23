@@ -64,6 +64,8 @@ export default function ManageEventPage() {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [walkInOpen, setWalkInOpen] = useState(false);
   const [removing, setRemoving] = useState<OrganizerRsvp | null>(null);
+  const [refunding, setRefunding] = useState<OrganizerRsvp | null>(null);
+  const [refundAllOpen, setRefundAllOpen] = useState(false);
   const [showDropped, setShowDropped] = useState<boolean | null>(null);
   const [showWaitlist, setShowWaitlist] = useState(false);
 
@@ -90,6 +92,23 @@ export default function ManageEventPage() {
   const removeRsvp = trpc.rsvps.remove.useMutation({
     onSuccess: () => {
       setRemoving(null);
+      return refresh();
+    },
+  });
+  const refundRsvp = trpc.rsvps.refund.useMutation({
+    onSuccess: (result) => {
+      setRefunding(null);
+      toast({ message: `${formatCents(result.refundedCents)} refunded` });
+      return refresh();
+    },
+  });
+  const refundAll = trpc.rsvps.refundAll.useMutation({
+    onSuccess: (result) => {
+      setRefundAllOpen(false);
+      toast({
+        message: result.failed > 0 ? `${result.refunded} refunded, ${result.failed} failed — try again` : `${result.refunded} refunded`,
+        tone: result.failed > 0 ? "error" : undefined,
+      });
       return refresh();
     },
   });
@@ -227,6 +246,13 @@ export default function ManageEventPage() {
                 },
               ),
           };
+        case "REFUND":
+          return {
+            label: `Refund ${amount}`,
+            description: "The price goes back to their wallet or card. The service fee isn’t refunded.",
+            tone: "primary",
+            onSelect: () => setRefunding(rsvp),
+          };
         case "REMOVE":
           return {
             label: "Remove from game",
@@ -286,6 +312,7 @@ export default function ManageEventPage() {
         );
       case "EDIT":
       case "VIEW_PUBLIC_PAGE":
+      case "REFUND_ALL":
       case "CANCEL":
         return null;
     }
@@ -305,10 +332,19 @@ export default function ManageEventPage() {
         return { label: "Add walk-in", description: "Someone turning up who isn’t using the app.", onSelect: () => setWalkInOpen(true) };
       case "VIEW_PUBLIC_PAGE":
         return { label: "View public page", href: `/e/${slug}` };
+      case "REFUND_ALL":
+        return {
+          label: "Refund everyone who paid online",
+          description: "Prices go back to their wallets and cards. Service fees aren’t refunded.",
+          onSelect: () => setRefundAllOpen(true),
+        };
       case "CANCEL":
         return {
           label: "Cancel game",
-          description: "Players will see it’s cancelled. Nothing has been charged online.",
+          description:
+            phase === "CONFIRMED" && event.onlineAllowed
+              ? "Everyone who paid online is refunded in full, service fee included."
+              : "Players will see it’s cancelled. Nothing has been charged online.",
           tone: "danger",
           onSelect: () => setCancelOpen(true),
         };
@@ -483,6 +519,37 @@ export default function ManageEventPage() {
         pending={cancelEvent.isPending}
         error={cancelEvent.error?.message}
         onConfirm={() => cancelEvent.mutate({ eventId: event.id })}
+      />
+
+      <ConfirmSheet
+        open={refunding !== null}
+        onClose={() => setRefunding(null)}
+        title={refunding ? `Refund ${personName(refunding)}?` : "Refund?"}
+        banner={{
+          tone: "info",
+          title: `${formatCents(amountCents)} goes back to their wallet or card`,
+          body: "The service fee isn’t refunded. You can refund until you’re paid out, two days after the game.",
+        }}
+        confirmLabel={refunding ? `Refund ${personName(refunding)}` : "Refund"}
+        pending={refundRsvp.isPending}
+        error={refundRsvp.error?.message}
+        onConfirm={() => refunding && refundRsvp.mutate({ rsvpId: refunding.id })}
+      />
+
+      <ConfirmSheet
+        open={refundAllOpen}
+        onClose={() => setRefundAllOpen(false)}
+        title="Refund everyone who paid online?"
+        tone="destructive"
+        banner={{
+          tone: "warning",
+          title: "Prices go back to wallets and cards",
+          body: "Service fees aren’t refunded, and cash isn’t affected. You can refund until you’re paid out, two days after the game.",
+        }}
+        confirmLabel="Refund everyone"
+        pending={refundAll.isPending}
+        error={refundAll.error?.message}
+        onConfirm={() => refundAll.mutate({ eventId: event.id })}
       />
 
       <ConfirmSheet

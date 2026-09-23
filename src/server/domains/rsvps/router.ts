@@ -8,6 +8,8 @@ import { dropRsvp } from "@/server/domains/rsvps/actions/dropRsvp";
 import { markAttendance } from "@/server/domains/rsvps/actions/markAttendance";
 import { markPaidOutsideApp } from "@/server/domains/rsvps/actions/markPaidOutsideApp";
 import { undoMarkPaidOutsideApp } from "@/server/domains/rsvps/actions/undoMarkPaidOutsideApp";
+import { refundAllOnline } from "@/server/domains/rsvps/actions/refundAllOnline";
+import { refundRsvp } from "@/server/domains/rsvps/actions/refundRsvp";
 import { removeRsvp } from "@/server/domains/rsvps/actions/removeRsvp";
 import { addWalkIn } from "@/server/domains/rsvps/actions/addWalkIn";
 import { getUpcomingRsvpsForUser } from "@/server/domains/rsvps/getters/getUpcomingRsvpsForUser";
@@ -75,6 +77,18 @@ export const rsvpsRouter = router({
   remove: protectedProcedure
     .input(z.object({ rsvpId: z.string() }))
     .mutation(({ ctx, input }) => removeRsvp(ctx.db, { rsvpId: input.rsvpId, organizerId: ctx.user.id }, new Date())),
+
+  refund: protectedProcedure
+    .input(z.object({ rsvpId: z.string() }))
+    .mutation(({ ctx, input }) =>
+      refundRsvp(ctx.db, getPaymentGateway(), { rsvpId: input.rsvpId, organizerId: ctx.user.id }, new Date()),
+    ),
+
+  refundAll: protectedProcedure
+    .input(z.object({ eventId: z.string() }))
+    .mutation(({ ctx, input }) =>
+      refundAllOnline(ctx.db, getPaymentGateway(), { eventId: input.eventId, organizerId: ctx.user.id }, new Date()),
+    ),
 
   addWalkIn: protectedProcedure
     .input(

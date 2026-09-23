@@ -72,7 +72,7 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 - [x] Add walk-in (name only, doesn't count against max) — `Rsvp.userId` is now optional with a `walkInName` fallback; hidden from the public event page's "Who's in" list, shown (tagged) on the manage screen
 - [x] Dropped-out entries stay on the list marked "Dropped out" with their payment status (organizer can refund as usual)
 - [x] Remove a player (pending confirmation) — confirmation sheet in the UI; only offered before the game starts (once it's running, not showing up is a no-show)
-- [ ] Refund one / refund all online-paid (price only, service fee kept; until payout) — needs online payments (§5)
+- [x] Refund one / refund all online-paid (price only, service fee kept; until payout) — `rsvps.refund` / `rsvps.refundAll`, driven by the `REFUND` row action and `REFUND_ALL` menu action; Manage screen has both with confirmation sheets. A worker sweep retries cancellation refunds the provider rejected
 
 ## 9. Notifications
 - [x] Trigger table from spec §9 wired to push — new event, confirmed, details changed, cancelled, removed, spot open (notify-me). Still open: cut-off reminder and organizer alert (below), "moved in from waitlist", "payment failed", "refund issued" (need §5)
@@ -93,7 +93,7 @@ Design source: the Figma design system (Foundations, Components, Screens, Flows 
 - [ ] Mount the bottom `TabBar` (needs `/me` and Wallet)
 - [ ] Wallet, top-up, `/me`, `/pay/{token}` screens (§5, §9; blocked on wallet legal check / Stripe)
 - [ ] RSVP payment choice with wallet and card (needs §5); the sheet has only Cash today
-- [ ] Refund and "Send pay link again" in the row menu (needs §5)
+- [ ] "Send pay link again" in the row menu (Refund is done; resending needs a small action + notification)
 - [x] Section-level skeletons (`SectionSkeleton`, used on Home), sheet enter animation (no exit animation: native `<dialog>`), `ActionMenu` flip-up near the viewport bottom
 - [ ] Decide: allow confirming below the minimum ("confirm anyway", UI spec §10.9)? `confirmEvent` currently refuses; the Manage screen disables the button and explains (UI spec open question 9)
 - [x] Server-side guards for the phase rules — `markAttendance`, `markPaidOutsideApp` and `removeRsvp` check the action is in `organizerRowActions` for the event's current phase

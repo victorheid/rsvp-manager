@@ -48,7 +48,7 @@ export function hasShownUp(rsvp: Pick<RsvpModel, "attended">): boolean {
 }
 
 /** Things the organizer can do to one person from the Manage screen. */
-export type OrganizerRowAction = "MARK_PAID" | "MARK_NO_SHOW" | "UNDO_NO_SHOW" | "REMOVE";
+export type OrganizerRowAction = "MARK_PAID" | "MARK_NO_SHOW" | "UNDO_NO_SHOW" | "REFUND" | "REMOVE";
 
 /**
  * Which per-person actions exist right now (UI spec §10.5). The list is in
@@ -57,17 +57,23 @@ export type OrganizerRowAction = "MARK_PAID" | "MARK_NO_SHOW" | "UNDO_NO_SHOW" |
  *
  *  - Mark paid: only once the game is confirmed. Before that nothing has
  *    been charged, and cash is collected on the day.
+ *  - Refund: an online payment that went through, until the organizer is
+ *    paid out (`refundsOpen`, §5). It stays on someone who dropped out —
+ *    that's where the organizer decides to refund them (§4) — and it
+ *    leads for them, as their only action.
  *  - Remove: only before the game starts. Once it's running, someone who
  *    isn't there is a no-show, not a removal.
  *  - No-show / undo: only once the game has started, and never on the
  *    organizer's own RSVP.
  */
 export function organizerRowActions(input: {
-  rsvp: Pick<RsvpModel, "status" | "paymentStatus" | "attended">;
+  rsvp: Pick<RsvpModel, "status" | "paymentStatus" | "paymentMethod" | "attended">;
   phase: EventPhase;
   isOrganizersOwnRsvp: boolean;
+  /** Payout not released yet (§5): refunds still happen in the app. */
+  refundsOpen: boolean;
 }): OrganizerRowAction[] {
-  const { rsvp, phase, isOrganizersOwnRsvp } = input;
+  const { rsvp, phase, isOrganizersOwnRsvp, refundsOpen } = input;
   const isGoing = rsvp.status === "GOING";
   const gameStarted = phase === "LIVE" || phase === "FINISHED";
   const paymentDue = rsvp.paymentStatus === "PENDING" || rsvp.paymentStatus === "OWES";
@@ -83,6 +89,10 @@ export function organizerRowActions(input: {
 
   if (isGoing && gameStarted && !isOrganizersOwnRsvp && hasShownUp(rsvp)) {
     actions.push("MARK_NO_SHOW");
+  }
+
+  if (rsvp.paymentStatus === "CHARGED" && rsvp.paymentMethod !== "CASH" && refundsOpen) {
+    actions.push("REFUND");
   }
 
   if (isGoing && !isOrganizersOwnRsvp && (phase === "OPEN" || phase === "CONFIRMED")) {

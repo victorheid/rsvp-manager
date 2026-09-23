@@ -128,6 +128,7 @@ export type OrganizerEventAction =
   | "REPEAT"
   | "ADD_WALK_IN"
   | "VIEW_PUBLIC_PAGE"
+  | "REFUND_ALL"
   | "CANCEL";
 
 export interface OrganizerEventActions {
@@ -149,12 +150,18 @@ export interface OrganizerEventActions {
  * "Confirm now" supports it — unless auto-charge is off or the cut-off has
  * passed, when confirming *is* the decision the organizer has to make (§3,
  * §10.9), so it leads instead.
+ *
+ * "Refund all online-paid" (§8) appears once the game is confirmed, while
+ * there's still something to refund and the payout hasn't been released
+ * (`refundableOnlinePayments`, worked out by the caller from the payments).
  */
 export function organizerEventActions(
   event: Pick<EventModel, "status" | "startsAt" | "endsAt" | "cutoffAt" | "autoChargeAtCutoff">,
   now: Date,
+  options: { refundableOnlinePayments?: boolean } = {},
 ): OrganizerEventActions {
   const phase = eventPhase(event, now);
+  const refundAll: OrganizerEventAction[] = options.refundableOnlinePayments ? ["REFUND_ALL"] : [];
 
   switch (phase) {
     case "OPEN": {
@@ -167,10 +174,11 @@ export function organizerEventActions(
       };
     }
     case "CONFIRMED":
-      return { phase, primary: "SHARE", secondary: null, menu: ["REPEAT", "ADD_WALK_IN", "VIEW_PUBLIC_PAGE", "CANCEL"] };
+      return { phase, primary: "SHARE", secondary: null, menu: ["REPEAT", "ADD_WALK_IN", "VIEW_PUBLIC_PAGE", ...refundAll, "CANCEL"] };
     case "LIVE":
-      return { phase, primary: "ADD_WALK_IN", secondary: null, menu: ["REPEAT", "VIEW_PUBLIC_PAGE"] };
+      return { phase, primary: "ADD_WALK_IN", secondary: null, menu: ["REPEAT", "VIEW_PUBLIC_PAGE", ...refundAll] };
     case "FINISHED":
+      return { phase, primary: "REPEAT", secondary: null, menu: ["VIEW_PUBLIC_PAGE", ...refundAll] };
     case "CANCELLED":
     case "EXPIRED":
       return { phase, primary: "REPEAT", secondary: null, menu: ["VIEW_PUBLIC_PAGE"] };

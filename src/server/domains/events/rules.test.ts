@@ -403,3 +403,31 @@ describe("paymentOptionsProblem", () => {
     expect(paymentOptionsProblem(options, payoutsEnabled)).toBe(expected);
   });
 });
+
+describe("organizerEventActions: refund all", () => {
+  const confirmed = {
+    status: EventStatus.CONFIRMED,
+    startsAt: new Date("2026-10-02T18:00:00Z"),
+    endsAt: new Date("2026-10-02T19:00:00Z"),
+    cutoffAt: new Date("2026-10-01T18:00:00Z"),
+    autoChargeAtCutoff: true,
+  };
+
+  it("is offered once the game is confirmed and something is refundable, before Cancel", () => {
+    const menu = organizerEventActions(confirmed, new Date("2026-10-01T20:00:00Z"), { refundableOnlinePayments: true }).menu;
+
+    expect(menu).toContain("REFUND_ALL");
+    expect(menu[menu.length - 1]).toBe("CANCEL");
+  });
+
+  it("is offered while live and after the game, but never for cancelled or expired ones", () => {
+    const opts = { refundableOnlinePayments: true };
+    expect(organizerEventActions(confirmed, new Date("2026-10-02T18:30:00Z"), opts).menu).toContain("REFUND_ALL");
+    expect(organizerEventActions(confirmed, new Date("2026-10-02T20:00:00Z"), opts).menu).toContain("REFUND_ALL");
+    expect(organizerEventActions({ ...confirmed, status: EventStatus.CANCELLED }, new Date("2026-10-01T20:00:00Z"), opts).menu).not.toContain("REFUND_ALL");
+  });
+
+  it("is not offered when nothing is refundable", () => {
+    expect(organizerEventActions(confirmed, new Date("2026-10-01T20:00:00Z")).menu).not.toContain("REFUND_ALL");
+  });
+});

@@ -37,15 +37,52 @@ describe("hasShownUp", () => {
 });
 
 describe("organizerRowActions", () => {
-  const going = { status: "GOING", paymentStatus: "CHARGED", attended: null } as const;
-  const cashDue = { status: "GOING", paymentStatus: "PENDING", attended: null } as const;
-  const owes = { status: "GOING", paymentStatus: "OWES", attended: null } as const;
-  const noShow = { status: "GOING", paymentStatus: "CHARGED", attended: false } as const;
-  const droppedOutOwing = { status: "CANCELLED", paymentStatus: "OWES", attended: null } as const;
+  const going = { status: "GOING", paymentStatus: "CHARGED", paymentMethod: "CASH", attended: null } as const;
+  const cashDue = { status: "GOING", paymentStatus: "PENDING", paymentMethod: "CASH", attended: null } as const;
+  const owes = { status: "GOING", paymentStatus: "OWES", paymentMethod: "CASH", attended: null } as const;
+  const noShow = { status: "GOING", paymentStatus: "CHARGED", paymentMethod: "CASH", attended: false } as const;
+  const droppedOutOwing = { status: "CANCELLED", paymentStatus: "OWES", paymentMethod: "CASH", attended: null } as const;
 
-  function actions(rsvp: Parameters<typeof organizerRowActions>[0]["rsvp"], phase: Parameters<typeof organizerRowActions>[0]["phase"], own = false) {
-    return organizerRowActions({ rsvp, phase, isOrganizersOwnRsvp: own });
+  function actions(
+    rsvp: Parameters<typeof organizerRowActions>[0]["rsvp"],
+    phase: Parameters<typeof organizerRowActions>[0]["phase"],
+    own = false,
+    refundsOpen = true,
+  ) {
+    return organizerRowActions({ rsvp, phase, isOrganizersOwnRsvp: own, refundsOpen });
   }
+
+  describe("Refund (§8)", () => {
+    const paidByCard = { status: "GOING", paymentStatus: "CHARGED", paymentMethod: "CARD", attended: null } as const;
+    const paidFromWallet = { ...paidByCard, paymentMethod: "WALLET" } as const;
+    const droppedOutPaid = { ...paidByCard, status: "CANCELLED" } as const;
+
+    it("is offered on an online payment that went through, last before Remove", () => {
+      expect(actions(paidByCard, "OPEN")).toEqual(["REFUND", "REMOVE"]);
+      expect(actions(paidFromWallet, "CONFIRMED")).toEqual(["REFUND", "REMOVE"]);
+      expect(actions(paidByCard, "LIVE")).toEqual(["MARK_NO_SHOW", "REFUND"]);
+    });
+
+    it("is the only action for someone who dropped out after paying", () => {
+      expect(actions(droppedOutPaid, "CONFIRMED")).toEqual(["REFUND"]);
+      expect(actions(droppedOutPaid, "FINISHED")).toEqual(["REFUND"]);
+    });
+
+    it("goes away once the organizer has been paid out", () => {
+      expect(actions(droppedOutPaid, "FINISHED", false, false)).toEqual([]);
+    });
+
+    it("is never offered for cash, unpaid or already-refunded RSVPs", () => {
+      expect(actions({ ...paidByCard, paymentMethod: "CASH" }, "CONFIRMED")).not.toContain("REFUND");
+      expect(actions({ ...paidByCard, paymentStatus: "OWES" }, "CONFIRMED")).not.toContain("REFUND");
+      expect(actions({ ...paidByCard, paymentStatus: "REFUNDED" }, "CONFIRMED")).not.toContain("REFUND");
+    });
+
+    it("still shows on a cancelled event if the cancellation's refund didn't go through", () => {
+      expect(actions(paidByCard, "CANCELLED")).toEqual(["REFUND"]);
+      expect(actions({ ...paidByCard, paymentStatus: "REFUNDED" }, "CANCELLED")).toEqual([]);
+    });
+  });
 
   it("offers only Remove while the game is open — nothing has been charged or played yet", () => {
     expect(actions(going, "OPEN")).toEqual(["REMOVE"]);

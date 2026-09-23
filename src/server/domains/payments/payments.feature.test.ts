@@ -355,6 +355,29 @@ describe.skipIf(!hasTestDb)("online payments (wallet and card)", () => {
       expect((await db.rsvp.findUniqueOrThrow({ where: { id: rsvp.id } })).paymentStatus).toBe("REFUNDED");
     });
 
+    it("retries a cancellation refund the provider rejected the first time", async () => {
+      const { organizerCaller, event } = await makeOrganizerAndEvent();
+      const { caller } = await makePlayer("Ann", "+353830000002");
+      await rsvpWithCard(caller, event.id);
+      await organizerCaller.events.confirm({ eventId: event.id });
+      const original = fakePaymentGateway.refund.bind(fakePaymentGateway);
+      fakePaymentGateway.refund = async () => {
+        throw new Error("provider down");
+      };
+
+      try {
+        await organizerCaller.events.cancel({ eventId: event.id });
+      } finally {
+        fakePaymentGateway.refund = original;
+      }
+      expect(fakePaymentGateway.refundsMade).toHaveLength(0);
+
+      const { retryCancelledEventRefunds } = await import("@/server/domains/payments");
+      expect(await retryCancelledEventRefunds(db, fakePaymentGateway)).toBe(1);
+      expect(fakePaymentGateway.refundsMade.map((r) => r.amountCents)).toEqual([850]);
+      expect(await retryCancelledEventRefunds(db, fakePaymentGateway)).toBe(0);
+    });
+
     it("refunds someone who dropped out after paying when the event is cancelled", async () => {
       const { organizerCaller, event } = await makeOrganizerAndEvent();
       const { caller } = await makePlayer("Ann", "+353830000002");
@@ -388,6 +411,116 @@ describe.skipIf(!hasTestDb)("online payments (wallet and card)", () => {
       const { caller } = await makePlayer("Ann", "+353830000002");
 
       await expect(caller.rsvps.beginCardSetup({ eventId: cashOnly.id })).rejects.toThrow("doesn't accept online payments");
+    });
+  });
+
+  describe("organizer refunds (§8)", () => {
+    async function confirmedWithCardAndWalletPlayers() {
+      const setup = await makeOrganizerAndEvent();
+      const card = await makePlayer("Ann", "+353830000002");
+      const wallet = await makePlayer("Bea", "+353830000003");
+      const cash = await makePlayer("Cy", "+353830000004");
+      await db.pushSubscription.create({ data: { userId: card.user.id, endpoint: "https://push.example/ann", p256dh: "k", auth: "a" } });
+      const cardRsvp = await rsvpWithCard(card.caller, setup.event.id);
+      await fundWallet(wallet.caller, 2000);
+      const walletRsvp = await wallet.caller.rsvps.create({ eventId: setup.event.id, paymentMethod: "WALLET" });
+      const cashRsvp = await cash.caller.rsvps.create({ eventId: setup.event.id, paymentMethod: "CASH" });
+      await setup.organizerCaller.events.confirm({ eventId: setup.event.id });
+      fakePushSender.reset();
+      return { ...setup, card, wallet, cash, cardRsvp, walletRsvp, cashRsvp };
+    }
+
+    it("offers Refund on online-paid rows and Refund all on the event, but not on cash", async () => {
+      const { organizerCaller, event, cardRsvp, walletRsvp, cashRsvp } = await confirmedWithCardAndWalletPlayers();
+
+      const view = await organizerCaller.rsvps.forOrganizer({ eventId: event.id });
+
+      expect(view.rsvps.find((r) => r.id === cardRsvp.id)?.actions).toContain("REFUND");
+      expect(view.rsvps.find((r) => r.id === walletRsvp.id)?.actions).toContain("REFUND");
+      expect(view.rsvps.find((r) => r.id === cashRsvp.id)?.actions).not.toContain("REFUND");
+      expect(view.eventActions.menu).toContain("REFUND_ALL");
+      expect(JSON.stringify(view.rsvps)).not.toContain("payToken");
+    });
+
+    it("refunds a card payment's price but keeps the service fee, and tells the person", async () => {
+      const { organizerCaller, cardRsvp } = await confirmedWithCardAndWalletPlayers();
+
+      const result = await organizerCaller.rsvps.refund({ rsvpId: cardRsvp.id });
+
+      expect(result.refundedCents).toBe(800);
+      expect(fakePaymentGateway.refundsMade.map((r) => r.amountCents)).toEqual([800]); // not the €0.50 fee
+      expect(await db.payment.findFirstOrThrow({ where: { rsvpId: cardRsvp.id } })).toMatchObject({ refundedCents: 800, feeRefundedCents: 0 });
+      expect((await db.rsvp.findUniqueOrThrow({ where: { id: cardRsvp.id } })).paymentStatus).toBe("REFUNDED");
+      expect(fakePushSender.sent.some((entry) => entry.message.title === "You've been refunded")).toBe(true);
+    });
+
+    it("refunds a wallet payment back onto the balance", async () => {
+      const { organizerCaller, wallet, walletRsvp } = await confirmedWithCardAndWalletPlayers();
+      expect((await wallet.caller.wallet.summary()).balanceCents).toBe(1200);
+
+      await organizerCaller.rsvps.refund({ rsvpId: walletRsvp.id });
+
+      expect((await wallet.caller.wallet.summary()).balanceCents).toBe(2000);
+    });
+
+    it("refunds someone who dropped out after paying", async () => {
+      const { organizerCaller, card, cardRsvp } = await confirmedWithCardAndWalletPlayers();
+      await card.caller.rsvps.drop({ eventId: cardRsvp.eventId });
+
+      const view = await organizerCaller.rsvps.forOrganizer({ eventId: cardRsvp.eventId });
+      expect(view.rsvps.find((r) => r.id === cardRsvp.id)?.actions).toEqual(["REFUND"]);
+
+      await organizerCaller.rsvps.refund({ rsvpId: cardRsvp.id });
+      expect(fakePaymentGateway.refundsMade).toHaveLength(1);
+    });
+
+    it("can't refund twice, or cash, or as a non-organizer", async () => {
+      const { organizerCaller, card, cardRsvp, cashRsvp } = await confirmedWithCardAndWalletPlayers();
+
+      await expect(card.caller.rsvps.refund({ rsvpId: cardRsvp.id })).rejects.toThrow("Only the group's organizer");
+      await expect(organizerCaller.rsvps.refund({ rsvpId: cashRsvp.id })).rejects.toThrow("isn't possible at this stage");
+
+      await organizerCaller.rsvps.refund({ rsvpId: cardRsvp.id });
+      await expect(organizerCaller.rsvps.refund({ rsvpId: cardRsvp.id })).rejects.toThrow("isn't possible at this stage");
+      expect(fakePaymentGateway.refundsMade).toHaveLength(1);
+    });
+
+    it("refunds everyone who paid online in one go, leaving cash alone", async () => {
+      const { organizerCaller, event, cashRsvp } = await confirmedWithCardAndWalletPlayers();
+
+      const result = await organizerCaller.rsvps.refundAll({ eventId: event.id });
+
+      expect(result).toEqual({ refunded: 2, failed: 0, refundedCents: 1600 });
+      expect((await db.rsvp.findUniqueOrThrow({ where: { id: cashRsvp.id } })).paymentStatus).toBe("PENDING");
+      const view = await organizerCaller.rsvps.forOrganizer({ eventId: event.id });
+      expect(view.eventActions.menu).not.toContain("REFUND_ALL"); // nothing left to refund
+    });
+
+    it("closes once the payout is due: two days after the event ends", async () => {
+      const { organizerCaller, event, cardRsvp } = await confirmedWithCardAndWalletPlayers();
+      const now = Date.now();
+      await db.event.update({
+        where: { id: event.id },
+        data: { startsAt: new Date(now - 4 * 86_400_000), endsAt: new Date(now - 3 * 86_400_000), cutoffAt: new Date(now - 5 * 86_400_000) },
+      });
+
+      const view = await organizerCaller.rsvps.forOrganizer({ eventId: event.id });
+      expect(view.rsvps.find((r) => r.id === cardRsvp.id)?.actions).not.toContain("REFUND");
+      expect(view.eventActions.menu).not.toContain("REFUND_ALL");
+      await expect(organizerCaller.rsvps.refund({ rsvpId: cardRsvp.id })).rejects.toThrow("isn't possible at this stage");
+      await expect(organizerCaller.rsvps.refundAll({ eventId: event.id })).rejects.toThrow("paid out");
+    });
+
+    it("stays open until then", async () => {
+      const { organizerCaller, event, cardRsvp } = await confirmedWithCardAndWalletPlayers();
+      const now = Date.now();
+      await db.event.update({
+        where: { id: event.id },
+        data: { startsAt: new Date(now - 2 * 86_400_000), endsAt: new Date(now - 86_400_000), cutoffAt: new Date(now - 3 * 86_400_000) },
+      });
+
+      const result = await organizerCaller.rsvps.refund({ rsvpId: cardRsvp.id });
+      expect(result.refundedCents).toBe(800);
     });
   });
 });

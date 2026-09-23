@@ -29,3 +29,26 @@ export async function notifyRefund(db: Db, input: { userId: string; eventId: str
   const event = await db.event.findUniqueOrThrow({ where: { id: input.eventId } });
   await notifyUsers(db, { userIds: [input.userId], message: notificationRules.refundIssuedMessage(event, input.cents) });
 }
+
+/**
+ * §7 safety net for the worker: a cancellation's refunds run right after it
+ * commits, but the provider can be down. This sweeps cancelled events for
+ * payments not fully refunded yet and retries them, fee included.
+ */
+export async function retryCancelledEventRefunds(db: Db, gateway: PaymentGateway) {
+  const payments = await db.payment.findMany({
+    where: { ...refundablePaymentsWhere(), rsvp: { event: { status: "CANCELLED" } } },
+  });
+  const outstanding = payments.filter((payment) => payment.refundedCents < payment.amountCents || payment.feeRefundedCents < payment.feeCents);
+  let retried = 0;
+
+  for (const payment of outstanding) {
+    try {
+      retried += (await refundPayment(db, gateway, { paymentId: payment.id, includeFee: true })) > 0 ? 1 : 0;
+    } catch (error) {
+      console.error(`[payments] retrying refund of payment ${payment.id} failed`, error);
+    }
+  }
+
+  return retried;
+}

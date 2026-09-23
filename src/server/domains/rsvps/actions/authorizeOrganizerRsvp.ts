@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import type { Db } from "@/server/db";
 import { eventRules } from "@/server/domains/events";
+import { paymentRules } from "@/server/domains/payments";
 import { organizerRowActions, type OrganizerRowAction } from "@/server/domains/rsvps/rules";
 
 /**
@@ -43,6 +44,7 @@ export async function authorizeOrganizerRowAction(
     rsvp,
     phase: eventRules.eventPhase(rsvp.event, now),
     isOrganizersOwnRsvp: rsvp.userId === input.organizerId,
+    refundsOpen: paymentRules.canRefundOnline(rsvp.event, now),
   });
 
   if (!allowed.includes(input.action)) {

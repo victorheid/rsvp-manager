@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import type { Db } from "@/server/db";
 import { eventRules } from "@/server/domains/events";
+import { paymentRules } from "@/server/domains/payments";
 import { organizerRowActions } from "@/server/domains/rsvps/rules";
 
 export interface GetRsvpsForOrganizerInput {
@@ -23,6 +24,8 @@ export async function getRsvpsForOrganizer(db: Db, input: GetRsvpsForOrganizerIn
     include: {
       group: { select: { organizerId: true, name: true } },
       rsvps: {
+        // The pay-link secret and saved card belong to the player, not the organizer's list.
+        omit: { payToken: true, stripePaymentMethodId: true },
         include: { user: { select: { id: true, firstName: true, lastInitial: true, phoneNumber: true } } },
         orderBy: { createdAt: "asc" },
       },
@@ -44,7 +47,11 @@ export async function getRsvpsForOrganizer(db: Db, input: GetRsvpsForOrganizerIn
   });
   const noShowByUser = new Map(noShowCounts.map((row) => [row.userId, row._count._all]));
 
-  const eventActions = eventRules.organizerEventActions(event, now);
+  const refundsOpen = paymentRules.canRefundOnline(event, now);
+  const hasOnlinePaid = event.rsvps.some((rsvp) => rsvp.paymentStatus === "CHARGED" && rsvp.paymentMethod !== "CASH");
+  const eventActions = eventRules.organizerEventActions(event, now, {
+    refundableOnlinePayments: refundsOpen && hasOnlinePaid && event.status === "CONFIRMED",
+  });
 
   return {
     event,
@@ -56,6 +63,7 @@ export async function getRsvpsForOrganizer(db: Db, input: GetRsvpsForOrganizerIn
         rsvp,
         phase: eventActions.phase,
         isOrganizersOwnRsvp: rsvp.userId === input.organizerId,
+        refundsOpen,
       }),
     })),
   };
