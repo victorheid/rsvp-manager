@@ -141,5 +141,4 @@ Feature-specific pieces (a sign-in sheet, the RSVP sheet, the manage screen's pr
 
 ## Known gaps
 
-- `TabBar` isn't mounted (no Wallet or `/me` yet).
 - Sheets animate in (slide up / fade in) but not out: a native `<dialog>` closes instantly.

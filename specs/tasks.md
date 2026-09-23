@@ -90,8 +90,8 @@ Design source: the Figma design system (Foundations, Components, Screens, Flows 
 - [x] Share sheet (link, copy, WhatsApp, native share) on event, group and Manage; opens automatically after creating a group or game
 - [x] Manage: one screen per phase (Open / Confirmed / Live / Finished), server-driven actions (`eventPhase`, `organizerEventActions`, `organizerRowActions`), informational rows with a ••• menu, filters with counts, toast + Undo
 - [x] Create event: date leads; title, times, cut-off and details default from the last game and follow the date until edited (`events.suggestDefaults`); "Same as your last game" summary
-- [ ] Mount the bottom `TabBar` (needs `/me` and Wallet)
-- [ ] `/me` screen (§9) — Wallet (`/wallet`, top-up) and `/pay/{token}` are built against the fake gateway, behind the `WALLET_ENABLED` flag (off in production until the legal check clears). The card step is a test-mode stand-in (`CardForm`) that becomes Stripe Elements
+- [x] Mount the bottom `TabBar` — Games / Wallet (while enabled) / Me, on the three top-level screens
+- [x] `/me`, Wallet (`/wallet`, top-up) and `/pay/{token}` are built against the fake gateway, behind the `WALLET_ENABLED` flag (off in production until the legal check clears). The card step is a test-mode stand-in (`CardForm`) that becomes Stripe Elements
 - [x] RSVP payment choice with wallet and card — RSVP sheet (wallet / card / cash by what the game allows), waitlist sheet (auto-join vs notify me), organizer's "Wallet and card" toggle + payout setup in the event form
 - [x] Refund and "Send pay link again" in the row menu — both server-driven row actions with Manage UI
 - [x] Section-level skeletons (`SectionSkeleton`, used on Home), sheet enter animation (no exit animation: native `<dialog>`), `ActionMenu` flip-up near the viewport bottom

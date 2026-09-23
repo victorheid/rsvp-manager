@@ -20,8 +20,8 @@ import { trpc } from "@/lib/trpc/client";
 import { formatDateTime } from "@/lib/format";
 import { eventChip } from "@/app/_components/eventPhase";
 import { eventPriceText } from "@/app/_components/eventPrice";
+import { MainTabBar } from "@/app/_components/MainTabBar";
 import { SignInSheet } from "@/app/_components/SignInSheet";
-import { usePushNotifications } from "@/app/_components/usePushNotifications";
 import { useRequireAuth } from "@/app/_components/useRequireAuth";
 
 /** UI spec §6: signed-in "Games" home, or a short signed-out landing. */
@@ -31,8 +31,6 @@ export default function HomePage() {
   const { data: upcoming } = trpc.rsvps.myUpcoming.useQuery(undefined, { enabled: !!me });
   const { data: groups } = trpc.groups.mine.useQuery(undefined, { enabled: !!me });
   const { requireAuth, signInSheetProps } = useRequireAuth();
-  const push = usePushNotifications();
-  const { data: wallet } = trpc.wallet.summary.useQuery(undefined, { enabled: !!me });
   const logout = trpc.auth.logout.useMutation({ onSuccess: () => utils.invalidate() });
 
   if (meLoading) {
@@ -80,13 +78,6 @@ export default function HomePage() {
             <ActionMenu
               label="Account"
               items={[
-                ...(wallet?.enabled ? [{ label: "Wallet", description: "Balance and top-up.", href: "/wallet" }] : []),
-                ...(push.status === "off"
-                  ? [{ label: "Turn on notifications", description: "Get told when a game is posted, confirmed or changed.", onSelect: () => void push.enable() }]
-                  : []),
-                ...(push.status === "on"
-                  ? [{ label: "Turn off notifications", onSelect: () => void push.disable() }]
-                  : []),
                 { label: "Sign out", description: "You can sign back in with a text code.", onSelect: () => logout.mutate() },
               ]}
               triggerClassName={ICON_BUTTON_CLASS}
@@ -96,6 +87,7 @@ export default function HomePage() {
           }
         />
       }
+      actionBar={<MainTabBar active="games" />}
       className="gap-6"
     >
       <h2 className="text-display text-text-primary">Your games</h2>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Banner, Button, EmptyState, OptionCard, Screen, ScreenSkeleton, SectionHeader, TopBar, useToast } from "@/components/ui";
+import { MainTabBar } from "@/app/_components/MainTabBar";
 import { CardForm } from "@/app/_components/CardForm";
 import { SignInSheet } from "@/app/_components/SignInSheet";
 import { useRequireAuth } from "@/app/_components/useRequireAuth";
@@ -37,7 +38,7 @@ export default function WalletPage() {
     },
   });
 
-  const topBar = <TopBar backHref="/" title="Wallet" />;
+  const topBar = <TopBar brand />;
 
   if (!me) {
     return (
@@ -84,7 +85,7 @@ export default function WalletPage() {
   const chosen = wallet.topUpOptions.find((option) => option.amountCents === amountCents);
 
   return (
-    <Screen topBar={topBar} className="gap-6">
+    <Screen topBar={topBar} actionBar={<MainTabBar active="wallet" />} className="gap-6">
       <div className="flex flex-col gap-1 rounded-lg border border-border-default bg-bg-surface p-4">
         <p className="text-caption text-text-tertiary">BALANCE</p>
         <p className="text-number text-text-primary">{formatCents(wallet.balanceCents)}</p>
