@@ -96,6 +96,14 @@ export default function EventPage() {
             >
               Repeat this game
             </a>
+            {event.status === "OPEN" && (
+              <a
+                href={`/e/${slug}/edit`}
+                className="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium dark:border-neutral-700"
+              >
+                Edit
+              </a>
+            )}
             {canJoin && event.status === "OPEN" && (
               <button
                 type="button"

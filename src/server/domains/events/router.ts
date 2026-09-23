@@ -3,32 +3,37 @@ import { TRPCError } from "@trpc/server";
 import { PricingMode } from "@/generated/prisma/enums";
 import { protectedProcedure, publicProcedure, router } from "@/server/trpc";
 import { createEvent } from "@/server/domains/events/actions/createEvent";
+import { editEvent } from "@/server/domains/events/actions/editEvent";
 import { confirmEvent } from "@/server/domains/events/actions/confirmEvent";
 import { cancelEvent } from "@/server/domains/events/actions/cancelEvent";
 import { getEventBySlug } from "@/server/domains/events/getters/getEventBySlug";
 import { costBreakdownSchema } from "@/server/domains/events/costBreakdown";
 
+// Shared by create and edit — same shape both ways (§10.4: "same form").
+const eventFormSchema = z.object({
+  title: z.string().min(1).max(120),
+  description: z.string().max(2000).optional(),
+  startsAt: z.date(),
+  endsAt: z.date(),
+  location: z.string().min(1),
+  cutoffAt: z.date(),
+  minPlayers: z.number().int().positive().optional(),
+  maxPlayers: z.number().int().positive().optional(),
+  totalCostCents: z.number().int().nonnegative(),
+  costBreakdown: costBreakdownSchema.optional(),
+  pricingMode: z.nativeEnum(PricingMode),
+  cashAllowed: z.boolean().optional(),
+  autoChargeAtCutoff: z.boolean().optional(),
+});
+
 export const eventsRouter = router({
   create: protectedProcedure
-    .input(
-      z.object({
-        groupId: z.string(),
-        title: z.string().min(1).max(120),
-        description: z.string().max(2000).optional(),
-        startsAt: z.date(),
-        endsAt: z.date(),
-        location: z.string().min(1),
-        cutoffAt: z.date(),
-        minPlayers: z.number().int().positive().optional(),
-        maxPlayers: z.number().int().positive().optional(),
-        totalCostCents: z.number().int().nonnegative(),
-        costBreakdown: costBreakdownSchema.optional(),
-        pricingMode: z.nativeEnum(PricingMode),
-        cashAllowed: z.boolean().optional(),
-        autoChargeAtCutoff: z.boolean().optional(),
-      }),
-    )
+    .input(eventFormSchema.extend({ groupId: z.string() }))
     .mutation(({ ctx, input }) => createEvent(ctx.db, { ...input, organizerId: ctx.user.id })),
+
+  edit: protectedProcedure
+    .input(eventFormSchema.extend({ eventId: z.string() }))
+    .mutation(({ ctx, input }) => editEvent(ctx.db, { ...input, organizerId: ctx.user.id })),
 
   confirm: protectedProcedure
     .input(z.object({ eventId: z.string() }))

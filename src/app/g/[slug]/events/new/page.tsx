@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
 import { SignInFlow } from "@/app/_components/SignInFlow";
 import { useRequireAuth } from "@/app/_components/useRequireAuth";
+import { EMPTY_EVENT_FORM_VALUES, EventForm, type EventFormValues } from "@/app/_components/EventForm";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -26,19 +27,7 @@ export default function CreateEventPage() {
   );
   const { me, requireAuth, isSigningIn, handleSignedIn, cancelSignIn } = useRequireAuth();
 
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [startsAt, setStartsAt] = useState("");
-  const [endsAt, setEndsAt] = useState("");
-  const [location, setLocation] = useState("");
-  const [cutoffAt, setCutoffAt] = useState("");
-  const [minPlayers, setMinPlayers] = useState(1);
-  const [noMax, setNoMax] = useState(true);
-  const [maxPlayers, setMaxPlayers] = useState(10);
-  const [pricingMode, setPricingMode] = useState<"FIXED_PER_HEAD" | "SPLIT_EVENLY">("FIXED_PER_HEAD");
-  const [totalCostEuros, setTotalCostEuros] = useState("");
-  const [cashAllowed, setCashAllowed] = useState(true);
-  const [autoChargeAtCutoff, setAutoChargeAtCutoff] = useState(true);
+  const [values, setValues] = useState<EventFormValues>(EMPTY_EVENT_FORM_VALUES);
 
   // §10.3 "Repeat this game": pre-fill from ?from={slug}, dates moved +7
   // days. Only runs once the source event arrives, never again after.
@@ -47,19 +36,21 @@ export default function CreateEventPage() {
     if (!sourceEvent || prefilled.current) return;
     prefilled.current = true;
 
-    setTitle(sourceEvent.title);
-    setDescription(sourceEvent.description ?? "");
-    setStartsAt(toDatetimeLocalValue(new Date(new Date(sourceEvent.startsAt).getTime() + WEEK_MS)));
-    setEndsAt(toDatetimeLocalValue(new Date(new Date(sourceEvent.endsAt).getTime() + WEEK_MS)));
-    setLocation(sourceEvent.location);
-    setCutoffAt(toDatetimeLocalValue(new Date(new Date(sourceEvent.cutoffAt).getTime() + WEEK_MS)));
-    setMinPlayers(sourceEvent.minPlayers);
-    setNoMax(sourceEvent.maxPlayers === null);
-    setMaxPlayers(sourceEvent.maxPlayers ?? 10);
-    setPricingMode(sourceEvent.pricingMode);
-    setTotalCostEuros((sourceEvent.totalCostCents / 100).toString());
-    setCashAllowed(sourceEvent.cashAllowed);
-    setAutoChargeAtCutoff(sourceEvent.autoChargeAtCutoff);
+    setValues({
+      title: sourceEvent.title,
+      description: sourceEvent.description ?? "",
+      startsAt: toDatetimeLocalValue(new Date(new Date(sourceEvent.startsAt).getTime() + WEEK_MS)),
+      endsAt: toDatetimeLocalValue(new Date(new Date(sourceEvent.endsAt).getTime() + WEEK_MS)),
+      location: sourceEvent.location,
+      cutoffAt: toDatetimeLocalValue(new Date(new Date(sourceEvent.cutoffAt).getTime() + WEEK_MS)),
+      minPlayers: sourceEvent.minPlayers,
+      noMax: sourceEvent.maxPlayers === null,
+      maxPlayers: sourceEvent.maxPlayers ?? 10,
+      pricingMode: sourceEvent.pricingMode,
+      totalCostEuros: (sourceEvent.totalCostCents / 100).toString(),
+      cashAllowed: sourceEvent.cashAllowed,
+      autoChargeAtCutoff: sourceEvent.autoChargeAtCutoff,
+    });
   }, [sourceEvent]);
 
   const createEvent = trpc.events.create.useMutation({
@@ -83,18 +74,18 @@ export default function CreateEventPage() {
       if (!group) return;
       createEvent.mutate({
         groupId: group.id,
-        title,
-        description: description || undefined,
-        startsAt: new Date(startsAt),
-        endsAt: new Date(endsAt),
-        location,
-        cutoffAt: new Date(cutoffAt),
-        minPlayers,
-        maxPlayers: noMax ? undefined : maxPlayers,
-        totalCostCents: Math.round(Number(totalCostEuros) * 100),
-        pricingMode,
-        cashAllowed,
-        autoChargeAtCutoff,
+        title: values.title,
+        description: values.description || undefined,
+        startsAt: new Date(values.startsAt),
+        endsAt: new Date(values.endsAt),
+        location: values.location,
+        cutoffAt: new Date(values.cutoffAt),
+        minPlayers: values.minPlayers,
+        maxPlayers: values.noMax ? undefined : values.maxPlayers,
+        totalCostCents: Math.round(Number(values.totalCostEuros) * 100),
+        pricingMode: values.pricingMode,
+        cashAllowed: values.cashAllowed,
+        autoChargeAtCutoff: values.autoChargeAtCutoff,
       });
     });
   }
@@ -108,171 +99,14 @@ export default function CreateEventPage() {
         </p>
       )}
 
-      <form
-        className="flex flex-col gap-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          submit();
-        }}
-      >
-        <label className="flex flex-col gap-1 text-sm">
-          Title
-          <input
-            type="text"
-            required
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-base dark:border-neutral-700 dark:bg-neutral-800"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1 text-sm">
-          Description (optional)
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-base dark:border-neutral-700 dark:bg-neutral-800"
-          />
-        </label>
-
-        <div className="grid grid-cols-2 gap-3">
-          <label className="flex flex-col gap-1 text-sm">
-            Starts
-            <input
-              type="datetime-local"
-              required
-              value={startsAt}
-              onChange={(e) => setStartsAt(e.target.value)}
-              className="rounded-md border border-neutral-300 px-3 py-2 text-base dark:border-neutral-700 dark:bg-neutral-800"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            Ends
-            <input
-              type="datetime-local"
-              required
-              value={endsAt}
-              onChange={(e) => setEndsAt(e.target.value)}
-              className="rounded-md border border-neutral-300 px-3 py-2 text-base dark:border-neutral-700 dark:bg-neutral-800"
-            />
-          </label>
-        </div>
-
-        <label className="flex flex-col gap-1 text-sm">
-          Location
-          <input
-            type="text"
-            required
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-base dark:border-neutral-700 dark:bg-neutral-800"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1 text-sm">
-          Confirms on (cut-off)
-          <input
-            type="datetime-local"
-            required
-            value={cutoffAt}
-            onChange={(e) => setCutoffAt(e.target.value)}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-base dark:border-neutral-700 dark:bg-neutral-800"
-          />
-        </label>
-
-        <div className="grid grid-cols-2 gap-3">
-          <label className="flex flex-col gap-1 text-sm">
-            Min players
-            <input
-              type="number"
-              min={1}
-              required
-              value={minPlayers}
-              onChange={(e) => setMinPlayers(Number(e.target.value))}
-              className="rounded-md border border-neutral-300 px-3 py-2 text-base dark:border-neutral-700 dark:bg-neutral-800"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            Max players
-            <input
-              type="number"
-              min={minPlayers}
-              disabled={noMax}
-              value={maxPlayers}
-              onChange={(e) => setMaxPlayers(Number(e.target.value))}
-              className="rounded-md border border-neutral-300 px-3 py-2 text-base disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800"
-            />
-          </label>
-        </div>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={noMax} onChange={(e) => setNoMax(e.target.checked)} />
-          No limit
-        </label>
-
-        <fieldset className="flex flex-col gap-1 text-sm">
-          <legend className="mb-1">Price</legend>
-          <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              name="pricingMode"
-              checked={pricingMode === "FIXED_PER_HEAD"}
-              onChange={() => setPricingMode("FIXED_PER_HEAD")}
-            />
-            Fixed per person
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              name="pricingMode"
-              checked={pricingMode === "SPLIT_EVENLY"}
-              onChange={() => setPricingMode("SPLIT_EVENLY")}
-            />
-            Split the cost
-          </label>
-        </fieldset>
-
-        <label className="flex flex-col gap-1 text-sm">
-          {pricingMode === "FIXED_PER_HEAD" ? "Amount per person (€)" : "Total cost (€)"}
-          <input
-            type="number"
-            min={0}
-            step="0.01"
-            required
-            value={totalCostEuros}
-            onChange={(e) => setTotalCostEuros(e.target.value)}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-base dark:border-neutral-700 dark:bg-neutral-800"
-          />
-        </label>
-
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={cashAllowed} onChange={(e) => setCashAllowed(e.target.checked)} />
-          Accept cash on the day
-        </label>
-        <p className="text-xs text-neutral-500">
-          Online payment (wallet/card) isn&apos;t available yet — this is the only way to accept payment for now.
-        </p>
-
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={autoChargeAtCutoff}
-            onChange={(e) => setAutoChargeAtCutoff(e.target.checked)}
-          />
-          Auto-confirm at cut-off if the minimum is met
-        </label>
-
-        {createEvent.error && <p className="text-sm text-red-600">{createEvent.error.message}</p>}
-
-        {!isSigningIn && (
-          <button
-            type="submit"
-            disabled={createEvent.isPending}
-            className="rounded-md bg-neutral-900 px-4 py-3 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
-          >
-            {createEvent.isPending ? "Publishing…" : "Publish"}
-          </button>
-        )}
-      </form>
+      <EventForm
+        values={values}
+        onChange={setValues}
+        onSubmit={submit}
+        submitLabel="Publish"
+        submitting={createEvent.isPending}
+        error={createEvent.error?.message}
+      />
 
       {isSigningIn && (
         // Deliberately outside the form above — SignInFlow renders its own

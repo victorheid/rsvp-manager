@@ -27,7 +27,7 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 - [ ] Payment options (cash only / online only / both; online only after Stripe onboarding) and "Auto-charge at cut-off" toggle — only a `cashAllowed` boolean + `autoChargeAtCutoff` exist; no online option until Stripe/wallet land
 - [x] Shareable `/e/{slug}` event link, viewable without an account
 - [x] Duplicate event from a previous one — "Repeat this game" on the event page pre-fills the create form via `?from={slug}`, dates +7 days
-- [ ] Edit event: notify RSVPers; block price increases after first RSVP; lowering max moves latest RSVPs to front of waitlist
+- [x] Edit event: block price increases after first RSVP — `/e/{slug}/edit`, only while Open. Notifying RSVPers isn't built (§9); lowering max below headcount is blocked outright rather than moving anyone to a waitlist, since §6 isn't built yet
 
 ## 3. Confirmation & cut-off
 - [x] Auto-confirm at cut-off (auto-charge on + min met) — `autoConfirmDueEvents`, run by the `pnpm worker` process every 60s
