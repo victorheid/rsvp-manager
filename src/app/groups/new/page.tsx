@@ -6,6 +6,8 @@ import { Banner, Button, Screen, StickyActionBar, TextArea, TextField, TopBar } 
 import { trpc } from "@/lib/trpc/client";
 import { SignInSheet } from "@/app/_components/SignInSheet";
 import { useRequireAuth } from "@/app/_components/useRequireAuth";
+import { useRequireVerifiedEmail } from "@/app/_components/useRequireVerifiedEmail";
+import { VerifyEmailSheet } from "@/app/_components/VerifyEmailSheet";
 
 const FORM_ID = "group-form";
 
@@ -13,6 +15,7 @@ const FORM_ID = "group-form";
 export default function CreateGroupPage() {
   const router = useRouter();
   const { me, requireAuth, signInSheetProps } = useRequireAuth();
+  const { requireEmail, verifyEmailSheetProps } = useRequireVerifiedEmail();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
 
@@ -21,7 +24,7 @@ export default function CreateGroupPage() {
   });
 
   function submit() {
-    requireAuth(() => createGroup.mutate({ name, description: description || undefined }));
+    requireAuth(() => void requireEmail(() => createGroup.mutate({ name, description: description || undefined })));
   }
 
   return (
@@ -63,6 +66,7 @@ export default function CreateGroupPage() {
         )}
       </form>
       <SignInSheet {...signInSheetProps} />
+      <VerifyEmailSheet {...verifyEmailSheetProps} reason="to organize games" />
     </Screen>
   );
 }

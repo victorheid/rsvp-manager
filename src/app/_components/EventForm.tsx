@@ -14,6 +14,8 @@ import {
 } from "@/components/ui";
 import { formatCents, formatDateTime } from "@/lib/format";
 import { trpc } from "@/lib/trpc/client";
+import { useRequireVerifiedEmail } from "./useRequireVerifiedEmail";
+import { VerifyEmailSheet } from "./VerifyEmailSheet";
 import { perHeadPriceCents, splitPriceRangeCents } from "@/server/domains/events/rules";
 import type { EventFormValues } from "./eventFormValues";
 
@@ -268,6 +270,7 @@ function OnlinePayments({ checked, onChange, cashAllowed }: { checked: boolean; 
   const refresh = trpc.payouts.refreshOnboarding.useMutation({ onSuccess: () => utils.payouts.onboardingStatus.invalidate() });
   const start = trpc.payouts.startOnboarding.useMutation({ onSuccess: ({ url }) => window.location.assign(url) });
   const { mutate: refreshStatus } = refresh;
+  const { requireEmail, verifyEmailSheetProps } = useRequireVerifiedEmail();
 
   // Coming back from the provider's page: ask whether onboarding finished.
   useEffect(() => {
@@ -284,12 +287,13 @@ function OnlinePayments({ checked, onChange, cashAllowed }: { checked: boolean; 
           <Button
             variant="secondary"
             loading={start.isPending}
-            onClick={() => start.mutate({ returnPath: `${window.location.pathname}${window.location.search}` })}
+            onClick={() => void requireEmail(() => start.mutate({ returnPath: `${window.location.pathname}${window.location.search}` }))}
           >
             {status.started ? "Finish payout setup" : "Set up payouts"}
           </Button>
         </div>
         {start.error && <p className="mt-2 text-small">{start.error.message}</p>}
+        <VerifyEmailSheet {...verifyEmailSheetProps} reason="before taking online payments" />
       </Banner>
     );
   }

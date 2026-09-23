@@ -1,6 +1,9 @@
 "use client";
 
 import { Banner, Button, EmptyState, Screen, ScreenSkeleton, SectionHeader, TopBar, useToast } from "@/components/ui";
+import { useState } from "react";
+import { ChangePhoneSheet } from "@/app/_components/ChangePhoneSheet";
+import { VerifyEmailSheet } from "@/app/_components/VerifyEmailSheet";
 import { MainTabBar } from "@/app/_components/MainTabBar";
 import { SignInSheet } from "@/app/_components/SignInSheet";
 import { usePushNotifications } from "@/app/_components/usePushNotifications";
@@ -24,6 +27,9 @@ export default function MePage() {
   const sendTest = trpc.notifications.sendTest.useMutation({ onSuccess: () => toast({ message: "Test sent" }) });
   const logout = trpc.auth.logout.useMutation({ onSuccess: () => utils.invalidate() });
   const { isLoading } = trpc.auth.me.useQuery();
+  const { data: account } = trpc.auth.account.useQuery(undefined, { enabled: !!me });
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [phoneOpen, setPhoneOpen] = useState(false);
 
   const topBar = <TopBar brand />;
 
@@ -42,10 +48,32 @@ export default function MePage() {
 
   return (
     <Screen topBar={topBar} actionBar={<MainTabBar active="me" />} className="gap-6">
-      <div className="flex flex-col gap-1">
-        <h2 className="text-display text-text-primary">Me</h2>
-        <p className="text-body text-text-secondary">{me.phoneNumber}</p>
-      </div>
+      <h2 className="text-display text-text-primary">Me</h2>
+
+      <section className="flex flex-col gap-3">
+        <SectionHeader title="Sign-in" />
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-border-default bg-bg-surface p-4">
+          <div className="min-w-0">
+            <p className="text-caption text-text-tertiary">PHONE</p>
+            <p className="text-body text-text-primary">{me.phoneNumber}</p>
+          </div>
+          <Button variant="secondary" onClick={() => setPhoneOpen(true)}>
+            Change
+          </Button>
+        </div>
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-border-default bg-bg-surface p-4">
+          <div className="min-w-0">
+            <p className="text-caption text-text-tertiary">EMAIL</p>
+            <p className="truncate text-body text-text-primary">{account?.emailVerified ? account.email : "Not added"}</p>
+          </div>
+          <Button variant="secondary" onClick={() => setEmailOpen(true)}>
+            {account?.emailVerified ? "Change" : "Add"}
+          </Button>
+        </div>
+        {!account?.emailVerified && (
+          <p className="text-small text-text-secondary">You only need an email if you organize games. It helps you get back in if you change or lose your number.</p>
+        )}
+      </section>
 
       <section className="flex flex-col gap-3">
         <SectionHeader title="Notifications" />
@@ -75,6 +103,23 @@ export default function MePage() {
       <Button variant="secondary" fullWidth loading={logout.isPending} onClick={() => logout.mutate()}>
         Sign out
       </Button>
+
+      <VerifyEmailSheet
+        open={emailOpen}
+        onClose={() => setEmailOpen(false)}
+        onVerified={() => {
+          setEmailOpen(false);
+          toast({ message: "Email verified" });
+        }}
+      />
+      <ChangePhoneSheet
+        open={phoneOpen}
+        onClose={() => setPhoneOpen(false)}
+        onChanged={() => {
+          setPhoneOpen(false);
+          toast({ message: "Phone number changed" });
+        }}
+      />
     </Screen>
   );
 }

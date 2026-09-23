@@ -23,6 +23,8 @@ import {
 } from "@/app/_components/eventFormValues";
 import { SignInSheet } from "@/app/_components/SignInSheet";
 import { useRequireAuth } from "@/app/_components/useRequireAuth";
+import { useRequireVerifiedEmail } from "@/app/_components/useRequireVerifiedEmail";
+import { VerifyEmailSheet } from "@/app/_components/VerifyEmailSheet";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const FORM_ID = "event-form";
@@ -45,6 +47,7 @@ export default function CreateEventPage() {
   const { data: group, isLoading } = trpc.groups.getBySlug.useQuery({ slug });
   const { data: sourceEvent } = trpc.events.getBySlug.useQuery({ slug: fromSlug ?? "" }, { enabled: !!fromSlug });
   const { me, requireAuth, signInSheetProps } = useRequireAuth();
+  const { requireEmail, verifyEmailSheetProps } = useRequireVerifiedEmail();
   const [edits, setEdits] = useState<EventFormEdits>(NO_EDITS);
 
   const isOrganizer = !!group && me?.id === group.organizerId;
@@ -100,10 +103,12 @@ export default function CreateEventPage() {
   }
 
   function submit() {
-    requireAuth(() => {
-      if (!group) return;
-      createEvent.mutate({ groupId: group.id, ...eventFormToInput(values) });
-    });
+    requireAuth(() =>
+      void requireEmail(() => {
+        if (!group) return;
+        createEvent.mutate({ groupId: group.id, ...eventFormToInput(values) });
+      }),
+    );
   }
 
   return (
@@ -130,6 +135,7 @@ export default function CreateEventPage() {
         titleIsSuggested={suggestion !== undefined && !edits.touched.has("title")}
       />
       <SignInSheet {...signInSheetProps} />
+      <VerifyEmailSheet {...verifyEmailSheetProps} reason="to organize games" />
     </Screen>
   );
 }

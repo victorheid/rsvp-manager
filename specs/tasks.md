@@ -13,6 +13,7 @@ Everything else that can be built without these is built (against fakes). These 
 - [ ] Decide: allow confirming below the minimum ("confirm anyway", UI spec §10.9)? Today `confirmEvent` refuses and the organizer alert says "wait for more, or cancel"
 - [ ] Design: group admins / co-organizers (schema has one `organizerId`; every organizer check would change)
 - [ ] Wallet refund on request at full value, and the ID check for refunds over €50 — waits on the legal check above
+- [ ] Pick an email provider (Resend, Postmark or similar) and provide an account, to replace the console email sender used for verification codes
 - [ ] Generate VAPID keys and set the `VAPID_*` and `APP_URL` env vars (`.env.example`) to enable real web push and SMS links
 - [ ] Set `WALLET_ENABLED=true` in production only once the legal check clears (off by default there)
 - [ ] Click through the payment UI signed in (RSVP with wallet/card, waitlist sheet, `/wallet`, `/pay/{token}`, payout setup) using the test-mode card form: only the server side has automated tests
@@ -24,6 +25,16 @@ Everything else that can be built without these is built (against fakes). These 
 - [x] Background worker for time-based jobs (cut-off auto-confirm, event expiry) — `pnpm worker`, a single always-on interval process; payout release now included
 - [x] Web push setup (service worker, subscription storage) — `public/sw.js`, `PushSubscription` table, `notifications.subscribePush/unsubscribePush/sendTest`, `integrations/push` (real `web-push` sender once `VAPID_*` env keys are set, console logger otherwise). Entry point for now is the Home account menu ("Turn on notifications"); the `/me` screen and post-RSVP prompt (UI spec §9) come with §5
 - [ ] SMS/WhatsApp fallback provider wired up
+
+## 0b. Identity: players vs organizers
+Decision: players sign in with a phone number alone; anyone who organizes needs a verified email too (a recovery and confirmation channel for lost, changed or recycled numbers).
+- [x] Verified email for organizers — required to create a group or game and to set up payouts; verify with a code (`VerifyEmailSheet`); replacing it alerts the old address and the phone
+- [x] Change phone number in place (same account, so groups, wallet and cards follow) — SMS code to the new number, plus an email code for accounts with a verified email; the old number and email are told. `/me` has Phone and Email sections
+- [x] Fix: wrong sign-in codes were never counted (the increment rolled back with the transaction), so the 5-attempt limit didn't bite
+- [ ] Email provider (Resend/Postmark or similar) — emails are logged to the server console until then (see Pending from Tech Lead)
+- [ ] Step-up: ask for a fresh code before money-moving actions (large top-up, wallet cash-out, payout setup) — not built
+- [ ] Recovery for someone who lost both the old number and the email — support-assisted for the MVP; write down the process
+- [ ] Periodic re-verification of idle accounts holding a wallet balance (recycled-number risk) — optional
 
 ## 1. Groups
 - [x] Create group (name, description) → shareable `/g/{slug}` link
