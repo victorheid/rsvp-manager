@@ -4,6 +4,7 @@ import { groupsRouter } from "@/server/domains/groups";
 import { eventsRouter } from "@/server/domains/events";
 import { rsvpsRouter } from "@/server/domains/rsvps";
 import { waitlistRouter } from "@/server/domains/waitlist";
+import { notificationsRouter } from "@/server/domains/notifications";
 
 /**
  * Root tRPC router. One line per domain — deleting a domain means deleting
@@ -15,6 +16,7 @@ export const appRouter = router({
   events: eventsRouter,
   rsvps: rsvpsRouter,
   waitlist: waitlistRouter,
+  notifications: notificationsRouter,
 });
 
 export type AppRouter = typeof appRouter;

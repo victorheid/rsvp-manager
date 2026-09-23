@@ -19,11 +19,12 @@ model User {
   lastInitial String
   createdAt   DateTime @default(now())
 
-  memberships     GroupMembership[]
-  organizedGroups Group[]           @relation("GroupOrganizer")
-  rsvps           Rsvp[]
-  waitlistEntries WaitlistEntry[]
-  wallet          Wallet?
+  memberships       GroupMembership[]
+  organizedGroups   Group[]            @relation("GroupOrganizer")
+  rsvps             Rsvp[]
+  waitlistEntries   WaitlistEntry[]
+  wallet            Wallet?
+  pushSubscriptions PushSubscription[]
 }
 
 model Group {
@@ -177,4 +178,21 @@ model Wallet {
   updatedAt    DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id])
+}
+
+// --- Notifications -----------------------------------------------------------
+
+// One row per browser/device a user allowed web push on (§9). The endpoint
+// identifies the device; a user can have several.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }
