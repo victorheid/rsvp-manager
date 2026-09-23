@@ -2,6 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { protectedProcedure, publicProcedure, router } from "@/server/trpc";
 import { createGroup } from "@/server/domains/groups/actions/createGroup";
+import { joinGroup } from "@/server/domains/groups/actions/joinGroup";
 import { getGroupBySlug } from "@/server/domains/groups/getters/getGroupBySlug";
 
 export const groupsRouter = router({
@@ -16,10 +17,14 @@ export const groupsRouter = router({
       createGroup(ctx.db, { organizerId: ctx.user.id, ...input }),
     ),
 
+  join: protectedProcedure
+    .input(z.object({ slug: z.string() }))
+    .mutation(({ ctx, input }) => joinGroup(ctx.db, { slug: input.slug, userId: ctx.user.id })),
+
   getBySlug: publicProcedure
     .input(z.object({ slug: z.string() }))
     .query(async ({ ctx, input }) => {
-      const group = await getGroupBySlug(ctx.db, input.slug);
+      const group = await getGroupBySlug(ctx.db, input.slug, { viewerId: ctx.user?.id });
 
       if (!group) {
         throw new TRPCError({ code: "NOT_FOUND" });
