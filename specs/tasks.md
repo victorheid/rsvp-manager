@@ -10,7 +10,7 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 - [x] Repo scaffold: Next.js + TypeScript + Postgres + Prisma (+ tRPC, Zod, Vitest — see [CLAUDE.md](../CLAUDE.md))
 - [x] Auth: phone number + SMS code, triggered only at RSVP (real SMS provider not wired up yet — codes log to the server console locally, see the item below)
 - [ ] Stripe account/keys wired up (test mode), incl. Connect — the `PaymentGateway` interface, in-memory fake and contract tests are built (`integrations/stripe`); what's left is the real adapter against Stripe test mode, which needs keys
-- [x] Background worker for time-based jobs (cut-off auto-confirm, event expiry) — `pnpm worker`, a single always-on interval process; payout release joins once §5 exists
+- [x] Background worker for time-based jobs (cut-off auto-confirm, event expiry) — `pnpm worker`, a single always-on interval process; payout release now included
 - [x] Web push setup (service worker, subscription storage) — `public/sw.js`, `PushSubscription` table, `notifications.subscribePush/unsubscribePush/sendTest`, `integrations/push` (real `web-push` sender once `VAPID_*` env keys are set, console logger otherwise). Entry point for now is the Home account menu ("Turn on notifications"); the `/me` screen and post-RSVP prompt (UI spec §9) come with §5
 - [ ] SMS/WhatsApp fallback provider wired up
 
@@ -51,7 +51,7 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 - [ ] Price + service fee display, and "save by topping up" prompt on card RSVP
 - [ ] Wallet refund on request at full value; ID check for refunds over €50 (pending legal)
 - [x] Stripe Connect onboarding for organizers (only for events accepting online payment) — `payouts` domain: start / refresh / status, against the fake gateway. UI for it comes with the create-event form
-- [ ] Payout release after event (+2 days)
+- [x] Payout release after event (+2 days) — `releaseDuePayouts`, run by `pnpm worker`: full price of online payments less refunds, once per event, waits for onboarding. Against the fake gateway
 
 ## 6. Waitlist
 - [x] Join waitlist: "Notify me" only for now — "Auto-join and pay" needs wallet/card (§5), not built; no payment method picked, matching the spec's "notify me" behavior

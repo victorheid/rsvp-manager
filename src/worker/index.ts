@@ -1,12 +1,13 @@
 import { db } from "@/server/db";
+import { releaseDuePayouts } from "@/server/domains/payouts";
 import { retryCancelledEventRefunds } from "@/server/domains/payments";
 import { getPaymentGateway } from "@/server/integrations/stripe";
 import { alertOrganizersOfUnconfirmedEvents, autoConfirmDueEvents, expireOverdueEvents, sendCutoffReminders } from "@/server/domains/events";
 
 /**
  * Background worker for time-based jobs (specs/tasks.md §0, §3, §7):
- * cut-off reminders, cut-off auto-confirm, organizer alerts and event expiry. Payout release will join this
- * once §5 exists. Run with `pnpm worker` — a single always-on process is
+ * cut-off reminders, cut-off auto-confirm, organizer alerts, refund retries,
+ * payout release and event expiry. Run with `pnpm worker` — a single always-on process is
  * enough at this scale; move to a real scheduler (Vercel Cron, a queue)
  * before running more than one instance.
  */
@@ -33,6 +34,11 @@ async function tick() {
   const retriedRefunds = await retryCancelledEventRefunds(db, getPaymentGateway());
   if (retriedRefunds > 0) {
     console.log(`[worker] retried ${retriedRefunds} refund(s) for cancelled events`);
+  }
+
+  const payouts = await releaseDuePayouts(db, getPaymentGateway(), now);
+  for (const payout of payouts) {
+    console.log(`[worker] paid out ${payout.amountCents} cents for ${payout.event.slug}`);
   }
 
   const expired = await expireOverdueEvents(db, now);

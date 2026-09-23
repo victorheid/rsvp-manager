@@ -334,7 +334,8 @@ model Payout {
   eventId            String   @unique
   organizerId        String
   amountCents        Int
-  providerTransferId String
+  // Null when there was nothing to pay (everyone paid cash, or was refunded).
+  providerTransferId String?
   releasedAt         DateTime
 
   event Event @relation(fields: [eventId], references: [id])
