@@ -4,8 +4,7 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 
 ## Blockers / decisions pending
 - [ ] Legal check: does the wallet need an e-money licence or licensed partner? (blocks §5 wallet only)
-- [ ] Platform business model: platform cut per payment?
-- [ ] Who absorbs Stripe's fee on organizer-issued refunds and cancellations?
+- [ ] Accountant: VAT treatment of our service fee (affects break-even and how the fee is shown)
 
 ## 0. Foundations
 - [x] Repo scaffold: Next.js + TypeScript + Postgres + Prisma (+ tRPC, Zod, Vitest — see [CLAUDE.md](../CLAUDE.md))
@@ -42,12 +41,15 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 - [ ] Self-cancel before confirmation
 
 ## 5. Payments, wallet & payouts
-- [ ] Wallet: balance, top-ups (€20/€50/€100), €150 max balance
+- [ ] Fee schedules: versioned tiers (game card payments, top-ups), never edited in place
+- [ ] Pin fee schedule version on event at creation; duplicates use current schedule
+- [ ] Store exact fee charged on every payment
+- [ ] Wallet: balance, top-ups (€20 min / €50 / €100) + stepped top-up fee, €150 max balance
 - [ ] Wallet holds (upper bound for split pricing), realized or released
-- [ ] Card RSVP: SetupIntent at RSVP, charge at confirmation
+- [ ] Card RSVP: SetupIntent at RSVP, charge price + service fee at confirmation
 - [ ] Failed charge → "owes" status + pay link
-- [ ] Fee display + "save by topping up" prompt on card RSVP
-- [ ] Wallet refund on request (blended fee rate); ID check for refunds over €50 (pending legal)
+- [ ] Price + service fee display, and "save by topping up" prompt on card RSVP
+- [ ] Wallet refund on request at full value; ID check for refunds over €50 (pending legal)
 - [ ] Stripe Connect onboarding for organizers (only for events accepting online payment)
 - [ ] Payout release after event (+2 days)
 
@@ -60,7 +62,7 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 
 ## 7. Event lifecycle
 - [ ] States: Open / Confirmed / Cancelled / Expired
-- [ ] Cancel → full refunds, release holds
+- [ ] Cancel → full refunds including service fee, release holds
 - [ ] Expire unconfirmed events 48h after start → release holds
 
 ## 8. Organizer event list
@@ -68,7 +70,7 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 - [ ] Mark attendance
 - [ ] Mark paid outside app
 - [ ] Add walk-in (name only, doesn't count against max)
-- [ ] Refund one / refund all online-paid (until payout)
+- [ ] Refund one / refund all online-paid (price only, service fee kept; until payout)
 
 ## 9. Notifications
 - [ ] Trigger table from spec §9 wired to push

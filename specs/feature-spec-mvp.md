@@ -57,14 +57,29 @@ The cut-off is the auto-confirm moment, not an RSVP deadline.
 ### Charging
 - **Nobody is charged just for RSVPing.** Charges fire at confirmation, or immediately when joining an already-confirmed event.
 - **Wallet RSVP**: a hold is placed on the balance at RSVP time. It reduces available balance but moves no money. The hold is realized at confirmation, or released if the RSVP or event is cancelled first. For split pricing, the hold is the upper bound (total ÷ min), and the difference is released at confirmation.
-- **Card RSVP**: the card is saved at RSVP time (Stripe SetupIntent) and charged at confirmation. A pre-authorization hold isn't used because those expire before a typical cut-off.
+- **Card RSVP**: the card is saved at RSVP time (Stripe SetupIntent) and charged (price + service fee) at confirmation. A pre-authorization hold isn't used because those expire before a typical cut-off.
 - **Failed card charge** (expired card, bank asks for 3D Secure): the person is marked **owes**, gets a pay link, and shows up as owing in the organizer's list (§8), exactly like unpaid cash.
+
+### Service fees (platform revenue)
+- The platform charges a **service fee on every card payment** that goes through it, paid by the player **on top of** the price (e.g. "€8.00 + €0.50 service fee = €8.50"). The organizer receives the full price. The fee covers Stripe's processing fee, and the platform keeps the rest.
+- Fee on each card payment for a game (MVP): **€0.50 flat**. Stepped by amount later (e.g. €0–10 → €0.50, …).
+- Fee on wallet top-ups: **stepped by amount, starting at €1** (€20 → €1, €50 → €1.50, €100 → €2.50), paid on top (pay €21, get €20).
+- **No service fee on game payments made from the wallet**, since the top-up fee already covers it. **No fee on cash or paid-outside-app payments** (no money goes through the platform).
+- **Service fees are non-refundable**, with one exception: when the organizer **cancels a confirmed event**, players also get the service fee back and the platform absorbs Stripe's cost. Stripe keeps its own processing fee on refunds, so refunding our fee would otherwise always cost us money. Players can't drop out once charged, so every other refund is organizer-initiated.
+- For split pricing, the fee is worked out from the locked price at the moment of charging.
+
+#### Changing fees without affecting past or ongoing events
+- Fees live in **fee schedules** (tiers by amount, for game payments and top-ups) that are versioned and **never edited in place**. A change means publishing a new schedule version with an effective date.
+- Each event records the schedule version live when it was **created**, and every payment for that event uses it (including late joins and waitlist promotions), even if a newer schedule has been published since.
+- Duplicating an event ("create from previous") uses the **current** schedule, not the original's.
+- Top-ups use the schedule live at the time of the top-up.
+- Every payment stores the exact fee amount charged; it's never recalculated.
 
 ### Wallet
 - One global balance per user, usable across any group or event.
-- Top up in fixed amounts via card (proposed €20 / €50 / €100). **Max balance: €150**, and a top-up that would exceed it is blocked. See [Wallet limits](#wallet-limits--research-notes) for why.
-- Wallet RSVP = no fee. One-off card RSVP = fee shown, with a prompt showing the saving from topping up instead.
-- Refundable on request, minus the processing fee paid on top-ups (blended average fee rate across the user's top-ups).
+- Top up via card in fixed amounts: **€20 (minimum) / €50 / €100**, plus the top-up service fee. **Max balance: €150**, and a top-up that would exceed it is blocked. See [Wallet limits](#wallet-limits--research-notes) for why.
+- Game payments from the wallet carry no service fee. When someone pays for a game by card, the prompt shows what they'd save by topping up instead (e.g. €0.50 per game by card vs ~€0.20–0.40 per game via the wallet).
+- **Refundable on request at full value.** The top-up fee was already paid on top, so no deduction is needed.
 
 ### Organizer payouts
 - Organizers receive money via Stripe Connect. Before their first event that accepts online payments, they complete Stripe onboarding (ID + bank details). **Cash-only events need no onboarding.**
@@ -85,7 +100,7 @@ The cut-off is the auto-confirm moment, not an RSVP deadline.
 
 - **Open**: accepting RSVPs, nothing charged.
 - **Confirmed**: auto (cut-off + min met + auto-charge on) or manual. Prepaid RSVPs are charged and the price is locked. People can still join while spots remain (§3).
-- **Cancelled**: organizer-triggered at any point before payout. All online payments are refunded in full with no fee to the RSVPer; holds are released and saved cards are never charged.
+- **Cancelled**: organizer-triggered at any point before payout. All online payments are refunded in full, **including the service fee**. Holds are released and saved cards are never charged.
 - **Expired**: an Open event that is still unconfirmed 48h after its start time. Holds are released and nobody is charged. The 48h gives the organizer time to confirm after the fact (e.g. charging after the game).
 
 ## 8. Organizer event list
@@ -101,7 +116,7 @@ Actions:
 - Mark attendance (after the event).
 - Mark a payment as **paid outside app** (cash collected, bank transfer, etc.). This is record-keeping only; no money moves.
 - **Add a walk-in**: a name-only record (no account) with a payment status. Walk-ins don't count against max.
-- **Refund one person**, or **refund all online-paid** in bulk. Refunds are full, with no fee to the player, back to the original method (wallet or card), and available until payout (§5).
+- **Refund one person**, or **refund all online-paid** in bulk. The price is refunded in full, back to the original method (wallet or card), and refunds are available until payout (§5). The service fee is not refunded; only cancelling the event refunds it.
 
 ### Reliability
 - No-show count is **per group** and visible only to that group's organizers, never to the player or to other groups.
@@ -144,30 +159,39 @@ Kept here so the "why" doesn't get lost.
 6. **Auto-charge only touches prepaid RSVPs.** Cash never blocks confirmation.
 7. **Corrections after lock are manual and refund-only**, from one organizer list (§8). No automatic re-charges.
 8. **Waitlist: auto-promote by default, opt-out allowed, auto-promote entries have priority.** This removes the 30-minute claim timer and the dependency on instant notifications.
-9. **Wallet stays in MVP.** The per-transaction card fee (~€0.37 on an €8 game, ~4.6%) matters to regular players. Balance capped at €150.
+9. **Wallet stays in MVP.** Paying per game by card costs players more (see the fee comparison under [Wallet limits](#wallet-limits--research-notes)). Balance capped at €150, refundable at full value.
 10. **Payouts via Stripe Connect, after the event.** Refunds never need clawing back from organizers.
 11. **Organizers belong to the group**, not the event. Co-organizers of a recurring game is a group-level concept.
 12. **Price can't go up after the first RSVP**, which keeps holds and saved-card charges valid.
+13. **Revenue = service fee, paid by the player on top of the price.** €0.50 per card payment for a game, stepped top-up fee from €1. Organizers get the full price, so a split-evenly €80 court is fully covered.
+14. **No service fee on wallet game payments.** Otherwise the wallet costs players more than paying by card and nobody tops up. With it, players pay less per game and we keep more per game, because Stripe's fixed €0.25 is charged once per top-up instead of once per game.
+15. **Service fees are non-refundable, except when the organizer cancels a confirmed event.** Stripe keeps its fee on refunds, so the service fee covers that cost. Cancellation is the exception because keeping a fee on a game that didn't happen feels like a penalty, and it should be rare.
+16. **Fee schedules are versioned and pinned per event**, so fee changes never affect past or ongoing events.
 
 ## Wallet limits — research notes
 
-**Fees** (Stripe Ireland, standard EEA consumer cards: 1.5% + €0.25, plus 23% VAT on the fee, reclaimable if VAT-registered):
+**Fee economics.** Assumes Stripe Ireland's standard EEA consumer card rate of 1.5% + €0.25, charged on the full amount including our fee. Stripe adds 23% VAT on its fee, which we can reclaim once VAT-registered. Premium, UK and non-EU cards cost more (up to ~3.25% + €0.25), so a few payments will lose money whatever we choose.
 
-| Payment | Stripe fee | Effective rate |
-|---|---|---|
-| €8 game, paid by card | €0.37 | 4.6% |
-| €20 top-up | €0.55 | 2.75% |
-| €50 top-up | €1.00 | 2.0% |
-| €100 top-up | €1.75 | 1.75% |
+| Payment | Player pays | Stripe fee | We keep |
+|---|---|---|---|
+| €5 game, card (+€0.50) | €5.50 | €0.33 | €0.17 |
+| €8 game, card (+€0.50) | €8.50 | €0.38 | €0.12 |
+| €10 game, card (+€0.50) | €10.50 | €0.41 | €0.09 |
+| €20 game, card (+€0.50) | €20.50 | €0.56 | −€0.06 |
+| €20 top-up (+€1) | €21 | €0.57 | €0.44 |
+| €50 top-up (+€1.50) | €51.50 | €1.02 | €0.48 |
+| €100 top-up (+€2.50) | €102.50 | €1.79 | €0.71 |
 
-Even a €20 top-up cuts the fee rate per game by ~40% compared with paying by card each time. Beyond €50 the saving flattens, so there's little reason to push larger top-ups.
+- Card payments for games with a flat €0.50 fee **break even at ~€16**. If our own fee carries 23% VAT (to be confirmed, see open questions), break-even drops to ~€10, which matches the planned €0–10 first tier. Most pickup games are under €16, so the flat fee is fine for launch; add tiers when needed.
+- A fixed €1 top-up fee would lose money from ~€50 up, hence the stepped top-up fee.
+- Cost per €8 game for the player: card €0.50; wallet €0.40 (€20 top-up), €0.24 (€50), €0.20 (€100).
 
 **Why a €150 max balance:**
 - Under the EU's 5th AML Directive (AMLD5, Art. 12), member states *may* exempt low-value e-money from full customer ID checks if: max stored ≤ **€150**, remote payments ≤ **€50** each, and cash-out/redemption ≤ **€50**. Our per-game payments are well under €50. Keeping the balance ≤ €150 keeps us inside this if it applies, so users don't have to upload ID to use the wallet.
 - Refunds (redemptions) **over €50** would fall outside that exemption. Proposal: refunds over €50 require an ID check (e.g. Stripe Identity), to be confirmed with a lawyer.
 - The exemption is optional per member state, and the new EU AML Regulation (2024/1624) replaces the directive from **10 July 2027**, so re-check before then.
 
-**Refund fee is allowed:** the E-Money Directive (2009/110/EC, Art. 11) requires redemption at par at any time. A fee is allowed only if it's in the terms and is proportionate to actual costs. Deducting the actual top-up processing fee fits that.
+**Refunds at full value:** the E-Money Directive (2009/110/EC, Art. 11) requires redemption at par at any time, with a fee only if it's in the terms and proportionate to actual costs. Because the top-up fee is paid on top at top-up time, we refund the full balance with no redemption fee, which sidesteps the question entirely.
 
 **Blocker for building the wallet (not the rest of MVP):** we need to know whether holding a balance that's spendable with independent organizers needs an e-money licence (Central Bank of Ireland) or a licensed partner.
 - EBA guidance suggests a platform with its own brand, uniform checkout and uniform sales/return conditions *may* qualify for PSD2's limited-network exclusion. We might fit, but that needs an Irish fintech lawyer to confirm.
@@ -177,9 +201,8 @@ Sources: [AMLD5 thresholds (Bird & Bird)](https://www.twobirds.com/en/insights/2
 
 ## Open questions
 
-1. **Platform business model**: does the platform take a cut of each payment, and if so, how is it shown?
-2. **Who absorbs Stripe's fee on refunds**: Stripe doesn't return its processing fee when a payment is refunded. For organizer-issued refunds and cancellations (full refund to the player), this cost lands on either the organizer (deducted from payout) or the platform.
-3. **Wallet legal check** (see above): blocks building the wallet, not the rest of MVP.
+1. **Wallet legal check** (see above): blocks building the wallet, not the rest of MVP.
+2. **VAT on our service fee** (accountant): if it's standard-rated at 23%, €0.50 is ~€0.41 net and card payments for games break even at ~€10 instead of ~€16. We may also need to show it as VAT-inclusive.
 
 ## Assumptions (easy to revisit)
 
