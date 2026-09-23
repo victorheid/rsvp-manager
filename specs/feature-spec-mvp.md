@@ -15,13 +15,13 @@ Status: aligned, with open questions listed at the end. Guiding principle: **sim
 ## 2. Events
 
 - Created within a group by an organizer.
-- Fields: title, description, date/time, location, **cut-off**, min players (default 1), max players (optional; empty means unlimited).
+- Fields: title, description, start date/time, **end time**, location, **cut-off**, min players (default 1), max players (optional; empty means unlimited).
 - Cost: a total amount, with an optional itemized breakdown (e.g. "Court booking – €80"). The breakdown is for display only; no logic depends on it.
 - Pricing mode:
   - **Fixed per-head**: a set amount regardless of headcount.
   - **Split evenly**: total ÷ headcount at confirmation (cash RSVPs count). Before confirmation the price is shown as a range, from total ÷ max (full event) up to total ÷ min, or "up to total ÷ min" if there's no max.
 - **Price lock**: the per-head price is fixed the moment the event is confirmed and never recalculated after that. Later joiners pay the locked price. Headcount changes after that (no-shows, walk-ins) are handled with manual refunds (§8), never with automatic re-charges.
-- Toggle **Cash allowed**: RSVPers may choose to pay in person on the day. Cash RSVPs count toward min/max like any other.
+- **Payment options**: **Cash only**, **Online only** (wallet/card), or **Cash + online**. Online options are available only once the organizer has finished Stripe onboarding (§5); until then only Cash only can be picked. Cash RSVPs count toward min/max like any other.
 - Toggle **Auto-charge at cut-off** (default on): see §3.
 - Shareable link per event: `app.com/e/{event-slug}`, readable and easy to drop in WhatsApp.
 - Organizer can create a new event pre-filled from a previous one (recurring games).
@@ -35,12 +35,13 @@ Status: aligned, with open questions listed at the end. Guiding principle: **sim
 
 ## 3. Confirmation and cut-off: the one rule
 
-What users need to know: **until the game is confirmed you can drop out for free. Once it's confirmed you're in and paying.**
+What users need to know: **until the game is confirmed you can drop out for free. Once it's confirmed you're paying; you can still drop out, but whether you get your money back is up to the organizer.**
 
 - **Before confirmation**: join or leave freely; nothing is charged.
 - **At cut-off**: if auto-charge is on and min is met, the event is confirmed automatically and prepaid RSVPs (wallet/card) are charged. Cash RSVPs are untouched and owe on the day. If min isn't met or auto-charge is off, the event stays open.
 - **Manual confirm**: the organizer can confirm at any time, before or after cut-off. The effect is the same as auto-confirm.
-- **After confirmation**: people can still join while spots remain, up to the event start. They're charged immediately at the locked price and can't self-cancel.
+- **After confirmation**: people can still join while spots remain, up to the event start. They're charged immediately at the locked price.
+- **Dropping out after confirmation**: players can still drop out in the app, which frees their spot for the waitlist. Nothing is refunded automatically: the payment stays, and the organizer can refund it from their list if they want (§8). A cash RSVP who drops out keeps their cash-due status on the list.
 
 The cut-off is the auto-confirm moment, not an RSVP deadline.
 
@@ -50,7 +51,7 @@ The cut-off is the auto-confirm moment, not an RSVP deadline.
 - Tapping RSVP asks for phone number + SMS code (first time only), then a payment choice: wallet, one-off card, or cash on the day (if allowed).
 - RSVPing automatically joins the group.
 - If the event is full, the RSVP goes to the waitlist (§6).
-- Self-cancel is allowed any time before confirmation.
+- Self-cancel (drop out) is allowed any time up to the event start. Before confirmation it's free; after confirmation the refund is the organizer's call (§3).
 
 ## 5. Payments, wallet and payouts
 
@@ -65,7 +66,7 @@ The cut-off is the auto-confirm moment, not an RSVP deadline.
 - Fee on each card payment for a game (MVP): **€0.50 flat**. Stepped by amount later (e.g. €0–10 → €0.50, …).
 - Fee on wallet top-ups: **stepped by amount, starting at €1** (€20 → €1, €50 → €1.50, €100 → €2.50), paid on top (pay €21, get €20).
 - **No service fee on game payments made from the wallet**, since the top-up fee already covers it. **No fee on cash or paid-outside-app payments** (no money goes through the platform).
-- **Service fees are non-refundable**, with one exception: when the organizer **cancels a confirmed event**, players also get the service fee back and the platform absorbs Stripe's cost. Stripe keeps its own processing fee on refunds, so refunding our fee would otherwise always cost us money. Players can't drop out once charged, so every other refund is organizer-initiated.
+- **Service fees are non-refundable**, with one exception: when the organizer **cancels a confirmed event**, players also get the service fee back and the platform absorbs Stripe's cost. Stripe keeps its own processing fee on refunds, so refunding our fee would otherwise always cost us money. Every other refund is organizer-initiated, including after a player drops out of a confirmed event.
 - For split pricing, the fee is worked out from the locked price at the moment of charging.
 
 #### Changing fees without affecting past or ongoing events
@@ -89,11 +90,14 @@ The cut-off is the auto-confirm moment, not an RSVP deadline.
 ## 6. Waitlist
 
 - Kicks in once the event is full.
-- On joining the waitlist, the user picks a payment method like a normal RSVP, plus an **"Auto-promote me"** checkbox (on by default). The copy makes two things clear: that they'll be moved in automatically when a spot opens, and that auto-promote entries get priority.
-- **Order**: auto-promote entries first, then manual entries; first come, first served within each. A user can toggle their choice at any time and keeps their original join time.
-- When a spot opens (a cancellation, a raised max, or an organizer removing someone):
-  - **Auto-promote entry available** → the next one is moved in and notified. Normal rules apply: they can drop out free before confirmation, or are charged immediately if the event is already confirmed. If they chose wallet and their balance can't cover the hold, they're skipped and notified.
-  - **Only manual entries left** → all of them are notified that a spot is open, and the first to claim it gets it. No timer.
+- On joining the waitlist, the user picks one of two modes:
+  - **Auto-join and pay** (default): when a spot opens they're moved in automatically and paid online. They pick wallet or card when joining the waitlist (a card is saved, nothing is charged or held yet). **Not available with cash**, since cash can't be taken automatically.
+  - **Notify me**: when a spot opens they're alerted and decide then. Claiming the spot is a normal RSVP, with a payment choice that includes cash if the event allows it. No payment method is picked when joining the waitlist.
+- The copy makes clear what happens in each mode, and that auto-join entries get priority.
+- **Order**: auto-join entries first, then notify-me entries; first come, first served within each. A user can switch mode at any time and keeps their original join time (switching to auto-join asks for a wallet/card choice).
+- When a spot opens (a player drops out, max is raised, or the organizer removes someone):
+  - **Auto-join entry available** → the next one is moved in and notified. Normal rules apply: before confirmation a wallet hold is placed / the saved card waits for confirmation, and they can drop out free; after confirmation they're charged immediately. If they chose wallet and their balance can't cover it, they're skipped and notified.
+  - **Only notify-me entries left** → all of them are notified that a spot is open, and the first to claim it gets it. No timer.
 - The waitlist closes when the event starts.
 
 ## 7. Event lifecycle
@@ -109,10 +113,12 @@ Attendance, reconciliation and refunds all happen on **one screen per event**. E
 
 - **Attendance**: unmarked / showed / no-show.
 - **Payment**: held (not charged yet) / paid online / owes (cash due or failed card) / paid outside app / refunded.
+- Players who dropped out (or were removed) after confirmation stay on the list marked **Dropped out**, with their payment status clearly visible (e.g. paid online €8.50). No decision is required; the organizer can use the normal refund or mark-paid actions if they want.
 - **No-show count** for this group, shown next to their name.
 
 Actions:
 - Confirm or cancel the event.
+- **Remove a player** *(proposed, to confirm)* (e.g. someone who said in WhatsApp they can't come but didn't drop out). Same effect as them dropping out: before confirmation their hold is released and nothing is charged; after confirmation the payment stays and they show as dropped out, refundable like anyone else. The player is notified, and the spot goes to the waitlist.
 - Mark attendance (after the event).
 - Mark a payment as **paid outside app** (cash collected, bank transfer, etc.). This is record-keeping only; no money moves.
 - **Add a walk-in**: a name-only record (no account) with a payment status. Walk-ins don't count against max.
@@ -126,7 +132,7 @@ Actions:
 
 - **Web push** is the primary channel. **SMS/WhatsApp** is the fallback, used only for money-related messages (charged, payment failed, cancelled/refunded, moved in from waitlist) to keep costs down.
   - On iPhone, web push only works if the user has added the app to their Home Screen, so many iPhone users will only receive the fallback messages.
-- With auto-promotion there are no countdown timers, so nothing depends on near-instant delivery.
+- With auto-join there are no countdown timers, so nothing depends on near-instant delivery.
 
 Triggers:
 | Trigger | Who |
@@ -134,7 +140,9 @@ Triggers:
 | New event posted | Group members |
 | Cut-off reminder (e.g. 24h before) | Everyone in, and waitlist |
 | Moved in from waitlist | Promoted person |
-| Spot open (manual waitlist) | Manual waitlist entries |
+| Cut-off passed without min met, or auto-charge off (confirm or cancel) | Organizer |
+| Removed by organizer | That person |
+| Spot open (notify-me waitlist) | Notify-me waitlist entries |
 | Event confirmed + amount charged | Everyone in |
 | Event details changed | Everyone in, and waitlist |
 | Event cancelled + refund | Everyone in, and waitlist |
@@ -158,7 +166,7 @@ Kept here so the "why" doesn't get lost.
 5. **Split pricing: range before confirmation, locked at confirmation.** The wallet hold is the upper bound. Never recalculated after lock.
 6. **Auto-charge only touches prepaid RSVPs.** Cash never blocks confirmation.
 7. **Corrections after lock are manual and refund-only**, from one organizer list (§8). No automatic re-charges.
-8. **Waitlist: auto-promote by default, opt-out allowed, auto-promote entries have priority.** This removes the 30-minute claim timer and the dependency on instant notifications.
+8. **Waitlist: auto-join-and-pay by default, notify-me as the alternative, auto-join entries have priority.** Auto-join is online-only because cash can't be taken automatically. This removes the 30-minute claim timer and the dependency on instant notifications.
 9. **Wallet stays in MVP.** Paying per game by card costs players more (see the fee comparison under [Wallet limits](#wallet-limits--research-notes)). Balance capped at €150, refundable at full value.
 10. **Payouts via Stripe Connect, after the event.** Refunds never need clawing back from organizers.
 11. **Organizers belong to the group**, not the event. Co-organizers of a recurring game is a group-level concept.
@@ -167,6 +175,9 @@ Kept here so the "why" doesn't get lost.
 14. **No service fee on wallet game payments.** Otherwise the wallet costs players more than paying by card and nobody tops up. With it, players pay less per game and we keep more per game, because Stripe's fixed €0.25 is charged once per top-up instead of once per game.
 15. **Service fees are non-refundable, except when the organizer cancels a confirmed event.** Stripe keeps its fee on refunds, so the service fee covers that cost. Cancellation is the exception because keeping a fee on a game that didn't happen feels like a penalty, and it should be rare.
 16. **Fee schedules are versioned and pinned per event**, so fee changes never affect past or ongoing events.
+17. **Dropping out is always possible; refunds after confirmation are the organizer's call.** The spot goes back to the waitlist straight away. There's no refund-decision step: the entry just shows as dropped out with what they paid, and the organizer refunds if they want to.
+18. **Payment options per event: cash only / online only / both.** Online needs finished Stripe onboarding, so a new organizer can run cash games from day one.
+19. **When a game doesn't reach its minimum by cut-off, the organizer is alerted** to confirm anyway or cancel. If they do neither, it expires 48h after start (§7).
 
 ## Wallet limits — research notes
 
