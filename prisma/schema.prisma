@@ -13,11 +13,13 @@ datasource db {
 // --- Groups & auth -----------------------------------------------------
 
 model User {
-  id          String   @id @default(cuid())
-  phoneNumber String   @unique
-  firstName   String
-  lastInitial String
-  createdAt   DateTime @default(now())
+  id               String   @id @default(cuid())
+  phoneNumber      String   @unique
+  firstName        String
+  lastInitial      String
+  createdAt        DateTime @default(now())
+  // The payment provider's customer for this user, created on first payment (§5).
+  stripeCustomerId String?  @unique
 
   memberships       GroupMembership[]
   organizedGroups   Group[]            @relation("GroupOrganizer")
@@ -25,6 +27,7 @@ model User {
   waitlistEntries   WaitlistEntry[]
   wallet            Wallet?
   pushSubscriptions PushSubscription[]
+  payments          Payment[]
 }
 
 model Group {
@@ -148,8 +151,9 @@ model Rsvp {
   attended      Boolean?
   createdAt     DateTime      @default(now())
 
-  event Event @relation(fields: [eventId], references: [id])
-  user  User? @relation(fields: [userId], references: [id])
+  event    Event     @relation(fields: [eventId], references: [id])
+  user     User?     @relation(fields: [userId], references: [id])
+  payments Payment[]
 
   @@unique([eventId, userId])
 }
@@ -184,7 +188,96 @@ model Wallet {
   balanceCents Int      @default(0)
   updatedAt    DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id])
+  user    User          @relation(fields: [userId], references: [id])
+  entries WalletEntry[]
+  holds   WalletHold[]
+}
+
+enum WalletEntryKind {
+  TOP_UP
+  GAME_PAYMENT
+  REFUND
+}
+
+// The wallet's audit trail: every change to balanceCents has exactly one
+// entry, with the signed amount.
+model WalletEntry {
+  id          String          @id @default(cuid())
+  walletId    String
+  kind        WalletEntryKind
+  amountCents Int
+  paymentId   String?
+  createdAt   DateTime        @default(now())
+
+  wallet  Wallet   @relation(fields: [walletId], references: [id])
+  payment Payment? @relation(fields: [paymentId], references: [id])
+
+  @@index([walletId])
+}
+
+enum WalletHoldStatus {
+  HELD
+  REALIZED
+  RELEASED
+}
+
+// §5: a hold reduces the *available* balance but moves no money. Realized at
+// confirmation (the price is debited, the rest released) or released if the
+// RSVP or event is cancelled first.
+model WalletHold {
+  id          String           @id @default(cuid())
+  walletId    String
+  rsvpId      String           @unique
+  amountCents Int
+  status      WalletHoldStatus @default(HELD)
+  createdAt   DateTime         @default(now())
+  settledAt   DateTime?
+
+  wallet Wallet @relation(fields: [walletId], references: [id])
+
+  @@index([walletId, status])
+}
+
+// --- Payments ----------------------------------------------------------------
+
+enum PaymentKind {
+  TOP_UP
+  GAME_CARD
+  GAME_WALLET
+}
+
+enum PaymentRecordStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+// One row per attempt to move money in or out for a player (§5). The service
+// fee is stored as charged and never recalculated; refunds are tracked
+// separately for the price and the fee (only a cancelled confirmed event
+// refunds the fee).
+model Payment {
+  id               String              @id @default(cuid())
+  userId           String
+  kind             PaymentKind
+  status           PaymentRecordStatus @default(PENDING)
+  rsvpId           String?
+  // What the player paid for: the price of the game, or the credit a top-up adds.
+  amountCents      Int
+  feeCents         Int
+  feeScheduleId    String
+  refundedCents    Int                 @default(0)
+  feeRefundedCents Int                 @default(0)
+  providerIntentId String?
+  providerChargeId String?
+  createdAt        DateTime            @default(now())
+
+  user          User          @relation(fields: [userId], references: [id])
+  rsvp          Rsvp?         @relation(fields: [rsvpId], references: [id])
+  walletEntries WalletEntry[]
+
+  @@index([userId])
+  @@index([rsvpId])
 }
 
 // --- Notifications -----------------------------------------------------------

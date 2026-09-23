@@ -44,8 +44,8 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 - [x] Fee schedules: versioned tiers (game card payments, top-ups), never edited in place — `fees` domain; v1 seeded by the migration, `publishFeeSchedule` adds a version (no UI/router: operator action)
 - [x] Pin fee schedule version on event at creation; duplicates use current schedule — `Event.feeScheduleId`, set by `createEvent`
 - [ ] Store exact fee charged on every payment
-- [ ] Wallet: balance, top-ups (€20 min / €50 / €100) + stepped top-up fee, €150 max balance
-- [ ] Wallet holds (upper bound for split pricing), realized or released
+- [x] Wallet: balance, top-ups (€20 min / €50 / €100) + stepped top-up fee, €150 max balance — `wallet` domain, against the fake payment gateway (real Stripe pending keys; production refuses to run without a real gateway). Feature-flag the wallet in the UI until the legal check clears
+- [x] Wallet holds (upper bound for split pricing), realized or released — `placeHold` / `realizeHold` / `releaseHold` / `chargeWalletNow`, race-safe; wiring them into RSVP, confirm and cancel comes with the wallet RSVP option
 - [ ] Card RSVP: SetupIntent at RSVP, charge price + service fee at confirmation
 - [ ] Failed charge → "owes" status + pay link
 - [ ] Price + service fee display, and "save by topping up" prompt on card RSVP
