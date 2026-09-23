@@ -84,11 +84,13 @@ model Event {
   title              String
   description        String?
   startsAt           DateTime
+  endsAt             DateTime
   location           String
   cutoffAt           DateTime
   minPlayers         Int         @default(1)
   maxPlayers         Int?
   totalCostCents     Int
+  costBreakdown      Json?
   pricingMode        PricingMode
   cashAllowed        Boolean     @default(false)
   autoChargeAtCutoff Boolean     @default(true)

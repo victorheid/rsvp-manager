@@ -43,6 +43,7 @@ describe.skipIf(!hasTestDb)("confirmEvent", () => {
         groupId: group.id,
         title: "Thursday game",
         startsAt: new Date(Date.now() + 86_400_000),
+        endsAt: new Date(Date.now() + 90_000_000),
         location: "Galway Sports Hall",
         cutoffAt: new Date(Date.now() + 3_600_000),
         minPlayers: 1,

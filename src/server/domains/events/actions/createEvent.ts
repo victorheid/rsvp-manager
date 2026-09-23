@@ -2,17 +2,20 @@ import { TRPCError } from "@trpc/server";
 import type { Db } from "@/server/db";
 import { PricingMode } from "@/generated/prisma/enums";
 import { slugify } from "@/server/domains/groups/rules";
+import type { CostBreakdownItem } from "@/server/domains/events/costBreakdown";
 
 export interface CreateEventInput {
   groupId: string;
   title: string;
   description?: string;
   startsAt: Date;
+  endsAt: Date;
   location: string;
   cutoffAt: Date;
   minPlayers?: number;
   maxPlayers?: number;
   totalCostCents: number;
+  costBreakdown?: CostBreakdownItem[];
   pricingMode: PricingMode;
   cashAllowed?: boolean;
   autoChargeAtCutoff?: boolean;
@@ -24,6 +27,13 @@ export interface CreateEventInput {
  * failing the whole create.
  */
 export async function createEvent(db: Db, input: CreateEventInput) {
+  if (input.endsAt <= input.startsAt) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "End time must be after the start time.",
+    });
+  }
+
   if (input.cutoffAt >= input.startsAt) {
     throw new TRPCError({
       code: "BAD_REQUEST",
@@ -48,11 +58,13 @@ export async function createEvent(db: Db, input: CreateEventInput) {
       title: input.title,
       description: input.description,
       startsAt: input.startsAt,
+      endsAt: input.endsAt,
       location: input.location,
       cutoffAt: input.cutoffAt,
       minPlayers: input.minPlayers ?? 1,
       maxPlayers: input.maxPlayers,
       totalCostCents: input.totalCostCents,
+      costBreakdown: input.costBreakdown,
       pricingMode: input.pricingMode,
       cashAllowed: input.cashAllowed ?? false,
       autoChargeAtCutoff: input.autoChargeAtCutoff ?? true,

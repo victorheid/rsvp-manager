@@ -5,6 +5,7 @@ import { protectedProcedure, publicProcedure, router } from "@/server/trpc";
 import { createEvent } from "@/server/domains/events/actions/createEvent";
 import { confirmEvent } from "@/server/domains/events/actions/confirmEvent";
 import { getEventBySlug } from "@/server/domains/events/getters/getEventBySlug";
+import { costBreakdownSchema } from "@/server/domains/events/costBreakdown";
 
 export const eventsRouter = router({
   create: protectedProcedure
@@ -14,11 +15,13 @@ export const eventsRouter = router({
         title: z.string().min(1).max(120),
         description: z.string().max(2000).optional(),
         startsAt: z.date(),
+        endsAt: z.date(),
         location: z.string().min(1),
         cutoffAt: z.date(),
         minPlayers: z.number().int().positive().optional(),
         maxPlayers: z.number().int().positive().optional(),
         totalCostCents: z.number().int().nonnegative(),
+        costBreakdown: costBreakdownSchema.optional(),
         pricingMode: z.nativeEnum(PricingMode),
         cashAllowed: z.boolean().optional(),
         autoChargeAtCutoff: z.boolean().optional(),
