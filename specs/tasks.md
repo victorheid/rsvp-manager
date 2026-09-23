@@ -9,7 +9,7 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 ## 0. Foundations
 - [x] Repo scaffold: Next.js + TypeScript + Postgres + Prisma (+ tRPC, Zod, Vitest — see [CLAUDE.md](../CLAUDE.md))
 - [x] Auth: phone number + SMS code, triggered only at RSVP (real SMS provider not wired up yet — codes log to the server console locally, see the item below)
-- [ ] Stripe account/keys wired up (test mode), incl. Connect
+- [ ] Stripe account/keys wired up (test mode), incl. Connect — the `PaymentGateway` interface, in-memory fake and contract tests are built (`integrations/stripe`); what's left is the real adapter against Stripe test mode, which needs keys
 - [x] Background worker for time-based jobs (cut-off auto-confirm, event expiry) — `pnpm worker`, a single always-on interval process; payout release joins once §5 exists
 - [x] Web push setup (service worker, subscription storage) — `public/sw.js`, `PushSubscription` table, `notifications.subscribePush/unsubscribePush/sendTest`, `integrations/push` (real `web-push` sender once `VAPID_*` env keys are set, console logger otherwise). Entry point for now is the Home account menu ("Turn on notifications"); the `/me` screen and post-RSVP prompt (UI spec §9) come with §5
 - [ ] SMS/WhatsApp fallback provider wired up
