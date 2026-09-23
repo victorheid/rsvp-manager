@@ -309,3 +309,22 @@ export function isCutoffReminderDue(
     event.createdAt.getTime() <= windowStart
   );
 }
+
+/**
+ * §9 "Cut-off passed without min met, or auto-charge off": whether the
+ * organizer should be alerted that the game is still unconfirmed and needs
+ * a decision (§10.9 of the UI spec). Once per event, and never when the
+ * cut-off job is about to confirm it itself.
+ */
+export function needsOrganizerCutoffAlert(
+  event: Pick<EventModel, "status" | "autoChargeAtCutoff" | "cutoffAt" | "minPlayers" | "organizerAlertedAt">,
+  confirmedHeadcount: number,
+  now: Date,
+): boolean {
+  return (
+    event.status === "OPEN" &&
+    event.organizerAlertedAt === null &&
+    now >= event.cutoffAt &&
+    !shouldAutoConfirmAtCutoff(event, confirmedHeadcount, event.minPlayers, now)
+  );
+}

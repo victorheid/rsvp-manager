@@ -6,6 +6,7 @@ import {
   eventConfirmedMessage,
   isMoneyRelated,
   newEventMessage,
+  organizerCutoffAlertMessage,
   removedMessage,
   smsBody,
   spotOpenMessage,
@@ -73,5 +74,21 @@ describe("smsBody", () => {
 
   it("is just the text otherwise", () => {
     expect(smsBody(message, undefined)).toBe("Game cancelled. Friday game was cancelled.");
+  });
+});
+
+describe("organizerCutoffAlertMessage", () => {
+  const alertEvent = { ...event, minPlayers: 4 };
+
+  it("says the game can't run yet when the minimum wasn't met", () => {
+    expect(organizerCutoffAlertMessage(alertEvent, 3).body).toContain("3 of the 4 players needed");
+  });
+
+  it("asks for a decision when the minimum was met but auto-charge is off", () => {
+    expect(organizerCutoffAlertMessage(alertEvent, 5).body).toContain("Confirm the game or cancel it");
+  });
+
+  it("links to the Manage screen", () => {
+    expect(organizerCutoffAlertMessage(alertEvent, 5).url).toBe("/e/friday-game-abc/manage");
   });
 });

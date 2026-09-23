@@ -16,6 +16,7 @@ export const NOTIFICATION_KINDS = [
   "REMOVED",
   "SPOT_OPEN",
   "CUTOFF_REMINDER",
+  "ORGANIZER_CUTOFF_ALERT",
   "TEST",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
@@ -116,6 +117,28 @@ export function cutoffReminderMessage(event: NotifiedEvent & Pick<EventModel, "c
     title: "Cut-off coming up",
     body: `${event.title}: sign-ups close ${formatDateTime(event.cutoffAt)}. Can't make it? Drop out before then.`,
     url: eventUrl(event),
+  };
+}
+
+/**
+ * §9 trigger: "Cut-off passed without min met, or auto-charge off" →
+ * organizer. Says what's actually being asked: with the minimum unmet the
+ * game can't be confirmed, only waited on or cancelled.
+ */
+export function organizerCutoffAlertMessage(
+  event: NotifiedEvent & Pick<EventModel, "minPlayers">,
+  headcount: number,
+): NotificationMessage {
+  const body =
+    headcount < event.minPlayers
+      ? `${event.title}: sign-ups closed with ${headcount} of the ${event.minPlayers} players needed. Wait for more, or cancel it.`
+      : `${event.title}: sign-ups closed with ${headcount} in. Confirm the game or cancel it.`;
+
+  return {
+    kind: "ORGANIZER_CUTOFF_ALERT",
+    title: "Your game needs a decision",
+    body,
+    url: `${eventUrl(event)}/manage`,
   };
 }
 

@@ -4,6 +4,7 @@ import { db } from "@/server/db";
 import { resetDatabase } from "@/server/testing/resetDatabase";
 import { autoConfirmDueEvents } from "./actions/autoConfirmDueEvents";
 import { expireOverdueEvents } from "./actions/expireOverdueEvents";
+import { alertOrganizersOfUnconfirmedEvents } from "./actions/alertOrganizersOfUnconfirmedEvents";
 import { sendCutoffReminders } from "./actions/sendCutoffReminders";
 import { fakePushSender } from "@/server/integrations/push/fake";
 
@@ -186,6 +187,59 @@ describe.skipIf(!hasTestDb)("background jobs", () => {
       await db.event.update({ where: { id: event.id }, data: { status: "CONFIRMED" } });
 
       expect(await sendCutoffReminders(db, new Date("2026-01-10T10:00:00Z"))).toHaveLength(0);
+    });
+  });
+
+  describe("alertOrganizersOfUnconfirmedEvents", () => {
+    async function pastCutoffEvent(overrides: { minPlayers?: number; autoChargeAtCutoff?: boolean }) {
+      const { organizer, group } = await createGroupAndOrganizer();
+      await db.pushSubscription.create({
+        data: { userId: organizer.id, endpoint: "https://push.example/org", p256dh: "k", auth: "a" },
+      });
+      const event = await db.event.create({
+        data: {
+          slug: "alert-event", groupId: group.id, title: "Alert", startsAt: new Date("2026-01-11T18:00:00Z"),
+          endsAt: new Date("2026-01-11T19:00:00Z"), location: "A", cutoffAt: new Date("2026-01-10T18:00:00Z"),
+          totalCostCents: 1000, pricingMode: PricingMode.FIXED_PER_HEAD, ...overrides,
+        },
+      });
+      return event;
+    }
+
+    const now = new Date("2026-01-10T18:00:01Z");
+
+    it("alerts the organizer once when the minimum wasn't met at cut-off", async () => {
+      const event = await pastCutoffEvent({ minPlayers: 2 });
+
+      const alerted = await alertOrganizersOfUnconfirmedEvents(db, now);
+      expect(alerted.map((e) => e.id)).toEqual([event.id]);
+      expect(fakePushSender.sent).toHaveLength(1);
+      expect(fakePushSender.sent[0]?.message.url).toBe("/e/alert-event/manage");
+
+      expect(await alertOrganizersOfUnconfirmedEvents(db, new Date("2026-01-10T18:05:00Z"))).toHaveLength(0);
+      expect(fakePushSender.sent).toHaveLength(1);
+    });
+
+    it("alerts when auto-charge is off", async () => {
+      await pastCutoffEvent({ autoChargeAtCutoff: false });
+
+      expect(await alertOrganizersOfUnconfirmedEvents(db, now)).toHaveLength(1);
+    });
+
+    it("stays quiet for a game that auto-confirms", async () => {
+      const event = await pastCutoffEvent({ minPlayers: 1 });
+      const player = await db.user.create({
+        data: { phoneNumber: "+353820000002", firstName: "Ana", lastInitial: "K" },
+      });
+      await db.rsvp.create({ data: { eventId: event.id, userId: player.id, paymentMethod: "CASH" } });
+
+      expect(await alertOrganizersOfUnconfirmedEvents(db, now)).toHaveLength(0);
+    });
+
+    it("stays quiet once the game has started", async () => {
+      await pastCutoffEvent({ minPlayers: 2 });
+
+      expect(await alertOrganizersOfUnconfirmedEvents(db, new Date("2026-01-11T19:00:00Z"))).toHaveLength(0);
     });
   });
 });

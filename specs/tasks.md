@@ -78,7 +78,7 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 - [x] Trigger table from spec §9 wired to push — new event, confirmed, details changed, cancelled, removed, spot open (notify-me). Still open: cut-off reminder and organizer alert (below), "moved in from waitlist", "payment failed", "refund issued" (need §5)
 - [x] SMS/WhatsApp fallback for money-related messages only — `notifyUsers` also texts confirmed and cancelled (the money-related kinds today) via the SMS adapter; it's the console logger until a real provider exists (§0). Payment failed / refund / moved-in kinds join with §5
 - [x] Cut-off reminder job — `sendCutoffReminders`, run by `pnpm worker`: 24h before cut-off, once per event, going + waitlist; skipped for games posted inside that window
-- [ ] Organizer alert when cut-off passes unconfirmed (confirm anyway / cancel)
+- [x] Organizer alert when cut-off passes unconfirmed — `alertOrganizersOfUnconfirmedEvents`, run by `pnpm worker` after auto-confirm: once per event, push to the organizer linking to Manage. Copy offers "wait for more or cancel" when the minimum isn't met, since "confirm anyway" is still undecided (§10)
 
 ## 10. UI & design system
 Design source: the Figma design system (Foundations, Components, Screens, Flows & Audit). Code: [`src/components/ui`](../src/components/ui/README.md), live at `/design`. Spec: [`ui-ux-spec-mvp.md`](./ui-ux-spec-mvp.md) §15.

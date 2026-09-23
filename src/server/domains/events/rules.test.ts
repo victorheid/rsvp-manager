@@ -5,6 +5,7 @@ import {
   eventDetailsChanged,
   eventPhase,
   isCutoffReminderDue,
+  needsOrganizerCutoffAlert,
   isDisallowedPriceIncrease,
   isExpired,
   organizerEventActions,
@@ -359,5 +360,32 @@ describe("isCutoffReminderDue", () => {
   it("is skipped for an event posted inside the 24h window", () => {
     const now = new Date("2026-10-01T10:00:00Z");
     expect(isCutoffReminderDue({ ...event, createdAt: new Date("2026-09-30T20:00:00Z") }, now)).toBe(false);
+  });
+});
+
+describe("needsOrganizerCutoffAlert", () => {
+  const cutoffAt = new Date("2026-10-01T18:00:00Z");
+  const after = new Date("2026-10-01T18:00:01Z");
+  const event = { status: EventStatus.OPEN, autoChargeAtCutoff: true, cutoffAt, minPlayers: 4, organizerAlertedAt: null };
+
+  it("alerts when the cut-off passed and the minimum wasn't met", () => {
+    expect(needsOrganizerCutoffAlert(event, 3, after)).toBe(true);
+  });
+
+  it("alerts when auto-charge is off, even with the minimum met", () => {
+    expect(needsOrganizerCutoffAlert({ ...event, autoChargeAtCutoff: false }, 6, after)).toBe(true);
+  });
+
+  it("stays quiet when the cut-off job will confirm the game itself", () => {
+    expect(needsOrganizerCutoffAlert(event, 4, after)).toBe(false);
+  });
+
+  it("stays quiet before the cut-off", () => {
+    expect(needsOrganizerCutoffAlert(event, 0, new Date("2026-10-01T17:59:59Z"))).toBe(false);
+  });
+
+  it("alerts only once, and only while open", () => {
+    expect(needsOrganizerCutoffAlert({ ...event, organizerAlertedAt: after }, 3, after)).toBe(false);
+    expect(needsOrganizerCutoffAlert({ ...event, status: EventStatus.CONFIRMED }, 3, after)).toBe(false);
   });
 });
