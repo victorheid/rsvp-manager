@@ -6,10 +6,19 @@ Group sports RSVP + payments app. Product spec: [specs/feature-spec-mvp.md](spec
 
 ```bash
 pnpm install
-cp .env.example .env   # point DATABASE_URL at a local Postgres
+cp .env.example .env        # point DATABASE_URL at a local Postgres
 pnpm db:migrate
 pnpm dev
 ```
+
+Feature tests run against a second, disposable database so they never touch your dev data. Create one (e.g. `rsvp-app-test`) and point a `.env.test` at it:
+
+```bash
+echo 'DATABASE_URL="postgresql://<user>@localhost:5432/rsvp-app-test?schema=public"' > .env.test
+pnpm db:test:migrate
+```
+
+Without `.env.test`, `pnpm test` still runs — feature tests just skip themselves.
 
 ## Commands
 
@@ -20,5 +29,6 @@ pnpm dev
 | `pnpm typecheck` | `tsc --noEmit` |
 | `pnpm lint` | ESLint |
 | `pnpm test` | Vitest — unit tests always run; feature tests need `DATABASE_URL` and skip themselves otherwise |
-| `pnpm db:migrate` | Apply a Prisma schema change |
+| `pnpm db:migrate` | Apply a Prisma schema change (dev DB) |
+| `pnpm db:test:migrate` | Apply migrations to the test DB (`.env.test`) |
 | `pnpm db:studio` | Browse the database |

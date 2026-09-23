@@ -8,10 +8,11 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "dotenv -e .env.test -- vitest run",
+    "test:watch": "dotenv -e .env.test -- vitest",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
+    "db:test:migrate": "dotenv -e .env.test -- prisma migrate deploy",
     "db:studio": "prisma studio"
   },
   "dependencies": {
