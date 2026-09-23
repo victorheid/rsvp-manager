@@ -3,7 +3,7 @@ import type { Db } from "@/server/db";
 import { EventStatus, PricingMode, RsvpStatus } from "@/generated/prisma/enums";
 import type { CostBreakdownItem } from "@/server/domains/events/costBreakdown";
 import { notifyEventAudience } from "@/server/domains/events/actions/notifyEventAudience";
-import { notificationRules } from "@/server/domains/notifications";
+import { notificationRules, notifyUsers } from "@/server/domains/notifications";
 import { eventDetailsChanged, isDisallowedPriceIncrease, paymentOptionsProblem } from "@/server/domains/events/rules";
 
 export interface EditEventInput {
@@ -136,6 +136,13 @@ export async function editEvent(db: Db, input: EditEventInput) {
       includeWaitlist: true,
       exceptUserId: input.organizerId,
     });
+  }
+
+  // §6: a raised max opens spots — tell the notify-me waitlist (auto-join entries are moved in by the worker).
+  const raisedMax = before.maxPlayers !== null && (after.maxPlayers === null || after.maxPlayers > before.maxPlayers);
+  if (raisedMax) {
+    const waiting = await db.waitlistEntry.findMany({ where: { eventId: after.id, promotionMode: "MANUAL" }, select: { userId: true } });
+    await notifyUsers(db, { userIds: waiting.map((entry) => entry.userId), message: notificationRules.spotOpenMessage(after) });
   }
 
   return after;

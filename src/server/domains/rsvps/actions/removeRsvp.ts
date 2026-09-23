@@ -1,7 +1,8 @@
 import { TRPCError } from "@trpc/server";
 import type { Db } from "@/server/db";
 import { RsvpStatus } from "@/generated/prisma/enums";
-import { countGoingTowardMax, notifyWaitlistOfOpenSpot } from "@/server/domains/rsvps/actions/notifyWaitlistOfOpenSpot";
+import type { PaymentGateway } from "@/server/integrations/stripe";
+import { countGoingTowardMax, promoteAfterSpotFreed } from "@/server/domains/rsvps/actions/notifyWaitlistOfOpenSpot";
 import { releaseHold } from "@/server/domains/wallet";
 import { notificationRules, notifyUsers } from "@/server/domains/notifications";
 import { authorizeOrganizerRowAction, authorizeOrganizerRsvp } from "@/server/domains/rsvps/actions/authorizeOrganizerRsvp";
@@ -17,7 +18,7 @@ export interface RemoveRsvpInput {
  * confirmation the payment stays and they show as dropped out,
  * refundable like anyone else (refunds need §5, not built yet).
  */
-export async function removeRsvp(db: Db, input: RemoveRsvpInput, now: Date) {
+export async function removeRsvp(db: Db, gateway: PaymentGateway, input: RemoveRsvpInput, now: Date) {
   const rsvp = await authorizeOrganizerRsvp(db, input.rsvpId, input.organizerId);
 
   if (rsvp.status !== RsvpStatus.GOING) {
@@ -38,7 +39,7 @@ export async function removeRsvp(db: Db, input: RemoveRsvpInput, now: Date) {
   if (removed.userId !== null) {
     await notifyUsers(db, { userIds: [removed.userId], message: notificationRules.removedMessage(rsvp.event) });
   }
-  await notifyWaitlistOfOpenSpot(db, { eventId: rsvp.eventId, leaver: removed, goingCountBefore }, now);
+  await promoteAfterSpotFreed(db, gateway, { eventId: rsvp.eventId, leaver: removed, goingCountBefore }, now);
 
   return removed;
 }

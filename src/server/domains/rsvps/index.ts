@@ -11,3 +11,4 @@ export { getUpcomingRsvpsForUser } from "./getters/getUpcomingRsvpsForUser";
 export { getRsvpsForOrganizer } from "./getters/getRsvpsForOrganizer";
 export * as rsvpRules from "./rules";
 export type { OrganizerRowAction } from "./rules";
+export { promoteWaitlists } from "./actions/notifyWaitlistOfOpenSpot";

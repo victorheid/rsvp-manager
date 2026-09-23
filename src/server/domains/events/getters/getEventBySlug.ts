@@ -1,6 +1,8 @@
 import type { Db } from "@/server/db";
 import { EventStatus, PricingMode } from "@/generated/prisma/enums";
 import type { EventModel } from "@/generated/prisma/models";
+// The rules file only: waitlist's index depends on events, so importing it here would be a cycle.
+import { sortWaitlist } from "@/server/domains/waitlist/rules";
 import { costBreakdownSchema } from "@/server/domains/events/costBreakdown";
 import { splitPriceRangeCents } from "@/server/domains/events/rules";
 
@@ -72,12 +74,15 @@ export async function getEventBySlug(db: Db, slug: string, options: GetEventBySl
 
   const isOrganizer = options.viewerId !== undefined && options.viewerId === event.group.organizerId;
 
+  // §6: auto-join entries come first, then notify-me, each by join time.
+  const waitlistEntries = sortWaitlist(event.waitlistEntries);
   const viewerWaitlistPosition = options.viewerId
-    ? event.waitlistEntries.findIndex((entry) => entry.userId === options.viewerId)
+    ? waitlistEntries.findIndex((entry) => entry.userId === options.viewerId)
     : -1;
 
   return {
     ...event,
+    waitlistEntries,
     costBreakdown,
     priceDisplay: priceDisplay(event),
     viewerRsvp,

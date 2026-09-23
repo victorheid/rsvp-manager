@@ -40,7 +40,7 @@ export const rsvpsRouter = router({
   drop: protectedProcedure
     .input(z.object({ eventId: z.string() }))
     .mutation(({ ctx, input }) =>
-      dropRsvp(ctx.db, { eventId: input.eventId, userId: ctx.user.id }, new Date()),
+      dropRsvp(ctx.db, getPaymentGateway(), { eventId: input.eventId, userId: ctx.user.id }, new Date()),
     ),
 
   myUpcoming: protectedProcedure.query(({ ctx }) =>
@@ -76,7 +76,7 @@ export const rsvpsRouter = router({
 
   remove: protectedProcedure
     .input(z.object({ rsvpId: z.string() }))
-    .mutation(({ ctx, input }) => removeRsvp(ctx.db, { rsvpId: input.rsvpId, organizerId: ctx.user.id }, new Date())),
+    .mutation(({ ctx, input }) => removeRsvp(ctx.db, getPaymentGateway(), { rsvpId: input.rsvpId, organizerId: ctx.user.id }, new Date())),
 
   refund: protectedProcedure
     .input(z.object({ rsvpId: z.string() }))

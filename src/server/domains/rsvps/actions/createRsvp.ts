@@ -15,6 +15,8 @@ export interface CreateRsvpInput {
   paymentMethod: PaymentMethod;
   /** Card RSVPs: the SetupIntent the browser confirmed with the card (see `beginCardSetup`). */
   setupIntentId?: string;
+  /** Or a card already saved (a waitlist entry's, when it's moved in automatically). */
+  savedCard?: { paymentMethodId: string; brand: string; last4: string };
 }
 
 /**
@@ -37,7 +39,9 @@ export async function createRsvp(db: Db, gateway: PaymentGateway, input: CreateR
   }
 
   const card =
-    input.paymentMethod === PaymentMethod.CARD ? await loadSavedCard(gateway, input.setupIntentId) : null;
+    input.paymentMethod !== PaymentMethod.CARD
+      ? null
+      : (input.savedCard ?? (await loadSavedCard(gateway, input.setupIntentId)));
 
   const { rsvp, event } = await db.$transaction(async (tx) => {
     const event = await tx.event.findUnique({

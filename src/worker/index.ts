@@ -1,4 +1,5 @@
 import { db } from "@/server/db";
+import { promoteWaitlists } from "@/server/domains/rsvps";
 import { releaseDuePayouts } from "@/server/domains/payouts";
 import { retryCancelledEventRefunds } from "@/server/domains/payments";
 import { getPaymentGateway } from "@/server/integrations/stripe";
@@ -35,6 +36,8 @@ async function tick() {
   if (retriedRefunds > 0) {
     console.log(`[worker] retried ${retriedRefunds} refund(s) for cancelled events`);
   }
+
+  await promoteWaitlists(db, getPaymentGateway(), now);
 
   const payouts = await releaseDuePayouts(db, getPaymentGateway(), now);
   for (const payout of payouts) {

@@ -3,7 +3,8 @@ import type { Db } from "@/server/db";
 import { RsvpStatus } from "@/generated/prisma/enums";
 import { eventRules } from "@/server/domains/events";
 import { releaseHold } from "@/server/domains/wallet";
-import { countGoingTowardMax, notifyWaitlistOfOpenSpot } from "@/server/domains/rsvps/actions/notifyWaitlistOfOpenSpot";
+import type { PaymentGateway } from "@/server/integrations/stripe";
+import { countGoingTowardMax, promoteAfterSpotFreed } from "@/server/domains/rsvps/actions/notifyWaitlistOfOpenSpot";
 
 export interface DropRsvpInput {
   eventId: string;
@@ -15,7 +16,7 @@ export interface DropRsvpInput {
  * nothing is refunded automatically — that's the organizer's call from
  * their event list (§8), not this action's job.
  */
-export async function dropRsvp(db: Db, input: DropRsvpInput, now: Date) {
+export async function dropRsvp(db: Db, gateway: PaymentGateway, input: DropRsvpInput, now: Date) {
   const { rsvp: dropped, goingCountBefore } = await db.$transaction(async (tx) => {
     const event = await tx.event.findUnique({ where: { id: input.eventId } });
 
@@ -48,7 +49,7 @@ export async function dropRsvp(db: Db, input: DropRsvpInput, now: Date) {
     return { rsvp: updated, goingCountBefore };
   });
 
-  await notifyWaitlistOfOpenSpot(db, { eventId: input.eventId, leaver: dropped, goingCountBefore }, now);
+  await promoteAfterSpotFreed(db, gateway, { eventId: input.eventId, leaver: dropped, goingCountBefore }, now);
 
   return dropped;
 }

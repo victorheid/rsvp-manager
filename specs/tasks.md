@@ -54,9 +54,9 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 - [x] Payout release after event (+2 days) — `releaseDuePayouts`, run by `pnpm worker`: full price of online payments less refunds, once per event, waits for onboarding. Against the fake gateway
 
 ## 6. Waitlist
-- [x] Join waitlist: "Notify me" only for now — "Auto-join and pay" needs wallet/card (§5), not built; no payment method picked, matching the spec's "notify me" behavior
-- [ ] Ordering: auto-join entries first, then notify-me, first come first served within each; switching mode keeps join time — moot until auto-join exists; notify-me entries are ordered by join time
-- [ ] Spot opens → auto-join next (skip if wallet can't cover it) — blocked on §5
+- [x] Join waitlist: "Notify me" (no payment method) or "Auto-join and pay" (wallet, or a card saved now; online events only) — `waitlist.join` / `waitlist.setMode`
+- [x] Ordering: auto-join entries first, then notify-me, first come first served within each; switching mode keeps join time — `sortWaitlist`
+- [x] Spot opens → auto-join next (skip if wallet can't cover it) — `promoteFromWaitlist` on drop-out / removal, and a worker sweep for raised max; moved-in and skipped notifications
 - [x] Only notify-me entries left → notify all, first to claim wins (claim = normal RSVP, cash allowed) — no push/SMS to "notify all" (§9), but claiming works: first successful RSVP wins, the DB capacity check handles the race, and it clears their waitlist entry
 - [x] Close waitlist at event start
 

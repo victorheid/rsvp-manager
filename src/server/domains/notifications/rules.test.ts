@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   cutoffReminderMessage,
   eventCancelledMessage,
+  autoJoinSkippedMessage,
   eventChangedMessage,
   eventConfirmedMessage,
   isMoneyRelated,
+  movedInMessage,
   newEventMessage,
   organizerCutoffAlertMessage,
   paymentFailedMessage,
@@ -55,6 +57,8 @@ describe("isMoneyRelated", () => {
   it.each([
     ["EVENT_CONFIRMED", true],
     ["EVENT_CANCELLED", true],
+    ["MOVED_IN", true],
+    ["AUTO_JOIN_SKIPPED", false],
     ["PAYMENT_FAILED", true],
     ["REFUND_ISSUED", true],
     ["NEW_EVENT", false],
@@ -107,5 +111,12 @@ describe("payment messages", () => {
 
   it("say how much was refunded", () => {
     expect(refundIssuedMessage(event, 800).body).toContain("€8.00");
+  });
+});
+
+describe("waitlist messages", () => {
+  it("tell a promoted person they're in, and a skipped one why", () => {
+    expect(movedInMessage(event)).toMatchObject({ kind: "MOVED_IN", url: "/e/friday-game-abc" });
+    expect(autoJoinSkippedMessage(event)).toMatchObject({ kind: "AUTO_JOIN_SKIPPED", url: "/e/friday-game-abc" });
   });
 });

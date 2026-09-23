@@ -17,6 +17,8 @@ export const NOTIFICATION_KINDS = [
   "SPOT_OPEN",
   "CUTOFF_REMINDER",
   "ORGANIZER_CUTOFF_ALERT",
+  "MOVED_IN",
+  "AUTO_JOIN_SKIPPED",
   "PAYMENT_FAILED",
   "REFUND_ISSUED",
   "TEST",
@@ -31,6 +33,7 @@ export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 const MONEY_RELATED_KINDS: readonly NotificationKind[] = [
   "EVENT_CONFIRMED",
   "EVENT_CANCELLED",
+  "MOVED_IN",
   "PAYMENT_FAILED",
   "REFUND_ISSUED",
 ];
@@ -146,6 +149,26 @@ export function organizerCutoffAlertMessage(
     title: "Your game needs a decision",
     body,
     url: `${eventUrl(event)}/manage`,
+  };
+}
+
+/** §9 trigger: "Moved in from waitlist" → the promoted person. */
+export function movedInMessage(event: NotifiedEvent): NotificationMessage {
+  return {
+    kind: "MOVED_IN",
+    title: "You're in!",
+    body: `A spot opened up and you're in ${event.title}. You can drop out any time before it starts.`,
+    url: eventUrl(event),
+  };
+}
+
+/** §6: an auto-join entry that couldn't be moved in (e.g. the wallet can't cover it) is told, and keeps its place. */
+export function autoJoinSkippedMessage(event: NotifiedEvent): NotificationMessage {
+  return {
+    kind: "AUTO_JOIN_SKIPPED",
+    title: "We couldn't move you in",
+    body: `A spot opened in ${event.title}, but your wallet couldn't cover it. Top up, or claim it yourself while it's free.`,
+    url: eventUrl(event),
   };
 }
 
