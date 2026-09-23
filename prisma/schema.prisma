@@ -151,8 +151,11 @@ model WaitlistEntry {
   id            String                @id @default(cuid())
   eventId       String
   userId        String
-  paymentMethod PaymentMethod
-  promotionMode WaitlistPromotionMode @default(AUTO)
+  // Null for MANUAL ("notify me") entries — no payment method is picked
+  // until they claim a spot. AUTO ("auto-join and pay") entries would
+  // have one, but AUTO isn't offered yet (needs wallet/card, §5).
+  paymentMethod PaymentMethod?
+  promotionMode WaitlistPromotionMode @default(MANUAL)
   createdAt     DateTime              @default(now())
 
   event Event @relation(fields: [eventId], references: [id])

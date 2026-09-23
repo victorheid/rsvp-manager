@@ -43,6 +43,10 @@ export async function getEventBySlug(db: Db, slug: string, options: GetEventBySl
         where: { status: "GOING" },
         include: { user: { select: { firstName: true, lastInitial: true } } },
       },
+      waitlistEntries: {
+        orderBy: { createdAt: "asc" },
+        include: { user: { select: { firstName: true, lastInitial: true } } },
+      },
       group: { select: { name: true, slug: true, organizerId: true } },
     },
   });
@@ -63,5 +67,16 @@ export async function getEventBySlug(db: Db, slug: string, options: GetEventBySl
 
   const isOrganizer = options.viewerId !== undefined && options.viewerId === event.group.organizerId;
 
-  return { ...event, costBreakdown, priceDisplay: priceDisplay(event), viewerRsvp, isOrganizer };
+  const viewerWaitlistPosition = options.viewerId
+    ? event.waitlistEntries.findIndex((entry) => entry.userId === options.viewerId)
+    : -1;
+
+  return {
+    ...event,
+    costBreakdown,
+    priceDisplay: priceDisplay(event),
+    viewerRsvp,
+    isOrganizer,
+    viewerWaitlistPosition: viewerWaitlistPosition === -1 ? null : viewerWaitlistPosition + 1,
+  };
 }

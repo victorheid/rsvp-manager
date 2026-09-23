@@ -59,9 +59,7 @@ export async function createRsvp(db: Db, input: CreateRsvpInput) {
     }
 
     if (!hasCapacity(event, event.rsvps.length)) {
-      // TODO(waitlist domain): route to the waitlist instead of failing
-      // outright (specs/tasks.md §6).
-      throw new TRPCError({ code: "BAD_REQUEST", message: "This event is full." });
+      throw new TRPCError({ code: "BAD_REQUEST", message: "This event is full — join the waitlist instead." });
     }
 
     const rsvp = existing
@@ -84,6 +82,10 @@ export async function createRsvp(db: Db, input: CreateRsvpInput) {
         });
 
     await joinGroupById(tx, { groupId: event.groupId, userId: input.userId });
+
+    // §6: "Claiming the spot is a normal RSVP" — clear any waitlist entry
+    // now that they're going, so they don't show up in both places.
+    await tx.waitlistEntry.deleteMany({ where: { eventId: input.eventId, userId: input.userId } });
 
     return rsvp;
   });

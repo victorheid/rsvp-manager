@@ -38,6 +38,12 @@ export default function EventPage() {
   const dropRsvp = trpc.rsvps.drop.useMutation({
     onSuccess: () => utils.events.getBySlug.invalidate({ slug }),
   });
+  const joinWaitlist = trpc.waitlist.join.useMutation({
+    onSuccess: () => utils.events.getBySlug.invalidate({ slug }),
+  });
+  const leaveWaitlist = trpc.waitlist.leave.useMutation({
+    onSuccess: () => utils.events.getBySlug.invalidate({ slug }),
+  });
   const confirmEvent = trpc.events.confirm.useMutation({
     onSuccess: () => utils.events.getBySlug.invalidate({ slug }),
   });
@@ -58,6 +64,7 @@ export default function EventPage() {
   const isFull = event.maxPlayers !== null && goingCount >= event.maxPlayers;
   const isGoing = event.viewerRsvp?.status === "GOING";
   const canJoin = event.status === "OPEN" || event.status === "CONFIRMED";
+  const isWaitlisted = event.viewerWaitlistPosition !== null;
 
   function priceLine() {
     if (!event) return null;
@@ -137,6 +144,12 @@ export default function EventPage() {
         </div>
       )}
 
+      {isWaitlisted && (
+        <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-100">
+          You&apos;re on the waitlist · #{event.viewerWaitlistPosition} · we&apos;ll notify you if a spot opens
+        </div>
+      )}
+
       <div className="flex flex-col gap-1 text-sm text-neutral-700 dark:text-neutral-300">
         <p>{formatDateTime(new Date(event.startsAt))} – {new Intl.DateTimeFormat("en-IE", { hour: "2-digit", minute: "2-digit" }).format(new Date(event.endsAt))}</p>
         <p>{event.location}</p>
@@ -174,6 +187,21 @@ export default function EventPage() {
         </ul>
       </div>
 
+      {event.waitlistEntries.length > 0 && (
+        <details>
+          <summary className="cursor-pointer text-sm font-medium text-neutral-500">
+            Waitlist ({event.waitlistEntries.length})
+          </summary>
+          <ul className="mt-2 flex flex-col gap-1">
+            {event.waitlistEntries.map((entry, index) => (
+              <li key={entry.id} className="text-sm">
+                {index + 1}. {entry.user.firstName} {entry.user.lastInitial}.
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
       {isSigningIn && (
         <div className="flex flex-col gap-2">
           <SignInFlow onSuccess={handleSignedIn} />
@@ -185,9 +213,11 @@ export default function EventPage() {
 
       {createRsvp.error && <p className="text-sm text-red-600">{createRsvp.error.message}</p>}
       {dropRsvp.error && <p className="text-sm text-red-600">{dropRsvp.error.message}</p>}
+      {joinWaitlist.error && <p className="text-sm text-red-600">{joinWaitlist.error.message}</p>}
+      {leaveWaitlist.error && <p className="text-sm text-red-600">{leaveWaitlist.error.message}</p>}
 
       <div className="sticky bottom-0 -mx-4 border-t border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
-        {!isGoing && canJoin && !isFull && event.cashAllowed && (
+        {!isGoing && !isWaitlisted && canJoin && !isFull && event.cashAllowed && (
           <button
             type="button"
             disabled={createRsvp.isPending}
@@ -197,13 +227,30 @@ export default function EventPage() {
             I&apos;m in — nothing charged now
           </button>
         )}
-        {!isGoing && canJoin && !event.cashAllowed && (
+        {!isGoing && !isWaitlisted && canJoin && !event.cashAllowed && (
           <p className="text-center text-sm text-neutral-500">
             Online payments aren&apos;t set up for this event yet.
           </p>
         )}
-        {!isGoing && canJoin && isFull && (
-          <p className="text-center text-sm text-neutral-500">This event is full.</p>
+        {!isGoing && !isWaitlisted && canJoin && isFull && (
+          <button
+            type="button"
+            disabled={joinWaitlist.isPending}
+            onClick={() => requireAuth(() => joinWaitlist.mutate({ eventId: event.id }))}
+            className="w-full rounded-md bg-neutral-900 px-4 py-3 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
+          >
+            Join waitlist — nothing charged now
+          </button>
+        )}
+        {isWaitlisted && canJoin && (
+          <button
+            type="button"
+            disabled={leaveWaitlist.isPending}
+            onClick={() => leaveWaitlist.mutate({ eventId: event.id })}
+            className="w-full rounded-md border border-neutral-300 px-4 py-3 text-sm font-medium disabled:opacity-50 dark:border-neutral-700"
+          >
+            Leave waitlist
+          </button>
         )}
         {isGoing && canJoin && (
           <button
