@@ -106,6 +106,7 @@ describe.skipIf(!hasTestDb)("events", () => {
         cutoffAt: new Date(Date.now() + 3_600_000),
         totalCostCents: 8000,
         pricingMode: PricingMode.FIXED_PER_HEAD,
+        cashAllowed: true,
       }),
     ).rejects.toThrow("End time must be after");
   });
@@ -123,6 +124,7 @@ describe.skipIf(!hasTestDb)("events", () => {
       cutoffAt: new Date(Date.now() + 3_600_000),
       totalCostCents: 5000,
       pricingMode: PricingMode.FIXED_PER_HEAD,
+      cashAllowed: true,
     });
 
     const fetched = await caller.events.getBySlug({ slug: created.slug });
@@ -146,6 +148,7 @@ describe.skipIf(!hasTestDb)("events", () => {
         cutoffAt: new Date(Date.now() + 3_600_000),
         totalCostCents: 5000,
         pricingMode: PricingMode.FIXED_PER_HEAD,
+        cashAllowed: true,
       }),
     ).rejects.toThrow("Only the group's organizer");
   });
@@ -163,6 +166,7 @@ describe.skipIf(!hasTestDb)("events", () => {
       cutoffAt: new Date(Date.now() + 3_600_000),
       totalCostCents: 5000,
       pricingMode: PricingMode.FIXED_PER_HEAD,
+      cashAllowed: true,
     });
 
     const impostor = await db.user.create({
@@ -187,6 +191,7 @@ describe.skipIf(!hasTestDb)("events", () => {
       cutoffAt: new Date(Date.now() + 3_600_000),
       totalCostCents: 5000,
       pricingMode: PricingMode.FIXED_PER_HEAD,
+      cashAllowed: true,
     });
 
     const cancelled = await caller.events.cancel({ eventId: event.id });
@@ -208,6 +213,7 @@ describe.skipIf(!hasTestDb)("events", () => {
       cutoffAt: new Date(Date.now() + 3_600_000),
       totalCostCents: 5000,
       pricingMode: PricingMode.FIXED_PER_HEAD,
+      cashAllowed: true,
     });
 
     const impostor = await db.user.create({

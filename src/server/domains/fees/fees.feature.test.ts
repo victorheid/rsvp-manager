@@ -64,6 +64,7 @@ describe.skipIf(!hasTestDb)("fee schedules", () => {
       cutoffAt: new Date(Date.now() + 3_600_000),
       totalCostCents: 800,
       pricingMode: PricingMode.FIXED_PER_HEAD,
+      cashAllowed: true,
     };
 
     const first = await caller.events.create(input);

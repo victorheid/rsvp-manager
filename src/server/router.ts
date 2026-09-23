@@ -4,6 +4,7 @@ import { groupsRouter } from "@/server/domains/groups";
 import { eventsRouter } from "@/server/domains/events";
 import { rsvpsRouter } from "@/server/domains/rsvps";
 import { waitlistRouter } from "@/server/domains/waitlist";
+import { payoutsRouter } from "@/server/domains/payouts";
 import { walletRouter } from "@/server/domains/wallet";
 import { notificationsRouter } from "@/server/domains/notifications";
 
@@ -18,6 +19,7 @@ export const appRouter = router({
   rsvps: rsvpsRouter,
   waitlist: waitlistRouter,
   wallet: walletRouter,
+  payouts: payoutsRouter,
   notifications: notificationsRouter,
 });
 

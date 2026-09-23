@@ -20,6 +20,10 @@ model User {
   createdAt        DateTime @default(now())
   // The payment provider's customer for this user, created on first payment (§5).
   stripeCustomerId String?  @unique
+  // Stripe Connect account for receiving payouts as an organizer (§5); payoutsEnabled
+  // is refreshed from the provider when the organizer returns from onboarding.
+  stripeAccountId  String?  @unique
+  payoutsEnabled   Boolean  @default(false)
 
   memberships       GroupMembership[]
   organizedGroups   Group[]            @relation("GroupOrganizer")
@@ -97,6 +101,8 @@ model Event {
   costBreakdown        Json?
   pricingMode          PricingMode
   cashAllowed          Boolean     @default(false)
+  // §5 payment options: cash and/or online (wallet, card). Online needs the organizer onboarded.
+  onlineAllowed        Boolean     @default(false)
   autoChargeAtCutoff   Boolean     @default(true)
   status               EventStatus @default(OPEN)
   confirmedAt          DateTime?

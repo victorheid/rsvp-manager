@@ -24,6 +24,7 @@ const eventFormSchema = z.object({
   costBreakdown: costBreakdownSchema.optional(),
   pricingMode: z.nativeEnum(PricingMode),
   cashAllowed: z.boolean().optional(),
+  onlineAllowed: z.boolean().optional(),
   autoChargeAtCutoff: z.boolean().optional(),
 });
 

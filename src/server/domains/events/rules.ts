@@ -328,3 +328,24 @@ export function needsOrganizerCutoffAlert(
     !shouldAutoConfirmAtCutoff(event, confirmedHeadcount, event.minPlayers, now)
   );
 }
+
+/**
+ * §5 "Payment options per event": cash, online (wallet and card), or both.
+ * There has to be at least one, and online needs the organizer's payout
+ * onboarding finished, so a new organizer can run cash games from day one.
+ * Returns what's wrong, or null.
+ */
+export function paymentOptionsProblem(
+  options: Pick<EventModel, "cashAllowed" | "onlineAllowed">,
+  organizerPayoutsEnabled: boolean,
+): string | null {
+  if (!options.cashAllowed && !options.onlineAllowed) {
+    return "Choose at least one way to pay: cash, online, or both.";
+  }
+
+  if (options.onlineAllowed && !organizerPayoutsEnabled) {
+    return "Finish payout setup before accepting online payments.";
+  }
+
+  return null;
+}

@@ -6,6 +6,7 @@ import {
   eventPhase,
   isCutoffReminderDue,
   needsOrganizerCutoffAlert,
+  paymentOptionsProblem,
   isDisallowedPriceIncrease,
   isExpired,
   organizerEventActions,
@@ -387,5 +388,18 @@ describe("needsOrganizerCutoffAlert", () => {
   it("alerts only once, and only while open", () => {
     expect(needsOrganizerCutoffAlert({ ...event, organizerAlertedAt: after }, 3, after)).toBe(false);
     expect(needsOrganizerCutoffAlert({ ...event, status: EventStatus.CONFIRMED }, 3, after)).toBe(false);
+  });
+});
+
+describe("paymentOptionsProblem", () => {
+  it.each([
+    [{ cashAllowed: true, onlineAllowed: false }, false, null],
+    [{ cashAllowed: false, onlineAllowed: true }, true, null],
+    [{ cashAllowed: true, onlineAllowed: true }, true, null],
+    [{ cashAllowed: false, onlineAllowed: false }, true, "Choose at least one way to pay: cash, online, or both."],
+    [{ cashAllowed: true, onlineAllowed: true }, false, "Finish payout setup before accepting online payments."],
+    [{ cashAllowed: false, onlineAllowed: true }, false, "Finish payout setup before accepting online payments."],
+  ])("%j with payouts enabled %s → %s", (options, payoutsEnabled, expected) => {
+    expect(paymentOptionsProblem(options, payoutsEnabled)).toBe(expected);
   });
 });

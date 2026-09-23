@@ -4,7 +4,7 @@ import { EventStatus, PricingMode, RsvpStatus } from "@/generated/prisma/enums";
 import type { CostBreakdownItem } from "@/server/domains/events/costBreakdown";
 import { notifyEventAudience } from "@/server/domains/events/actions/notifyEventAudience";
 import { notificationRules } from "@/server/domains/notifications";
-import { eventDetailsChanged, isDisallowedPriceIncrease } from "@/server/domains/events/rules";
+import { eventDetailsChanged, isDisallowedPriceIncrease, paymentOptionsProblem } from "@/server/domains/events/rules";
 
 export interface EditEventInput {
   eventId: string;
@@ -21,6 +21,7 @@ export interface EditEventInput {
   costBreakdown?: CostBreakdownItem[];
   pricingMode: PricingMode;
   cashAllowed?: boolean;
+  onlineAllowed?: boolean;
   autoChargeAtCutoff?: boolean;
 }
 
@@ -36,7 +37,7 @@ export async function editEvent(db: Db, input: EditEventInput) {
     const event = await tx.event.findUnique({
       where: { id: input.eventId },
       include: {
-        group: { select: { organizerId: true } },
+        group: { select: { organizerId: true, organizer: { select: { payoutsEnabled: true } } } },
         rsvps: { where: { status: RsvpStatus.GOING } },
       },
     });
@@ -66,6 +67,15 @@ export async function editEvent(db: Db, input: EditEventInput) {
 
     if (input.maxPlayers !== undefined && input.maxPlayers < (input.minPlayers ?? 1)) {
       throw new TRPCError({ code: "BAD_REQUEST", message: "Max players can't be below min players." });
+    }
+
+    const optionsProblem = paymentOptionsProblem(
+      { cashAllowed: input.cashAllowed ?? false, onlineAllowed: input.onlineAllowed ?? false },
+      event.group.organizer.payoutsEnabled,
+    );
+
+    if (optionsProblem) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: optionsProblem });
     }
 
     const rsvpCount = event.rsvps.length;
@@ -111,6 +121,7 @@ export async function editEvent(db: Db, input: EditEventInput) {
         costBreakdown: input.costBreakdown,
         pricingMode: input.pricingMode,
         cashAllowed: input.cashAllowed ?? false,
+        onlineAllowed: input.onlineAllowed ?? false,
         autoChargeAtCutoff: input.autoChargeAtCutoff ?? true,
       },
     });

@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import type { Db } from "@/server/db";
 import { PricingMode } from "@/generated/prisma/enums";
 import { getCurrentFeeSchedule } from "@/server/domains/fees";
+import { paymentOptionsProblem } from "@/server/domains/events/rules";
 import { slugify } from "@/server/domains/groups/rules";
 import { notifyUsers, notificationRules } from "@/server/domains/notifications";
 import type { CostBreakdownItem } from "@/server/domains/events/costBreakdown";
@@ -21,6 +22,7 @@ export interface CreateEventInput {
   costBreakdown?: CostBreakdownItem[];
   pricingMode: PricingMode;
   cashAllowed?: boolean;
+  onlineAllowed?: boolean;
   autoChargeAtCutoff?: boolean;
 }
 
@@ -33,7 +35,7 @@ export interface CreateEventInput {
 export async function createEvent(db: Db, input: CreateEventInput, now: Date = new Date()) {
   const group = await db.group.findUnique({
     where: { id: input.groupId },
-    select: { organizerId: true, name: true },
+    select: { organizerId: true, name: true, organizer: { select: { payoutsEnabled: true } } },
   });
 
   if (!group) {
@@ -68,6 +70,15 @@ export async function createEvent(db: Db, input: CreateEventInput, now: Date = n
   // §5: pin the fee schedule in force now; every payment for this event uses it.
   const feeSchedule = await getCurrentFeeSchedule(db, now);
 
+  const optionsProblem = paymentOptionsProblem(
+    { cashAllowed: input.cashAllowed ?? false, onlineAllowed: input.onlineAllowed ?? false },
+    group.organizer.payoutsEnabled,
+  );
+
+  if (optionsProblem) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: optionsProblem });
+  }
+
   const baseSlug = slugify(input.title);
   const slug = `${baseSlug}-${Date.now().toString(36)}`;
 
@@ -88,6 +99,7 @@ export async function createEvent(db: Db, input: CreateEventInput, now: Date = n
       costBreakdown: input.costBreakdown,
       pricingMode: input.pricingMode,
       cashAllowed: input.cashAllowed ?? false,
+      onlineAllowed: input.onlineAllowed ?? false,
       autoChargeAtCutoff: input.autoChargeAtCutoff ?? true,
     },
   });

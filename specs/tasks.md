@@ -24,7 +24,7 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 - [x] Create event (title, description, start + end time, location, cut-off, min default 1, optional max) — `/g/{slug}/events/new`, organizer only; no cost-breakdown editor in the form yet
 - [x] Cost: total + optional display-only breakdown
 - [x] Pricing modes: fixed per-head / split evenly (range shown before confirmation)
-- [ ] Payment options (cash only / online only / both; online only after Stripe onboarding) and "Auto-charge at cut-off" toggle — only a `cashAllowed` boolean + `autoChargeAtCutoff` exist; no online option until Stripe/wallet land
+- [x] Payment options (cash only / online only / both; online only after Stripe onboarding) and "Auto-charge at cut-off" toggle — `Event.onlineAllowed` next to `cashAllowed`, validated by `paymentOptionsProblem` on create and edit. Form UI still to do
 - [x] Shareable `/e/{slug}` event link, viewable without an account
 - [x] Duplicate event from a previous one — "Repeat this game" on the event page pre-fills the create form via `?from={slug}`, dates +7 days
 - [x] Edit event: block price increases after first RSVP — `/e/{slug}/edit`, only while Open. Notifying RSVPers isn't built (§9); lowering max below headcount is blocked outright rather than moving anyone to a waitlist, since §6 isn't built yet
@@ -50,7 +50,7 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 - [ ] Failed charge → "owes" status + pay link
 - [ ] Price + service fee display, and "save by topping up" prompt on card RSVP
 - [ ] Wallet refund on request at full value; ID check for refunds over €50 (pending legal)
-- [ ] Stripe Connect onboarding for organizers (only for events accepting online payment)
+- [x] Stripe Connect onboarding for organizers (only for events accepting online payment) — `payouts` domain: start / refresh / status, against the fake gateway. UI for it comes with the create-event form
 - [ ] Payout release after event (+2 days)
 
 ## 6. Waitlist
