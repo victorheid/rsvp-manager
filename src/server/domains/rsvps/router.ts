@@ -40,13 +40,13 @@ export const rsvpsRouter = router({
   markAttendance: protectedProcedure
     .input(z.object({ rsvpId: z.string(), attended: z.boolean().nullable() }))
     .mutation(({ ctx, input }) =>
-      markAttendance(ctx.db, { rsvpId: input.rsvpId, organizerId: ctx.user.id, attended: input.attended }),
+      markAttendance(ctx.db, { rsvpId: input.rsvpId, organizerId: ctx.user.id, attended: input.attended }, new Date()),
     ),
 
   markPaidOutsideApp: protectedProcedure
     .input(z.object({ rsvpId: z.string() }))
     .mutation(({ ctx, input }) =>
-      markPaidOutsideApp(ctx.db, { rsvpId: input.rsvpId, organizerId: ctx.user.id }),
+      markPaidOutsideApp(ctx.db, { rsvpId: input.rsvpId, organizerId: ctx.user.id }, new Date()),
     ),
 
   undoMarkPaidOutsideApp: protectedProcedure
@@ -62,7 +62,7 @@ export const rsvpsRouter = router({
 
   remove: protectedProcedure
     .input(z.object({ rsvpId: z.string() }))
-    .mutation(({ ctx, input }) => removeRsvp(ctx.db, { rsvpId: input.rsvpId, organizerId: ctx.user.id })),
+    .mutation(({ ctx, input }) => removeRsvp(ctx.db, { rsvpId: input.rsvpId, organizerId: ctx.user.id }, new Date())),
 
   addWalkIn: protectedProcedure
     .input(

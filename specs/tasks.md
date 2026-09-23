@@ -96,4 +96,4 @@ Design source: the Figma design system (Foundations, Components, Screens, Flows 
 - [ ] Refund and "Send pay link again" in the row menu (needs §5)
 - [ ] Section-level skeletons, sheet animation, `ActionMenu` flip-up near the viewport bottom
 - [ ] Decide: allow confirming below the minimum ("confirm anyway", UI spec §10.9)? `confirmEvent` currently refuses; the Manage screen disables the button and explains (UI spec open question 9)
-- [ ] Server-side guards for the phase rules (attendance only after start, remove only before start): today only the UI offers them at the right time
+- [x] Server-side guards for the phase rules — `markAttendance`, `markPaidOutsideApp` and `removeRsvp` check the action is in `organizerRowActions` for the event's current phase

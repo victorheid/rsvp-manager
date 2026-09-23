@@ -1,5 +1,5 @@
 import type { Db } from "@/server/db";
-import { authorizeOrganizerRsvp } from "@/server/domains/rsvps/actions/authorizeOrganizerRsvp";
+import { authorizeOrganizerRowAction } from "@/server/domains/rsvps/actions/authorizeOrganizerRsvp";
 
 export interface MarkAttendanceInput {
   rsvpId: string;
@@ -8,9 +8,17 @@ export interface MarkAttendanceInput {
   attended: boolean | null;
 }
 
-/** Marks attendance after the event (§8), organizer only. */
-export async function markAttendance(db: Db, input: MarkAttendanceInput) {
-  await authorizeOrganizerRsvp(db, input.rsvpId, input.organizerId);
+/** Marks attendance once the game has started (§8), organizer only. */
+export async function markAttendance(db: Db, input: MarkAttendanceInput, now: Date) {
+  await authorizeOrganizerRowAction(
+    db,
+    {
+      rsvpId: input.rsvpId,
+      organizerId: input.organizerId,
+      action: input.attended === false ? "MARK_NO_SHOW" : "UNDO_NO_SHOW",
+    },
+    now,
+  );
 
   return db.rsvp.update({
     where: { id: input.rsvpId },

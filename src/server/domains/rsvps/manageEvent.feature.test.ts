@@ -52,6 +52,19 @@ describe.skipIf(!hasTestDb)("organizer event management", () => {
     return { organizer, organizerCaller, group, event, player, playerCaller, rsvp };
   }
 
+  /** Moves the game's start into the past, so it's Live (or Finished with `finished`). */
+  async function startGame(eventId: string, finished = false) {
+    const now = Date.now();
+    await db.event.update({
+      where: { id: eventId },
+      data: {
+        startsAt: new Date(now - (finished ? 7_200_000 : 1_800_000)),
+        endsAt: new Date(now + (finished ? -3_600_000 : 1_800_000)),
+        cutoffAt: new Date(now - 3_600_000 * 3),
+      },
+    });
+  }
+
   it("lists rsvps for the organizer, including dropped-out ones", async () => {
     const { organizerCaller, event, playerCaller } = await setup();
 
@@ -73,6 +86,8 @@ describe.skipIf(!hasTestDb)("organizer event management", () => {
 
   it("marks attendance and tracks no-shows per group", async () => {
     const { organizerCaller, event, rsvp } = await setup();
+    await organizerCaller.events.confirm({ eventId: event.id });
+    await startGame(event.id);
 
     const updated = await organizerCaller.rsvps.markAttendance({ rsvpId: rsvp.id, attended: false });
     expect(updated.attended).toBe(false);
@@ -82,7 +97,8 @@ describe.skipIf(!hasTestDb)("organizer event management", () => {
   });
 
   it("marks a cash rsvp as paid outside app, but not twice", async () => {
-    const { organizerCaller, rsvp } = await setup();
+    const { organizerCaller, event, rsvp } = await setup();
+    await organizerCaller.events.confirm({ eventId: event.id });
 
     const updated = await organizerCaller.rsvps.markPaidOutsideApp({ rsvpId: rsvp.id });
     expect(updated.paymentStatus).toBe("PAID_OUTSIDE_APP");
@@ -166,7 +182,8 @@ describe.skipIf(!hasTestDb)("organizer event management", () => {
     expect(view.rsvps.filter((r) => r.status === "GOING")).toHaveLength(3);
   });
   it("undoes marking a payment as paid, restoring what it was", async () => {
-    const { organizerCaller, rsvp } = await setup();
+    const { organizerCaller, event, rsvp } = await setup();
+    await organizerCaller.events.confirm({ eventId: event.id });
 
     await organizerCaller.rsvps.markPaidOutsideApp({ rsvpId: rsvp.id });
     const restored = await organizerCaller.rsvps.undoMarkPaidOutsideApp({ rsvpId: rsvp.id, restoreTo: "PENDING" });
@@ -183,7 +200,8 @@ describe.skipIf(!hasTestDb)("organizer event management", () => {
   });
 
   it("rejects a non-organizer undoing a paid mark", async () => {
-    const { organizerCaller, rsvp, playerCaller } = await setup();
+    const { organizerCaller, event, rsvp, playerCaller } = await setup();
+    await organizerCaller.events.confirm({ eventId: event.id });
     await organizerCaller.rsvps.markPaidOutsideApp({ rsvpId: rsvp.id });
 
     await expect(
@@ -210,5 +228,51 @@ describe.skipIf(!hasTestDb)("organizer event management", () => {
 
     expect(view.eventActions.phase).toBe("CONFIRMED");
     expect(view.rsvps.find((r) => r.id === rsvp.id)?.actions).toEqual(["MARK_PAID", "REMOVE"]);
+  });
+
+  it("refuses attendance marks before the game starts", async () => {
+    const { organizerCaller, rsvp } = await setup();
+
+    await expect(organizerCaller.rsvps.markAttendance({ rsvpId: rsvp.id, attended: false })).rejects.toThrow(
+      "isn't possible at this stage",
+    );
+  });
+
+  it("refuses marking paid before the game is confirmed", async () => {
+    const { organizerCaller, rsvp } = await setup();
+
+    await expect(organizerCaller.rsvps.markPaidOutsideApp({ rsvpId: rsvp.id })).rejects.toThrow(
+      "isn't possible at this stage",
+    );
+  });
+
+  it("refuses removing a player once the game has started", async () => {
+    const { organizerCaller, event, rsvp } = await setup();
+    await organizerCaller.events.confirm({ eventId: event.id });
+    await startGame(event.id);
+
+    await expect(organizerCaller.rsvps.remove({ rsvpId: rsvp.id })).rejects.toThrow("isn't possible at this stage");
+  });
+
+  it("refuses marking the organizer's own rsvp a no-show", async () => {
+    const { organizer, organizerCaller, event } = await setup();
+    const own = await organizerCaller.rsvps.create({ eventId: event.id, paymentMethod: "CASH" });
+    void organizer;
+    await organizerCaller.events.confirm({ eventId: event.id });
+    await startGame(event.id);
+
+    await expect(organizerCaller.rsvps.markAttendance({ rsvpId: own.id, attended: false })).rejects.toThrow(
+      "isn't possible at this stage",
+    );
+  });
+
+  it("allows undoing a no-show while the game is running", async () => {
+    const { organizerCaller, event, rsvp } = await setup();
+    await organizerCaller.events.confirm({ eventId: event.id });
+    await startGame(event.id);
+
+    await organizerCaller.rsvps.markAttendance({ rsvpId: rsvp.id, attended: false });
+    const undone = await organizerCaller.rsvps.markAttendance({ rsvpId: rsvp.id, attended: null });
+    expect(undone.attended).toBeNull();
   });
 });

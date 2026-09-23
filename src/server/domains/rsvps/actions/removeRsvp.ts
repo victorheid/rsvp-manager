@@ -1,7 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import type { Db } from "@/server/db";
 import { RsvpStatus } from "@/generated/prisma/enums";
-import { authorizeOrganizerRsvp } from "@/server/domains/rsvps/actions/authorizeOrganizerRsvp";
+import { authorizeOrganizerRowAction, authorizeOrganizerRsvp } from "@/server/domains/rsvps/actions/authorizeOrganizerRsvp";
 
 export interface RemoveRsvpInput {
   rsvpId: string;
@@ -14,12 +14,14 @@ export interface RemoveRsvpInput {
  * confirmation the payment stays and they show as dropped out,
  * refundable like anyone else (refunds need §5, not built yet).
  */
-export async function removeRsvp(db: Db, input: RemoveRsvpInput) {
+export async function removeRsvp(db: Db, input: RemoveRsvpInput, now: Date) {
   const rsvp = await authorizeOrganizerRsvp(db, input.rsvpId, input.organizerId);
 
   if (rsvp.status !== RsvpStatus.GOING) {
     throw new TRPCError({ code: "BAD_REQUEST", message: "Already dropped out." });
   }
+
+  await authorizeOrganizerRowAction(db, { ...input, action: "REMOVE" }, now);
 
   return db.rsvp.update({
     where: { id: input.rsvpId },
