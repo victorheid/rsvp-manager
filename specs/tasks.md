@@ -10,7 +10,7 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 - [x] Repo scaffold: Next.js + TypeScript + Postgres + Prisma (+ tRPC, Zod, Vitest — see [CLAUDE.md](../CLAUDE.md))
 - [x] Auth: phone number + SMS code, triggered only at RSVP (real SMS provider not wired up yet — codes log to the server console locally, see the item below)
 - [ ] Stripe account/keys wired up (test mode), incl. Connect
-- [ ] Background worker for time-based jobs (cut-off auto-confirm, event expiry, payout release)
+- [x] Background worker for time-based jobs (cut-off auto-confirm, event expiry) — `pnpm worker`, a single always-on interval process; payout release joins once §5 exists
 - [ ] Web push setup (service worker, subscription storage)
 - [ ] SMS/WhatsApp fallback provider wired up
 
@@ -30,7 +30,7 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 - [ ] Edit event: notify RSVPers; block price increases after first RSVP; lowering max moves latest RSVPs to front of waitlist
 
 ## 3. Confirmation & cut-off
-- [ ] Auto-confirm at cut-off (auto-charge on + min met) — rule (`shouldAutoConfirmAtCutoff`) exists and is tested; no scheduled job calls it yet (needs the background worker, §0)
+- [x] Auto-confirm at cut-off (auto-charge on + min met) — `autoConfirmDueEvents`, run by the `pnpm worker` process every 60s
 - [x] Manual confirm (any time)
 - [x] Price lock at confirmation
 - [x] Post-confirmation joins: immediate charge at locked price (drop-out allowed, no auto-refund) — cash only for now; wallet/card charging blocked on §5
@@ -61,9 +61,9 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 - [ ] Close waitlist at event start
 
 ## 7. Event lifecycle
-- [x] States: Open / Confirmed / Cancelled / Expired — all four exist and are reachable except Expired (needs the §0 background job)
+- [x] States: Open / Confirmed / Cancelled / Expired — all four reachable
 - [x] Cancel → full refunds including service fee, release holds — no refunds/holds needed yet since only cash RSVPs exist; revisit once §5 lands
-- [ ] Expire unconfirmed events 48h after start → release holds — rule (`isExpired`) exists and is tested; no job calls it yet
+- [x] Expire unconfirmed events 48h after start → release holds — `expireOverdueEvents`, run by `pnpm worker`; no holds to release yet (§5)
 
 ## 8. Organizer event list
 - [x] Single list: attendance status + payment status + per-group no-show count (`/e/{slug}/manage`)

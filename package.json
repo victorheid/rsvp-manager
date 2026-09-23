@@ -13,7 +13,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:test:migrate": "dotenv -e .env.test -- prisma migrate deploy",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "worker": "dotenv -e .env -- tsx watch src/worker/index.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
@@ -42,6 +43,7 @@
     "eslint-plugin-vitest": "^0.5.4",
     "prisma": "7.10.0",
     "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
     "typescript": "^5",
     "vitest": "^5.0.1"
   },
