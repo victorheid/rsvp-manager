@@ -66,7 +66,7 @@ describe.skipIf(!hasTestDb)("notification triggers (§9)", () => {
     const { event } = await setup();
 
     expect(notified()).toEqual(["member"]);
-    expect(fakePushSender.sent[0]?.message).toMatchObject({ kind: undefined, url: `/e/${event.slug}` });
+    expect(fakePushSender.sent[0]?.message).toMatchObject({ title: "Friday Futsal: new game", url: `/e/${event.slug}` });
   });
 
   it("tells everyone in — but not the organizer who did it — when the game is confirmed", async () => {
