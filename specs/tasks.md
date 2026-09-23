@@ -26,7 +26,7 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 - [x] Pricing modes: fixed per-head / split evenly (range shown before confirmation)
 - [ ] Payment options (cash only / online only / both; online only after Stripe onboarding) and "Auto-charge at cut-off" toggle — only a `cashAllowed` boolean + `autoChargeAtCutoff` exist; no online option until Stripe/wallet land
 - [x] Shareable `/e/{slug}` event link, viewable without an account
-- [ ] Duplicate event from a previous one
+- [x] Duplicate event from a previous one — "Repeat this game" on the event page pre-fills the create form via `?from={slug}`, dates +7 days
 - [ ] Edit event: notify RSVPers; block price increases after first RSVP; lowering max moves latest RSVPs to front of waitlist
 
 ## 3. Confirmation & cut-off

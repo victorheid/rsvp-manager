@@ -90,6 +90,12 @@ export default function EventPage() {
             >
               Manage
             </a>
+            <a
+              href={`/g/${event.group.slug}/events/new?from=${slug}`}
+              className="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium dark:border-neutral-700"
+            >
+              Repeat this game
+            </a>
             {canJoin && event.status === "OPEN" && (
               <button
                 type="button"
