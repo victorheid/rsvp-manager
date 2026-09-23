@@ -69,7 +69,7 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 - [x] Single list: attendance status + payment status + per-group no-show count (`/e/{slug}/manage`)
 - [x] Mark attendance
 - [x] Mark paid outside app — added `PAID_OUTSIDE_APP` to `PaymentStatus`, per the note in the UI spec
-- [ ] Add walk-in (name only, doesn't count against max) — needs `Rsvp.userId` to become optional; not done yet
+- [x] Add walk-in (name only, doesn't count against max) — `Rsvp.userId` is now optional with a `walkInName` fallback; hidden from the public event page's "Who's in" list, shown (tagged) on the manage screen
 - [x] Dropped-out entries stay on the list marked "Dropped out" with their payment status (organizer can refund as usual)
 - [x] Remove a player (pending confirmation) — no confirmation step in the UI yet, but the action itself is done
 - [ ] Refund one / refund all online-paid (price only, service fee kept; until payout) — needs online payments (§5)

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useParams } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
@@ -38,7 +39,12 @@ function PersonRow({
     <li className="flex flex-col gap-2 rounded-lg border border-neutral-200 p-3 text-sm dark:border-neutral-800">
       <div className="flex items-center justify-between">
         <span className="font-medium">
-          {rsvp.user.firstName} {rsvp.user.lastInitial}.
+          {rsvp.user ? `${rsvp.user.firstName} ${rsvp.user.lastInitial}.` : rsvp.walkInName}
+          {!rsvp.user && (
+            <span className="ml-2 rounded-full bg-neutral-100 px-2 py-0.5 text-xs dark:bg-neutral-800">
+              Walk-in
+            </span>
+          )}
           {rsvp.noShowCount > 0 && (
             <span className="ml-2 text-xs text-neutral-500">{rsvp.noShowCount} no-shows</span>
           )}
@@ -106,6 +112,10 @@ export default function ManageEventPage() {
   const markAttendance = trpc.rsvps.markAttendance.useMutation({ onSuccess: invalidate });
   const markPaidOutsideApp = trpc.rsvps.markPaidOutsideApp.useMutation({ onSuccess: invalidate });
   const removeRsvp = trpc.rsvps.remove.useMutation({ onSuccess: invalidate });
+  const addWalkIn = trpc.rsvps.addWalkIn.useMutation({ onSuccess: invalidate });
+
+  const [walkInName, setWalkInName] = useState("");
+  const [walkInPaymentStatus, setWalkInPaymentStatus] = useState<"PAID_OUTSIDE_APP" | "OWES">("PAID_OUTSIDE_APP");
 
   if (!event || isLoading) {
     return <main className="mx-auto max-w-2xl p-4">Loading…</main>;
@@ -137,6 +147,50 @@ export default function ManageEventPage() {
           {event.maxPlayers !== null ? ` · ${event.maxPlayers} max` : ""}
         </p>
       </div>
+
+      <form
+        className="flex flex-wrap items-end gap-2 rounded-lg border border-neutral-200 p-3 dark:border-neutral-800"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!event) return;
+          addWalkIn.mutate(
+            { eventId: event.id, name: walkInName, paymentStatus: walkInPaymentStatus },
+            { onSuccess: () => setWalkInName("") },
+          );
+        }}
+      >
+        <label className="flex flex-col gap-1 text-sm">
+          Add walk-in
+          <input
+            type="text"
+            required
+            value={walkInName}
+            onChange={(e) => setWalkInName(e.target.value)}
+            placeholder="Name"
+            className="rounded-md border border-neutral-300 px-3 py-2 text-base dark:border-neutral-700 dark:bg-neutral-800"
+          />
+        </label>
+        <select
+          value={walkInPaymentStatus}
+          onChange={(e) => {
+            if (e.target.value === "PAID_OUTSIDE_APP" || e.target.value === "OWES") {
+              setWalkInPaymentStatus(e.target.value);
+            }
+          }}
+          className="rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-800"
+        >
+          <option value="PAID_OUTSIDE_APP">Paid cash</option>
+          <option value="OWES">Owes</option>
+        </select>
+        <button
+          type="submit"
+          disabled={addWalkIn.isPending}
+          className="rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
+        >
+          Add
+        </button>
+        {addWalkIn.error && <p className="w-full text-sm text-red-600">{addWalkIn.error.message}</p>}
+      </form>
 
       <section>
         <h2 className="mb-2 text-sm font-medium text-neutral-500">Going ({going.length})</h2>

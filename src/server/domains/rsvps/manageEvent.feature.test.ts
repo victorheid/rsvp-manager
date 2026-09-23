@@ -112,4 +112,57 @@ describe.skipIf(!hasTestDb)("organizer event management", () => {
       "Only the group's organizer",
     );
   });
+
+  it("adds a walk-in, shown in the manage list but not against max", async () => {
+    const { organizerCaller, event } = await setup();
+
+    const walkIn = await organizerCaller.rsvps.addWalkIn({
+      eventId: event.id,
+      name: "Drop-in Dana",
+      paymentStatus: "PAID_OUTSIDE_APP",
+    });
+    expect(walkIn.walkInName).toBe("Drop-in Dana");
+    expect(walkIn.userId).toBeNull();
+
+    const view = await organizerCaller.rsvps.forOrganizer({ eventId: event.id });
+    expect(view.rsvps.map((r) => r.walkInName)).toContain("Drop-in Dana");
+  });
+
+  it("rejects a non-organizer adding a walk-in", async () => {
+    const { event, playerCaller } = await setup();
+
+    await expect(
+      playerCaller.rsvps.addWalkIn({ eventId: event.id, name: "Sneaky", paymentStatus: "OWES" }),
+    ).rejects.toThrow("Only the group's organizer");
+  });
+
+  it("doesn't let a walk-in count against max", async () => {
+    const { organizerCaller, group } = await setup();
+    const startsAt = new Date(Date.now() + 86_400_000);
+    const event = await organizerCaller.events.create({
+      groupId: group.id,
+      title: "Capped game",
+      startsAt,
+      endsAt: new Date(startsAt.getTime() + 60 * 60 * 1000),
+      location: "Court 2",
+      cutoffAt: new Date(Date.now() + 3_600_000),
+      maxPlayers: 1,
+      totalCostCents: 500,
+      pricingMode: "FIXED_PER_HEAD",
+      cashAllowed: true,
+    });
+
+    // Fill the one real spot.
+    const player = await db.user.create({
+      data: { phoneNumber: "+353830000099", firstName: "Milo", lastInitial: "Z" },
+    });
+    await callerAs(player.id, player.phoneNumber).rsvps.create({ eventId: event.id, paymentMethod: "CASH" });
+
+    // Walk-ins can still be added past max.
+    await organizerCaller.rsvps.addWalkIn({ eventId: event.id, name: "Extra Eli", paymentStatus: "PAID_OUTSIDE_APP" });
+    await organizerCaller.rsvps.addWalkIn({ eventId: event.id, name: "Extra Fin", paymentStatus: "OWES" });
+
+    const view = await organizerCaller.rsvps.forOrganizer({ eventId: event.id });
+    expect(view.rsvps.filter((r) => r.status === "GOING")).toHaveLength(3);
+  });
 });

@@ -5,6 +5,7 @@ export { dropRsvp } from "./actions/dropRsvp";
 export { markAttendance } from "./actions/markAttendance";
 export { markPaidOutsideApp } from "./actions/markPaidOutsideApp";
 export { removeRsvp } from "./actions/removeRsvp";
+export { addWalkIn } from "./actions/addWalkIn";
 export { getUpcomingRsvpsForUser } from "./getters/getUpcomingRsvpsForUser";
 export { getRsvpsForOrganizer } from "./getters/getRsvpsForOrganizer";
 export * as rsvpRules from "./rules";

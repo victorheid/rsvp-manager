@@ -1,11 +1,12 @@
 import { z } from "zod";
-import { PaymentMethod } from "@/generated/prisma/enums";
+import { PaymentMethod, PaymentStatus } from "@/generated/prisma/enums";
 import { protectedProcedure, router } from "@/server/trpc";
 import { createRsvp } from "@/server/domains/rsvps/actions/createRsvp";
 import { dropRsvp } from "@/server/domains/rsvps/actions/dropRsvp";
 import { markAttendance } from "@/server/domains/rsvps/actions/markAttendance";
 import { markPaidOutsideApp } from "@/server/domains/rsvps/actions/markPaidOutsideApp";
 import { removeRsvp } from "@/server/domains/rsvps/actions/removeRsvp";
+import { addWalkIn } from "@/server/domains/rsvps/actions/addWalkIn";
 import { getUpcomingRsvpsForUser } from "@/server/domains/rsvps/getters/getUpcomingRsvpsForUser";
 import { getRsvpsForOrganizer } from "@/server/domains/rsvps/getters/getRsvpsForOrganizer";
 
@@ -50,4 +51,14 @@ export const rsvpsRouter = router({
   remove: protectedProcedure
     .input(z.object({ rsvpId: z.string() }))
     .mutation(({ ctx, input }) => removeRsvp(ctx.db, { rsvpId: input.rsvpId, organizerId: ctx.user.id })),
+
+  addWalkIn: protectedProcedure
+    .input(
+      z.object({
+        eventId: z.string(),
+        name: z.string().min(1).max(120),
+        paymentStatus: z.enum([PaymentStatus.PAID_OUTSIDE_APP, PaymentStatus.OWES]),
+      }),
+    )
+    .mutation(({ ctx, input }) => addWalkIn(ctx.db, { ...input, organizerId: ctx.user.id })),
 });

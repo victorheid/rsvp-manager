@@ -178,11 +178,14 @@ export default function EventPage() {
       <div>
         <h2 className="mb-2 text-sm font-medium text-neutral-500">Who&apos;s in</h2>
         <ul className="flex flex-col gap-1">
-          {event.rsvps.map((rsvp) => (
-            <li key={rsvp.id} className="text-sm">
-              {rsvp.user.firstName} {rsvp.user.lastInitial}.
-            </li>
-          ))}
+          {/* §4: walk-ins aren't shown publicly — they're organizer records (manage screen). */}
+          {event.rsvps
+            .filter((rsvp) => rsvp.user !== null)
+            .map((rsvp) => (
+              <li key={rsvp.id} className="text-sm">
+                {rsvp.user?.firstName} {rsvp.user?.lastInitial}.
+              </li>
+            ))}
           {event.rsvps.length === 0 && <li className="text-sm text-neutral-500">No one yet — be the first.</li>}
         </ul>
       </div>

@@ -2,7 +2,7 @@ import { TRPCError } from "@trpc/server";
 import type { Db } from "@/server/db";
 import { PaymentMethod, PaymentStatus, RsvpStatus } from "@/generated/prisma/enums";
 import { joinGroupById } from "@/server/domains/groups";
-import { hasCapacity, isJoinableEventStatus } from "@/server/domains/rsvps/rules";
+import { countsTowardMax, hasCapacity, isJoinableEventStatus } from "@/server/domains/rsvps/rules";
 
 export interface CreateRsvpInput {
   eventId: string;
@@ -58,7 +58,7 @@ export async function createRsvp(db: Db, input: CreateRsvpInput) {
       throw new TRPCError({ code: "BAD_REQUEST", message: "You're already in." });
     }
 
-    if (!hasCapacity(event, event.rsvps.length)) {
+    if (!hasCapacity(event, event.rsvps.filter(countsTowardMax).length)) {
       throw new TRPCError({ code: "BAD_REQUEST", message: "This event is full — join the waitlist instead." });
     }
 

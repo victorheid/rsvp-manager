@@ -82,12 +82,15 @@ export async function editEvent(db: Db, input: EditEventInput) {
       });
     }
 
-    if (input.maxPlayers !== undefined && input.maxPlayers < rsvpCount) {
+    // §8: walk-ins (no userId) don't count against max.
+    const headcountAgainstMax = event.rsvps.filter((rsvp) => rsvp.userId !== null).length;
+
+    if (input.maxPlayers !== undefined && input.maxPlayers < headcountAgainstMax) {
       // §2: lowering max below headcount should move the newest RSVPs to
       // the front of the waitlist — not built yet (specs/tasks.md §6).
       throw new TRPCError({
         code: "BAD_REQUEST",
-        message: `Can't lower max below the current headcount (${rsvpCount}) yet.`,
+        message: `Can't lower max below the current headcount (${headcountAgainstMax}) yet.`,
       });
     }
 

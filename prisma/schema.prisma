@@ -129,7 +129,11 @@ enum PaymentStatus {
 model Rsvp {
   id            String        @id @default(cuid())
   eventId       String
-  userId        String
+  // Exactly one of userId/walkInName is set — enforced in code (addWalkIn
+  // only ever sets walkInName, every other action only ever sets userId),
+  // not a DB constraint, since only those two paths ever write this row.
+  userId        String?
+  walkInName    String?
   status        RsvpStatus    @default(GOING)
   paymentMethod PaymentMethod
   paymentStatus PaymentStatus @default(PENDING)
@@ -137,7 +141,7 @@ model Rsvp {
   createdAt     DateTime      @default(now())
 
   event Event @relation(fields: [eventId], references: [id])
-  user  User  @relation(fields: [userId], references: [id])
+  user  User? @relation(fields: [userId], references: [id])
 
   @@unique([eventId, userId])
 }

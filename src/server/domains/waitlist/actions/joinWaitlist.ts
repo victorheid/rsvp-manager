@@ -30,7 +30,7 @@ export async function joinWaitlist(db: Db, input: JoinWaitlistInput) {
       throw new TRPCError({ code: "BAD_REQUEST", message: "The waitlist is closed — the event has started." });
     }
 
-    if (rsvpRules.hasCapacity(event, event.rsvps.length)) {
+    if (rsvpRules.hasCapacity(event, event.rsvps.filter(rsvpRules.countsTowardMax).length)) {
       throw new TRPCError({ code: "BAD_REQUEST", message: "This event isn't full — just RSVP." });
     }
 
