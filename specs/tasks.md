@@ -8,7 +8,7 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 - [ ] Who absorbs Stripe's fee on organizer-issued refunds and cancellations?
 
 ## 0. Foundations
-- [ ] Repo scaffold: Next.js + TypeScript + Postgres + Prisma
+- [x] Repo scaffold: Next.js + TypeScript + Postgres + Prisma (+ tRPC, Zod, Vitest — see [CLAUDE.md](../CLAUDE.md))
 - [ ] Auth: phone number + SMS code, triggered only at RSVP
 - [ ] Stripe account/keys wired up (test mode), incl. Connect
 - [ ] Background worker for time-based jobs (cut-off auto-confirm, event expiry, payout release)

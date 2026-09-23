@@ -8,10 +8,12 @@ Next.js (App Router) · TypeScript (strict) · tRPC · Prisma + Postgres · Zod 
 
 ## Commands
 
-<!-- TODO: fill in once the scaffold lands -->
-- `pnpm typecheck`
-- `pnpm lint`
-- `pnpm test`
+- `pnpm dev` — run the app
+- `pnpm typecheck` — `tsc --noEmit`
+- `pnpm lint` — ESLint
+- `pnpm test` — Vitest (unit + feature; feature tests need `DATABASE_URL` pointed at a disposable Postgres and skip themselves otherwise)
+- `pnpm db:migrate` — apply a schema change (`prisma migrate dev`)
+- `pnpm db:studio` — browse the database
 
 A change is done only when typecheck, lint and tests pass.
 
