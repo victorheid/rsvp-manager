@@ -60,12 +60,25 @@ describe("isDisallowedPriceIncrease", () => {
 });
 
 describe("canSelfCancel", () => {
-  it("allows self-cancel while open", () => {
-    expect(canSelfCancel({ status: EventStatus.OPEN })).toBe(true);
+  const startsAt = new Date("2026-01-10T19:00:00Z");
+  const beforeStart = new Date("2026-01-10T18:00:00Z");
+  const afterStart = new Date("2026-01-10T20:00:00Z");
+
+  it("allows self-cancel while open, up to the start time", () => {
+    expect(canSelfCancel({ status: EventStatus.OPEN, startsAt }, beforeStart)).toBe(true);
   });
 
-  it("blocks self-cancel once confirmed", () => {
-    expect(canSelfCancel({ status: EventStatus.CONFIRMED })).toBe(false);
+  it("still allows self-cancel once confirmed, up to the start time", () => {
+    expect(canSelfCancel({ status: EventStatus.CONFIRMED, startsAt }, beforeStart)).toBe(true);
+  });
+
+  it("blocks self-cancel once the event has started", () => {
+    expect(canSelfCancel({ status: EventStatus.CONFIRMED, startsAt }, afterStart)).toBe(false);
+  });
+
+  it("blocks self-cancel once cancelled or expired", () => {
+    expect(canSelfCancel({ status: EventStatus.CANCELLED, startsAt }, beforeStart)).toBe(false);
+    expect(canSelfCancel({ status: EventStatus.EXPIRED, startsAt }, beforeStart)).toBe(false);
   });
 });
 

@@ -21,4 +21,10 @@ if (process.env.NODE_ENV !== "production") {
   globalThis.__prisma = db;
 }
 
-export type Db = typeof db;
+/**
+ * Accepted by every action so a caller can pass either the top-level
+ * client or a transaction client through unchanged (CLAUDE.md: "An action
+ * that affects another domain calls that domain's action... and passes
+ * the transaction client through").
+ */
+export type Db = PrismaClient | Omit<PrismaClient, "$connect" | "$disconnect" | "$on" | "$use" | "$extends">;

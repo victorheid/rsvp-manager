@@ -58,11 +58,17 @@ export function isDisallowedPriceIncrease(
 }
 
 /**
- * §3: before confirmation, anyone can leave for free. After, they can't
- * self-cancel.
+ * §3, decision 17: dropping out is always possible up to the event start,
+ * confirmed or not — only the refund outcome differs (free before
+ * confirmation, organizer's call after). Cancelled/expired events have
+ * nothing left to drop out of.
  */
-export function canSelfCancel(event: Pick<EventModel, "status">): boolean {
-  return event.status === "OPEN";
+export function canSelfCancel(event: Pick<EventModel, "status" | "startsAt">, now: Date): boolean {
+  if (event.status === "CANCELLED" || event.status === "EXPIRED") {
+    return false;
+  }
+
+  return now < event.startsAt;
 }
 
 /**

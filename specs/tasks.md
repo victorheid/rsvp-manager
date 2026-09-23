@@ -15,30 +15,30 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 - [ ] SMS/WhatsApp fallback provider wired up
 
 ## 1. Groups
-- [ ] Create group (name, description) → shareable `/g/{slug}` link
-- [ ] Join via group link, and auto-join on RSVP
-- [ ] Group page: list of events
-- [ ] Group admins model (one for MVP, many-ready)
+- [x] Create group (name, description) → shareable `/g/{slug}` link (backend; UI page not built yet)
+- [x] Join via group link, and auto-join on RSVP
+- [ ] Group page: list of events (backend getter ready — `getGroupBySlug` returns events + member count + viewer's own membership; no UI page yet)
+- [ ] Group admins model (one for MVP, many-ready) — schema only models one (`organizerId`); co-organizers not designed yet
 
 ## 2. Events
-- [ ] Create event (title, description, start + end time, location, cut-off, min default 1, optional max)
-- [ ] Cost: total + optional display-only breakdown
-- [ ] Pricing modes: fixed per-head / split evenly (range shown before confirmation)
-- [ ] Payment options (cash only / online only / both; online only after Stripe onboarding) and "Auto-charge at cut-off" toggle
-- [ ] Shareable `/e/{slug}` event link, viewable without an account
+- [x] Create event (title, description, start + end time, location, cut-off, min default 1, optional max)
+- [x] Cost: total + optional display-only breakdown
+- [x] Pricing modes: fixed per-head / split evenly (range shown before confirmation) — `rules.ts` logic + tests; UI display not built yet
+- [ ] Payment options (cash only / online only / both; online only after Stripe onboarding) and "Auto-charge at cut-off" toggle — only a `cashAllowed` boolean + `autoChargeAtCutoff` exist; no online option until Stripe/wallet land
+- [ ] Shareable `/e/{slug}` event link, viewable without an account (backend getter ready; no UI page yet)
 - [ ] Duplicate event from a previous one
 - [ ] Edit event: notify RSVPers; block price increases after first RSVP; lowering max moves latest RSVPs to front of waitlist
 
 ## 3. Confirmation & cut-off
-- [ ] Auto-confirm at cut-off (auto-charge on + min met)
-- [ ] Manual confirm (any time)
-- [ ] Price lock at confirmation
-- [ ] Post-confirmation joins: immediate charge at locked price (drop-out allowed, no auto-refund)
+- [ ] Auto-confirm at cut-off (auto-charge on + min met) — rule (`shouldAutoConfirmAtCutoff`) exists and is tested; no scheduled job calls it yet (needs the background worker, §0)
+- [x] Manual confirm (any time)
+- [x] Price lock at confirmation
+- [x] Post-confirmation joins: immediate charge at locked price (drop-out allowed, no auto-refund) — cash only for now; wallet/card charging blocked on §5
 
 ## 4. RSVP flow
-- [ ] Public event page: spots left, price/range, cut-off, who's in (first name + last initial)
-- [ ] RSVP: phone + SMS code (first time) → wallet / card / cash
-- [ ] Drop out: free before confirmation; after confirmation no auto-refund, organizer may refund
+- [ ] Public event page: spots left, price/range, cut-off, who's in (first name + last initial) — backend ready; UI page not built yet
+- [x] RSVP: phone + SMS code (first time) → cash (wallet/card blocked on §5)
+- [x] Drop out: free before confirmation; after confirmation no auto-refund, organizer may refund (self-cancel only; organizer refund actions are §8)
 
 ## 5. Payments, wallet & payouts
 - [ ] Fee schedules: versioned tiers (game card payments, top-ups), never edited in place
