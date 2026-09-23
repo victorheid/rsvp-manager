@@ -97,5 +97,6 @@ export async function getEventBySlug(db: Db, slug: string, options: GetEventBySl
     viewerRsvp,
     isOrganizer,
     viewerWaitlistPosition: viewerWaitlistPosition === -1 ? null : viewerWaitlistPosition + 1,
+    viewerWaitlistMode: waitlistEntries[viewerWaitlistPosition]?.promotionMode ?? null,
   };
 }

@@ -26,6 +26,7 @@ export interface EventFormValues {
   pricingMode: CreateEventInput["pricingMode"];
   totalCostEuros: string;
   cashAllowed: boolean;
+  onlineAllowed: boolean;
   autoChargeAtCutoff: boolean;
 }
 
@@ -43,6 +44,7 @@ export const EMPTY_EVENT_FORM_VALUES: EventFormValues = {
   pricingMode: "FIXED_PER_HEAD",
   totalCostEuros: "",
   cashAllowed: true,
+  onlineAllowed: false,
   autoChargeAtCutoff: true,
 };
 
@@ -76,6 +78,7 @@ type SourceEvent = Pick<
   | "pricingMode"
   | "totalCostCents"
   | "cashAllowed"
+  | "onlineAllowed"
   | "autoChargeAtCutoff"
 >;
 
@@ -99,6 +102,7 @@ export function eventFormValuesFromEvent(event: SourceEvent, shiftMs = 0): Event
     pricingMode: event.pricingMode,
     totalCostEuros: (event.totalCostCents / 100).toString(),
     cashAllowed: event.cashAllowed,
+    onlineAllowed: event.onlineAllowed,
     autoChargeAtCutoff: event.autoChargeAtCutoff,
   };
 }
@@ -128,6 +132,7 @@ export function eventFormToInput(values: EventFormValues): Omit<CreateEventInput
     totalCostCents: Math.round(Number(values.totalCostEuros) * 100),
     pricingMode: values.pricingMode,
     cashAllowed: values.cashAllowed,
+    onlineAllowed: values.onlineAllowed,
     autoChargeAtCutoff: values.autoChargeAtCutoff,
   };
 }
@@ -185,6 +190,7 @@ export function applyEdits(base: EventFormValues, edits: EventFormEdits): EventF
     pricingMode: pick("pricingMode"),
     totalCostEuros: pick("totalCostEuros"),
     cashAllowed: pick("cashAllowed"),
+    onlineAllowed: pick("onlineAllowed"),
     autoChargeAtCutoff: pick("autoChargeAtCutoff"),
   };
 }
@@ -207,6 +213,7 @@ export function eventFormValuesFromSuggestion(
     // A group's first game has no price to copy; leave the field empty rather than showing "0".
     totalCostEuros: suggestion.totalCostCents > 0 ? (suggestion.totalCostCents / 100).toString() : "",
     cashAllowed: suggestion.cashAllowed,
+    onlineAllowed: suggestion.onlineAllowed,
     autoChargeAtCutoff: suggestion.autoChargeAtCutoff,
   };
 }

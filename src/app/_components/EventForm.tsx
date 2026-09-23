@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   Banner,
   Button,
@@ -13,6 +13,7 @@ import {
   ToggleRow,
 } from "@/components/ui";
 import { formatCents, formatDateTime } from "@/lib/format";
+import { trpc } from "@/lib/trpc/client";
 import { perHeadPriceCents, splitPriceRangeCents } from "@/server/domains/events/rules";
 import type { EventFormValues } from "./eventFormValues";
 
@@ -140,8 +141,8 @@ export function EventForm({ formId, values, onChange, onSubmit, error, lastGame,
             />
             <KeyFact
               icon="lock"
-              primary={values.cashAllowed ? "Cash on the day" : "No cash"}
-              secondary="Online payments are coming soon"
+              primary={paymentSummary(values)}
+              secondary={values.onlineAllowed ? "Card payments add a service fee for players" : undefined}
             />
             {startsAt && cutoffAt && (
               <KeyFact
@@ -213,9 +214,11 @@ export function EventForm({ formId, values, onChange, onSubmit, error, lastGame,
               checked={values.cashAllowed}
               onChange={(checked) => set("cashAllowed", checked)}
             />
-            <Banner tone="info" title="Online payments are coming soon">
-              Wallet and card payments need payouts set up, which isn’t available yet.
-            </Banner>
+            <OnlinePayments
+              checked={values.onlineAllowed}
+              onChange={(checked) => set("onlineAllowed", checked)}
+              cashAllowed={values.cashAllowed}
+            />
           </Section>
 
           <Section title="Confirmation">
@@ -245,6 +248,63 @@ export function EventForm({ formId, values, onChange, onSubmit, error, lastGame,
         </Banner>
       )}
     </form>
+  );
+}
+
+function paymentSummary(values: EventFormValues): string {
+  if (values.onlineAllowed) return values.cashAllowed ? "Online (wallet, card) or cash" : "Online only (wallet, card)";
+  return values.cashAllowed ? "Cash on the day" : "No way to pay yet";
+}
+
+/**
+ * "Wallet and card" (§5): available once the organizer has finished payout
+ * onboarding with the payment provider — until then the toggle is off and a
+ * button starts it (they leave for the provider's page and come back here,
+ * where their status is refreshed). Cash-only games never need it.
+ */
+function OnlinePayments({ checked, onChange, cashAllowed }: { checked: boolean; onChange: (checked: boolean) => void; cashAllowed: boolean }) {
+  const utils = trpc.useUtils();
+  const { data: status } = trpc.payouts.onboardingStatus.useQuery();
+  const refresh = trpc.payouts.refreshOnboarding.useMutation({ onSuccess: () => utils.payouts.onboardingStatus.invalidate() });
+  const start = trpc.payouts.startOnboarding.useMutation({ onSuccess: ({ url }) => window.location.assign(url) });
+  const { mutate: refreshStatus } = refresh;
+
+  // Coming back from the provider's page: ask whether onboarding finished.
+  useEffect(() => {
+    refreshStatus();
+  }, [refreshStatus]);
+
+  if (!status) return null;
+
+  if (!status.payoutsEnabled) {
+    return (
+      <Banner tone="info" title="Take online payments">
+        Players can pay by wallet or card once you’ve set up payouts. It takes a few minutes: your ID and bank details, with our payment partner. Cash games don’t need it.
+        <div className="mt-3">
+          <Button
+            variant="secondary"
+            loading={start.isPending}
+            onClick={() => start.mutate({ returnPath: `${window.location.pathname}${window.location.search}` })}
+          >
+            {status.started ? "Finish payout setup" : "Set up payouts"}
+          </Button>
+        </div>
+        {start.error && <p className="mt-2 text-small">{start.error.message}</p>}
+      </Banner>
+    );
+  }
+
+  return (
+    <ToggleRow
+      label="Wallet and card"
+      description={
+        checked
+          ? `Players pay online. You’re paid the full price two days after the game${cashAllowed ? "" : ", and there’s no cash option"}. Card payments carry a service fee for the player.`
+          : "Players pay by wallet or card. You’re paid out after the game."
+      }
+      checked={checked}
+      onChange={onChange}
+    />
   );
 }
 

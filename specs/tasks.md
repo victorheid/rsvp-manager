@@ -48,7 +48,7 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 - [x] Wallet holds (upper bound for split pricing), realized or released — `placeHold` / `realizeHold` / `releaseHold` / `chargeWalletNow`, race-safe; wiring them into RSVP, confirm and cancel comes with the wallet RSVP option
 - [x] Card RSVP: SetupIntent at RSVP, charge price + service fee at confirmation — `rsvps.beginCardSetup` → `rsvps.create` with the SetupIntent; charged after commit at confirmation (or at once when joining a confirmed event). Also wallet RSVPs: hold at RSVP, realized at confirmation, released on drop / cancel / expiry, refunded onto the balance if a confirmed event is cancelled. Against the fake gateway
 - [x] Failed charge → "owes" status + pay link — decline, expired card, insufficient funds and 3-D Secure all end as OWES with a `/pay/{token}` link (push + SMS); `payments.owed / startOwedPayment / completeOwedPayment` back the page. Page UI not built yet
-- [ ] Price + service fee display, and "save by topping up" prompt on card RSVP
+- [x] Price + service fee display, and "save by topping up" prompt on card RSVP — event page fee line, RSVP sheet totals (`event.cardFeeCents`), and a "pay from your wallet to skip it" hint
 - [ ] Wallet refund on request at full value; ID check for refunds over €50 (pending legal)
 - [x] Stripe Connect onboarding for organizers (only for events accepting online payment) — `payouts` domain: start / refresh / status, against the fake gateway. UI for it comes with the create-event form
 - [x] Payout release after event (+2 days) — `releaseDuePayouts`, run by `pnpm worker`: full price of online payments less refunds, once per event, waits for onboarding. Against the fake gateway
@@ -91,8 +91,8 @@ Design source: the Figma design system (Foundations, Components, Screens, Flows 
 - [x] Manage: one screen per phase (Open / Confirmed / Live / Finished), server-driven actions (`eventPhase`, `organizerEventActions`, `organizerRowActions`), informational rows with a ••• menu, filters with counts, toast + Undo
 - [x] Create event: date leads; title, times, cut-off and details default from the last game and follow the date until edited (`events.suggestDefaults`); "Same as your last game" summary
 - [ ] Mount the bottom `TabBar` (needs `/me` and Wallet)
-- [ ] Wallet, top-up, `/me`, `/pay/{token}` screens (§5, §9; blocked on wallet legal check / Stripe)
-- [ ] RSVP payment choice with wallet and card (needs §5); the sheet has only Cash today
+- [ ] `/me` screen (§9) — Wallet (`/wallet`, top-up) and `/pay/{token}` are built against the fake gateway, behind the `WALLET_ENABLED` flag (off in production until the legal check clears). The card step is a test-mode stand-in (`CardForm`) that becomes Stripe Elements
+- [x] RSVP payment choice with wallet and card — RSVP sheet (wallet / card / cash by what the game allows), waitlist sheet (auto-join vs notify me), organizer's "Wallet and card" toggle + payout setup in the event form
 - [x] Refund and "Send pay link again" in the row menu — both server-driven row actions with Manage UI
 - [x] Section-level skeletons (`SectionSkeleton`, used on Home), sheet enter animation (no exit animation: native `<dialog>`), `ActionMenu` flip-up near the viewport bottom
 - [ ] Decide: allow confirming below the minimum ("confirm anyway", UI spec §10.9)? `confirmEvent` currently refuses; the Manage screen disables the button and explains (UI spec open question 9)

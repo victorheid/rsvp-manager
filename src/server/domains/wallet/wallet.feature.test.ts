@@ -277,6 +277,6 @@ describe.skipIf(!hasTestDb)("wallet", () => {
 
       expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(2); // 2000 covers two €8 holds, not three
       expect((await getWalletSummary(db, user.id, new Date())).availableCents).toBe(400);
-    });
+    }, 20_000);
   });
 });

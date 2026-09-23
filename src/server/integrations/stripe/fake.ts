@@ -9,15 +9,9 @@ import type {
   SetupIntent,
   SetupIntentState,
 } from "@/server/integrations/stripe/types";
+import { FAKE_CARD_SCENARIOS, type FakeCardScenario } from "@/server/integrations/stripe/fake-scenarios";
 
-/**
- * What the pretend cardholder does. Picked when the fake "browser" completes
- * a SetupIntent or PaymentIntent (see `completeSetupIntent`), and baked into
- * the saved card's id (`pm_fake_<scenario>_<n>`) so later off-session
- * charges behave the same way in any process.
- */
-export const FAKE_CARD_SCENARIOS = ["visa", "declined", "expired", "insufficient_funds", "requires_action"] as const;
-export type FakeCardScenario = (typeof FAKE_CARD_SCENARIOS)[number];
+export { FAKE_CARD_SCENARIOS, type FakeCardScenario };
 
 const DECLINES: Record<"declined" | "expired" | "insufficient_funds", DeclineReason> = {
   declined: "card_declined",

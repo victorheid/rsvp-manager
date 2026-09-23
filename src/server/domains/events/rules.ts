@@ -228,6 +228,7 @@ type LastEvent = Pick<
   | "pricingMode"
   | "totalCostCents"
   | "cashAllowed"
+  | "onlineAllowed"
   | "autoChargeAtCutoff"
 >;
 
@@ -241,6 +242,7 @@ export interface SuggestedEventDefaults {
   pricingMode: EventModel["pricingMode"];
   totalCostCents: number;
   cashAllowed: boolean;
+  onlineAllowed: boolean;
   autoChargeAtCutoff: boolean;
   /** Title of the game the rest was copied from; null for a group's first game. */
   basedOnTitle: string | null;
@@ -270,6 +272,7 @@ export function suggestEventDefaults(
     pricingMode: lastEvent?.pricingMode ?? PricingMode.FIXED_PER_HEAD,
     totalCostCents: lastEvent?.totalCostCents ?? 0,
     cashAllowed: lastEvent?.cashAllowed ?? true,
+    onlineAllowed: lastEvent?.onlineAllowed ?? false,
     autoChargeAtCutoff: lastEvent?.autoChargeAtCutoff ?? true,
     basedOnTitle: lastEvent?.title ?? null,
   };

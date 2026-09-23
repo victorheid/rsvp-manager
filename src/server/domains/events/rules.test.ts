@@ -270,6 +270,7 @@ describe("suggestEventDefaults", () => {
     pricingMode: PricingMode.SPLIT_EVENLY,
     totalCostCents: 8000,
     cashAllowed: true,
+    onlineAllowed: false,
     autoChargeAtCutoff: true,
   };
   const nextStart = new Date("2026-09-24T18:00:00Z");

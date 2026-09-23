@@ -16,7 +16,7 @@ export interface GetEventDefaultsInput {
 export async function getEventDefaults(db: Db, input: GetEventDefaultsInput) {
   const group = await db.group.findUnique({
     where: { id: input.groupId },
-    select: { name: true, organizerId: true },
+    select: { name: true, organizerId: true, organizer: { select: { payoutsEnabled: true } } },
   });
 
   if (!group) {
@@ -32,5 +32,8 @@ export async function getEventDefaults(db: Db, input: GetEventDefaultsInput) {
     orderBy: { startsAt: "desc" },
   });
 
-  return suggestEventDefaults({ groupName: group.name, lastEvent }, input.startsAt);
+  const suggestion = suggestEventDefaults({ groupName: group.name, lastEvent }, input.startsAt);
+
+  // A copied "online" setting only carries over while the organizer can still take online payments.
+  return { ...suggestion, onlineAllowed: suggestion.onlineAllowed && group.organizer.payoutsEnabled };
 }

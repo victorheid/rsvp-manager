@@ -32,6 +32,7 @@ export default function HomePage() {
   const { data: groups } = trpc.groups.mine.useQuery(undefined, { enabled: !!me });
   const { requireAuth, signInSheetProps } = useRequireAuth();
   const push = usePushNotifications();
+  const { data: wallet } = trpc.wallet.summary.useQuery(undefined, { enabled: !!me });
   const logout = trpc.auth.logout.useMutation({ onSuccess: () => utils.invalidate() });
 
   if (meLoading) {
@@ -79,6 +80,7 @@ export default function HomePage() {
             <ActionMenu
               label="Account"
               items={[
+                ...(wallet?.enabled ? [{ label: "Wallet", description: "Balance and top-up.", href: "/wallet" }] : []),
                 ...(push.status === "off"
                   ? [{ label: "Turn on notifications", description: "Get told when a game is posted, confirmed or changed.", onSelect: () => void push.enable() }]
                   : []),
