@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import type { Db } from "@/server/db";
 import { PricingMode } from "@/generated/prisma/enums";
 import { slugify } from "@/server/domains/groups/rules";
+import { notifyUsers, notificationRules } from "@/server/domains/notifications";
 import type { CostBreakdownItem } from "@/server/domains/events/costBreakdown";
 
 export interface CreateEventInput {
@@ -30,7 +31,7 @@ export interface CreateEventInput {
 export async function createEvent(db: Db, input: CreateEventInput) {
   const group = await db.group.findUnique({
     where: { id: input.groupId },
-    select: { organizerId: true },
+    select: { organizerId: true, name: true },
   });
 
   if (!group) {
@@ -65,7 +66,7 @@ export async function createEvent(db: Db, input: CreateEventInput) {
   const baseSlug = slugify(input.title);
   const slug = `${baseSlug}-${Date.now().toString(36)}`;
 
-  return db.event.create({
+  const event = await db.event.create({
     data: {
       slug,
       groupId: input.groupId,
@@ -84,4 +85,16 @@ export async function createEvent(db: Db, input: CreateEventInput) {
       autoChargeAtCutoff: input.autoChargeAtCutoff ?? true,
     },
   });
+
+  // §9 "New event posted" → group members, after the event is saved.
+  const members = await db.groupMembership.findMany({
+    where: { groupId: input.groupId, userId: { not: input.organizerId } },
+    select: { userId: true },
+  });
+  await notifyUsers(db, {
+    userIds: members.map((member) => member.userId),
+    message: notificationRules.newEventMessage(event, group.name),
+  });
+
+  return event;
 }

@@ -19,6 +19,19 @@ export function hasCapacity(
   return event.maxPlayers === null || goingCount < event.maxPlayers;
 }
 
+/**
+ * §9 "Spot open": whether someone leaving just freed a spot that the
+ * waitlist was waiting on — the event was full before, and the leaver held
+ * a real spot (walk-ins don't count against max, §8).
+ */
+export function freedAWaitlistedSpot(
+  event: Pick<EventModel, "maxPlayers">,
+  leaver: Pick<RsvpModel, "userId">,
+  goingCountBefore: number,
+): boolean {
+  return countsTowardMax(leaver) && !hasCapacity(event, goingCountBefore);
+}
+
 /** §3, §4: joining is only possible while the event is still open for it. */
 export function isJoinableEventStatus(status: EventModel["status"]): boolean {
   return status === "OPEN" || status === "CONFIRMED";

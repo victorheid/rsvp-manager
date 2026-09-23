@@ -75,7 +75,7 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 - [ ] Refund one / refund all online-paid (price only, service fee kept; until payout) — needs online payments (§5)
 
 ## 9. Notifications
-- [ ] Trigger table from spec §9 wired to push
+- [x] Trigger table from spec §9 wired to push — new event, confirmed, details changed, cancelled, removed, spot open (notify-me). Still open: cut-off reminder and organizer alert (below), "moved in from waitlist", "payment failed", "refund issued" (need §5)
 - [ ] SMS/WhatsApp fallback for money-related messages only
 - [ ] Cut-off reminder job
 - [ ] Organizer alert when cut-off passes unconfirmed (confirm anyway / cancel)

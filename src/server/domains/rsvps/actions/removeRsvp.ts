@@ -1,6 +1,8 @@
 import { TRPCError } from "@trpc/server";
 import type { Db } from "@/server/db";
 import { RsvpStatus } from "@/generated/prisma/enums";
+import { countGoingTowardMax, notifyWaitlistOfOpenSpot } from "@/server/domains/rsvps/actions/notifyWaitlistOfOpenSpot";
+import { notificationRules, notifyUsers } from "@/server/domains/notifications";
 import { authorizeOrganizerRowAction, authorizeOrganizerRsvp } from "@/server/domains/rsvps/actions/authorizeOrganizerRsvp";
 
 export interface RemoveRsvpInput {
@@ -23,8 +25,17 @@ export async function removeRsvp(db: Db, input: RemoveRsvpInput, now: Date) {
 
   await authorizeOrganizerRowAction(db, { ...input, action: "REMOVE" }, now);
 
-  return db.rsvp.update({
+  const goingCountBefore = await countGoingTowardMax(db, rsvp.eventId);
+  const removed = await db.rsvp.update({
     where: { id: input.rsvpId },
     data: { status: RsvpStatus.CANCELLED },
   });
+
+  // §9: tell the person, and tell the waitlist if their spot just opened.
+  if (removed.userId !== null) {
+    await notifyUsers(db, { userIds: [removed.userId], message: notificationRules.removedMessage(rsvp.event) });
+  }
+  await notifyWaitlistOfOpenSpot(db, { eventId: rsvp.eventId, leaver: removed, goingCountBefore }, now);
+
+  return removed;
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { EventStatus } from "@/generated/prisma/enums";
-import { hasCapacity, hasShownUp, isJoinableEventStatus, organizerRowActions } from "./rules";
+import { freedAWaitlistedSpot, hasCapacity, hasShownUp, isJoinableEventStatus, organizerRowActions } from "./rules";
 
 describe("hasCapacity", () => {
   it("has no limit when maxPlayers is null", () => {
@@ -81,5 +81,23 @@ describe("organizerRowActions", () => {
   it("offers nothing once the event is cancelled or expired", () => {
     expect(actions(going, "CANCELLED")).toEqual([]);
     expect(actions(owes, "EXPIRED")).toEqual([]);
+  });
+});
+
+describe("freedAWaitlistedSpot", () => {
+  it("is true when a full event loses a real player", () => {
+    expect(freedAWaitlistedSpot({ maxPlayers: 10 }, { userId: "u1" }, 10)).toBe(true);
+  });
+
+  it("is false when there was already room", () => {
+    expect(freedAWaitlistedSpot({ maxPlayers: 10 }, { userId: "u1" }, 9)).toBe(false);
+  });
+
+  it("is false when there's no max", () => {
+    expect(freedAWaitlistedSpot({ maxPlayers: null }, { userId: "u1" }, 50)).toBe(false);
+  });
+
+  it("is false for a walk-in, who never held a spot", () => {
+    expect(freedAWaitlistedSpot({ maxPlayers: 10 }, { userId: null }, 10)).toBe(false);
   });
 });

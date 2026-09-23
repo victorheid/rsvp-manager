@@ -266,3 +266,22 @@ export function suggestEventDefaults(
     basedOnTitle: lastEvent?.title ?? null,
   };
 }
+
+/**
+ * §9 "Event details changed": whether an edit is worth a notification. Only
+ * what a player plans around counts — description and cost-breakdown
+ * tweaks, or the auto-charge toggle, don't ping anyone.
+ */
+export function eventDetailsChanged(
+  before: Pick<EventModel, "title" | "startsAt" | "endsAt" | "location" | "cutoffAt" | "totalCostCents">,
+  after: Pick<EventModel, "title" | "startsAt" | "endsAt" | "location" | "cutoffAt" | "totalCostCents">,
+): boolean {
+  return (
+    before.title !== after.title ||
+    before.startsAt.getTime() !== after.startsAt.getTime() ||
+    before.endsAt.getTime() !== after.endsAt.getTime() ||
+    before.location !== after.location ||
+    before.cutoffAt.getTime() !== after.cutoffAt.getTime() ||
+    before.totalCostCents !== after.totalCostCents
+  );
+}

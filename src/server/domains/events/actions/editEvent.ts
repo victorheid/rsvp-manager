@@ -2,7 +2,9 @@ import { TRPCError } from "@trpc/server";
 import type { Db } from "@/server/db";
 import { EventStatus, PricingMode, RsvpStatus } from "@/generated/prisma/enums";
 import type { CostBreakdownItem } from "@/server/domains/events/costBreakdown";
-import { isDisallowedPriceIncrease } from "@/server/domains/events/rules";
+import { notifyEventAudience } from "@/server/domains/events/actions/notifyEventAudience";
+import { notificationRules } from "@/server/domains/notifications";
+import { eventDetailsChanged, isDisallowedPriceIncrease } from "@/server/domains/events/rules";
 
 export interface EditEventInput {
   eventId: string;
@@ -26,11 +28,11 @@ export interface EditEventInput {
  * Edits an event (§2, §10.4), organizer only, while it's still Open —
  * once Confirmed the price is locked and nothing else about the game
  * changes either, so there's nothing left to edit (Cancel is the only
- * lifecycle move from there). Notifying RSVPers of the change isn't
- * built yet (§9).
+ * lifecycle move from there). Players and the waitlist are notified when
+ * something they plan around changes (§9).
  */
 export async function editEvent(db: Db, input: EditEventInput) {
-  return db.$transaction(async (tx) => {
+  const { before, after } = await db.$transaction(async (tx) => {
     const event = await tx.event.findUnique({
       where: { id: input.eventId },
       include: {
@@ -94,7 +96,7 @@ export async function editEvent(db: Db, input: EditEventInput) {
       });
     }
 
-    return tx.event.update({
+    const updated = await tx.event.update({
       where: { id: input.eventId },
       data: {
         title: input.title,
@@ -112,5 +114,18 @@ export async function editEvent(db: Db, input: EditEventInput) {
         autoChargeAtCutoff: input.autoChargeAtCutoff ?? true,
       },
     });
+
+    return { before: event, after: updated };
   });
+
+  if (eventDetailsChanged(before, after)) {
+    await notifyEventAudience(db, {
+      eventId: after.id,
+      message: notificationRules.eventChangedMessage(after),
+      includeWaitlist: true,
+      exceptUserId: input.organizerId,
+    });
+  }
+
+  return after;
 }

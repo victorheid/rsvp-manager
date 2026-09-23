@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { protectedProcedure, router } from "@/server/trpc";
 import { pushSubscriptionSchema } from "@/server/integrations/push";
+import { testMessage } from "@/server/domains/notifications/rules";
 import { notifyUsers } from "@/server/domains/notifications/actions/notifyUsers";
 import { subscribePush } from "@/server/domains/notifications/actions/subscribePush";
 import { unsubscribePush } from "@/server/domains/notifications/actions/unsubscribePush";
@@ -18,7 +19,7 @@ export const notificationsRouter = router({
   sendTest: protectedProcedure.mutation(({ ctx }) =>
     notifyUsers(ctx.db, {
       userIds: [ctx.user.id],
-      message: { title: "Notifications are on", body: "You'll get game updates here.", url: "/" },
+      message: testMessage(),
     }),
   ),
 });

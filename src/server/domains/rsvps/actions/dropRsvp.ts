@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import type { Db } from "@/server/db";
 import { RsvpStatus } from "@/generated/prisma/enums";
 import { eventRules } from "@/server/domains/events";
+import { countGoingTowardMax, notifyWaitlistOfOpenSpot } from "@/server/domains/rsvps/actions/notifyWaitlistOfOpenSpot";
 
 export interface DropRsvpInput {
   eventId: string;
@@ -14,7 +15,7 @@ export interface DropRsvpInput {
  * their event list (§8), not this action's job.
  */
 export async function dropRsvp(db: Db, input: DropRsvpInput, now: Date) {
-  return db.$transaction(async (tx) => {
+  const { rsvp: dropped, goingCountBefore } = await db.$transaction(async (tx) => {
     const event = await tx.event.findUnique({ where: { id: input.eventId } });
 
     if (!event) {
@@ -33,9 +34,16 @@ export async function dropRsvp(db: Db, input: DropRsvpInput, now: Date) {
       throw new TRPCError({ code: "BAD_REQUEST", message: "Too late to drop out — the event has started." });
     }
 
-    return tx.rsvp.update({
+    const goingCountBefore = await countGoingTowardMax(tx, input.eventId);
+    const updated = await tx.rsvp.update({
       where: { id: rsvp.id },
       data: { status: RsvpStatus.CANCELLED },
     });
+
+    return { rsvp: updated, goingCountBefore };
   });
+
+  await notifyWaitlistOfOpenSpot(db, { eventId: input.eventId, leaver: dropped, goingCountBefore }, now);
+
+  return dropped;
 }

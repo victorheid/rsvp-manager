@@ -1,9 +1,10 @@
 import type { Db } from "@/server/db";
-import { getPushSender, type PushMessage } from "@/server/integrations/push";
+import type { NotificationMessage } from "@/server/domains/notifications/rules";
+import { getPushSender } from "@/server/integrations/push";
 
 export interface NotifyUsersInput {
   userIds: readonly string[];
-  message: PushMessage;
+  message: NotificationMessage;
 }
 
 /**
@@ -28,7 +29,7 @@ export async function notifyUsers(db: Db, input: NotifyUsersInput) {
       try {
         const { gone } = await push.send(
           { endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } },
-          input.message,
+          { title: input.message.title, body: input.message.body, url: input.message.url },
         );
 
         if (gone) {

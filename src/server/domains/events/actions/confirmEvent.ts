@@ -1,6 +1,8 @@
 import { TRPCError } from "@trpc/server";
 import type { Db } from "@/server/db";
 import { EventStatus, RsvpStatus } from "@/generated/prisma/enums";
+import { notifyEventAudience } from "@/server/domains/events/actions/notifyEventAudience";
+import { notificationRules } from "@/server/domains/notifications";
 import { perHeadPriceCents } from "@/server/domains/events/rules";
 
 export interface ConfirmEventInput {
@@ -21,7 +23,7 @@ export interface ConfirmEventInput {
  * once src/server/domains/wallet exists (specs/tasks.md §5).
  */
 export async function confirmEvent(db: Db, input: ConfirmEventInput) {
-  return db.$transaction(async (tx) => {
+  const result = await db.$transaction(async (tx) => {
     const event = await tx.event.findUnique({
       where: { id: input.eventId },
       include: {
@@ -67,4 +69,13 @@ export async function confirmEvent(db: Db, input: ConfirmEventInput) {
 
     return { event: confirmed, rsvps: event.rsvps };
   });
+
+  await notifyEventAudience(db, {
+    eventId: input.eventId,
+    message: notificationRules.eventConfirmedMessage(result.event),
+    includeWaitlist: false,
+    exceptUserId: input.organizerId,
+  });
+
+  return result;
 }

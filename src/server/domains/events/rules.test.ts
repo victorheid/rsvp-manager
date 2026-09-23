@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { PricingMode, EventStatus } from "@/generated/prisma/enums";
 import {
   canSelfCancel,
+  eventDetailsChanged,
   eventPhase,
   isDisallowedPriceIncrease,
   isExpired,
@@ -293,5 +294,31 @@ describe("suggestEventDefaults", () => {
     expect(defaults.cutoffAt).toEqual(new Date("2026-09-23T18:00:00Z"));
     expect(defaults.basedOnTitle).toBeNull();
     expect(defaults.location).toBe("");
+  });
+});
+
+describe("eventDetailsChanged", () => {
+  const before = {
+    title: "Friday game",
+    startsAt: new Date("2026-10-02T18:00:00Z"),
+    endsAt: new Date("2026-10-02T19:00:00Z"),
+    location: "Court 1",
+    cutoffAt: new Date("2026-10-01T18:00:00Z"),
+    totalCostCents: 800,
+  };
+
+  it("is false when nothing a player plans around moved", () => {
+    expect(eventDetailsChanged(before, { ...before, startsAt: new Date(before.startsAt) })).toBe(false);
+  });
+
+  it.each([
+    ["title", { title: "Saturday game" }],
+    ["start", { startsAt: new Date("2026-10-02T19:00:00Z") }],
+    ["end", { endsAt: new Date("2026-10-02T20:00:00Z") }],
+    ["location", { location: "Court 2" }],
+    ["cut-off", { cutoffAt: new Date("2026-10-01T12:00:00Z") }],
+    ["price", { totalCostCents: 700 }],
+  ])("is true when the %s changes", (_field, change) => {
+    expect(eventDetailsChanged(before, { ...before, ...change })).toBe(true);
   });
 });

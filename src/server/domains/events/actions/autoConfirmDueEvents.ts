@@ -1,5 +1,7 @@
 import type { Db } from "@/server/db";
 import { EventStatus, RsvpStatus } from "@/generated/prisma/enums";
+import { notifyEventAudience } from "@/server/domains/events/actions/notifyEventAudience";
+import { notificationRules } from "@/server/domains/notifications";
 import { perHeadPriceCents, shouldAutoConfirmAtCutoff } from "@/server/domains/events/rules";
 
 /**
@@ -34,6 +36,12 @@ export async function autoConfirmDueEvents(db: Db, now: Date) {
     });
 
     confirmed.push(updated);
+
+    await notifyEventAudience(db, {
+      eventId: event.id,
+      message: notificationRules.eventConfirmedMessage(updated),
+      includeWaitlist: false,
+    });
   }
 
   return confirmed;
