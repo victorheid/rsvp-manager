@@ -80,7 +80,7 @@ Cards are `rounded-lg`, inputs `rounded-md`, buttons and chips `rounded-full`, s
 | `KeyFact`, `PriceBlock`, `SectionHeader` | Event-page building blocks. |
 | `PersonRow` | A person in a public list. |
 | `PersonManageRow` | A person in the organizer's list: informational row, actions in its ••• menu. |
-| `Avatar`, `FilterChip`, `EmptyState`, `Skeleton` | Initials, filter pills with counts, "nothing here yet", loading placeholders. |
+| `Avatar`, `FilterChip`, `EmptyState`, `Skeleton`, `SectionSkeleton` | Initials, filter pills with counts, "nothing here yet", loading placeholders (one block / a section's rows). |
 
 ### Navigation and layout
 | Component | Use it for |
@@ -142,6 +142,4 @@ Feature-specific pieces (a sign-in sheet, the RSVP sheet, the manage screen's pr
 ## Known gaps
 
 - `TabBar` isn't mounted (no Wallet or `/me` yet).
-- No skeleton for individual sections, only `ScreenSkeleton` for whole pages.
-- Sheets don't animate; `prefers-reduced-motion` is already respected globally for when they do.
-- `ActionMenu` doesn't flip upward near the bottom of the viewport.
+- Sheets animate in (slide up / fade in) but not out: a native `<dialog>` closes instantly.

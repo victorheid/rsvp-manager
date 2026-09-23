@@ -26,6 +26,7 @@ import {
   SegmentedControl,
   SharePreview,
   ShareSheet,
+  SectionSkeleton,
   Skeleton,
   StatusChip,
   Stepper,
@@ -399,6 +400,9 @@ export function DesignGallery() {
               <Skeleton className="h-8 w-2/3" />
               <Skeleton className="h-24 w-full" />
             </div>
+          </Specimen>
+          <Specimen label="SectionSkeleton">
+            <SectionSkeleton />
           </Specimen>
         </Section>
 

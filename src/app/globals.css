@@ -301,6 +301,25 @@
     outline-offset: 2px;
   }
 
+  /* Sheets slide up on a phone and fade in as a dialog from sm up. */
+  dialog[open] {
+    animation: sheet-in 200ms ease-out;
+  }
+  dialog[open]::backdrop {
+    animation: backdrop-in 200ms ease-out;
+  }
+  @keyframes sheet-in {
+    from {
+      opacity: 0;
+      transform: translateY(1.5rem);
+    }
+  }
+  @keyframes backdrop-in {
+    from {
+      opacity: 0;
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,

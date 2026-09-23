@@ -27,7 +27,7 @@ export {
   type SegmentedControlProps,
 } from "./SegmentedControl";
 export { SharePreview, ShareSheet, type SharePreviewProps, type ShareSheetProps } from "./ShareSheet";
-export { ScreenSkeleton, Skeleton } from "./Skeleton";
+export { ScreenSkeleton, SectionSkeleton, Skeleton } from "./Skeleton";
 export { StatusChip, type ChipTone, type StatusChipProps } from "./StatusChip";
 export { Stepper, type StepperProps } from "./Stepper";
 export { StickyActionBar, type StickyActionBarProps } from "./StickyActionBar";

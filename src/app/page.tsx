@@ -11,6 +11,7 @@ import {
   Icon,
   Screen,
   ScreenSkeleton,
+  SectionSkeleton,
   SectionHeader,
   StatusChip,
   TopBar,
@@ -89,6 +90,7 @@ export default function HomePage() {
 
       <section className="flex flex-col gap-3">
         <SectionHeader title="Upcoming" />
+        {upcoming === undefined && <SectionSkeleton />}
         {upcoming?.length === 0 && (
           <EmptyState
             icon="calendar"
@@ -112,6 +114,7 @@ export default function HomePage() {
 
       <section className="flex flex-col gap-3">
         <SectionHeader title="Your groups" action={{ label: "Create a group", href: "/groups/new" }} />
+        {groups === undefined && <SectionSkeleton />}
         {groups?.map((group) => (
           <Link
             key={group.id}

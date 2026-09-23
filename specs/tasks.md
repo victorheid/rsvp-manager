@@ -94,6 +94,6 @@ Design source: the Figma design system (Foundations, Components, Screens, Flows 
 - [ ] Wallet, top-up, `/me`, `/pay/{token}` screens (§5, §9; blocked on wallet legal check / Stripe)
 - [ ] RSVP payment choice with wallet and card (needs §5); the sheet has only Cash today
 - [ ] Refund and "Send pay link again" in the row menu (needs §5)
-- [ ] Section-level skeletons, sheet animation, `ActionMenu` flip-up near the viewport bottom
+- [x] Section-level skeletons (`SectionSkeleton`, used on Home), sheet enter animation (no exit animation: native `<dialog>`), `ActionMenu` flip-up near the viewport bottom
 - [ ] Decide: allow confirming below the minimum ("confirm anyway", UI spec §10.9)? `confirmEvent` currently refuses; the Manage screen disables the button and explains (UI spec open question 9)
 - [x] Server-side guards for the phase rules — `markAttendance`, `markPaidOutsideApp` and `removeRsvp` check the action is in `organizerRowActions` for the event's current phase
