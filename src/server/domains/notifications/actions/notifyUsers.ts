@@ -1,6 +1,7 @@
 import type { Db } from "@/server/db";
-import type { NotificationMessage } from "@/server/domains/notifications/rules";
+import { isMoneyRelated, smsBody, type NotificationMessage } from "@/server/domains/notifications/rules";
 import { getPushSender } from "@/server/integrations/push";
+import { getSmsSender } from "@/server/integrations/sms";
 
 export interface NotifyUsersInput {
   userIds: readonly string[];
@@ -8,7 +9,8 @@ export interface NotifyUsersInput {
 }
 
 /**
- * Sends one message to every device of the given users (§9). Best effort:
+ * Sends one message to every device of the given users (§9); money-related
+ * messages also go to their phone number by SMS. Best effort:
  * a failing push service never fails the action that triggered the
  * notification, so errors are logged and swallowed. Subscriptions the push
  * service reports as gone are deleted.
@@ -21,6 +23,10 @@ export async function notifyUsers(db: Db, input: NotifyUsersInput) {
     return;
   }
 
+  await Promise.all([pushToDevices(db, input), textMoneyMessages(db, input)]);
+}
+
+async function pushToDevices(db: Db, input: NotifyUsersInput) {
   const push = getPushSender();
   const subscriptions = await db.pushSubscription.findMany({ where: { userId: { in: [...input.userIds] } } });
 
@@ -37,6 +43,26 @@ export async function notifyUsers(db: Db, input: NotifyUsersInput) {
         }
       } catch (error) {
         console.error("[notifications] push failed", error);
+      }
+    }),
+  );
+}
+
+async function textMoneyMessages(db: Db, input: NotifyUsersInput) {
+  if (!isMoneyRelated(input.message.kind)) {
+    return;
+  }
+
+  const sms = getSmsSender();
+  const users = await db.user.findMany({ where: { id: { in: [...input.userIds] } }, select: { phoneNumber: true } });
+  const body = smsBody(input.message, process.env.APP_URL);
+
+  await Promise.all(
+    users.map(async (user) => {
+      try {
+        await sms.send({ to: user.phoneNumber, body });
+      } catch (error) {
+        console.error("[notifications] sms failed", error);
       }
     }),
   );

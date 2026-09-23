@@ -19,6 +19,23 @@ export const NOTIFICATION_KINDS = [
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
+/**
+ * §9: SMS/WhatsApp is only for money-related messages, to keep costs down —
+ * charged, cancelled/refunded (and, once §5 exists, payment failed and moved
+ * in from the waitlist). Everything else is web push only.
+ */
+const MONEY_RELATED_KINDS: readonly NotificationKind[] = ["EVENT_CONFIRMED", "EVENT_CANCELLED"];
+
+export function isMoneyRelated(kind: NotificationKind): boolean {
+  return MONEY_RELATED_KINDS.includes(kind);
+}
+
+/** The SMS text for a message: the push text plus a link when we know the app's address. */
+export function smsBody(message: PushMessage, appUrl: string | undefined): string {
+  const text = `${message.title}. ${message.body}`;
+  return appUrl ? `${text} ${new URL(message.url, appUrl).href}` : text;
+}
+
 export interface NotificationMessage extends PushMessage {
   kind: NotificationKind;
 }

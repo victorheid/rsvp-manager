@@ -3,6 +3,7 @@ import { PricingMode } from "@/generated/prisma/enums";
 import { appRouter } from "@/server/router";
 import { db } from "@/server/db";
 import { fakePushSender } from "@/server/integrations/push/fake";
+import { fakeSmsSender } from "@/server/integrations/sms/fake";
 import { resetDatabase } from "@/server/testing/resetDatabase";
 
 const hasTestDb = Boolean(process.env.DATABASE_URL);
@@ -20,6 +21,7 @@ describe.skipIf(!hasTestDb)("notification triggers (§9)", () => {
   beforeEach(async () => {
     await resetDatabase();
     fakePushSender.reset();
+    fakeSmsSender.reset();
   });
 
   afterAll(async () => {
@@ -159,5 +161,31 @@ describe.skipIf(!hasTestDb)("notification triggers (§9)", () => {
     } finally {
       fakePushSender.send = original;
     }
+  });
+
+  describe("SMS fallback", () => {
+    it("texts money-related messages (confirmed, cancelled), even to people without push", async () => {
+      const { organizer, event } = await setup();
+      const noPush = await db.user.create({ data: { phoneNumber: "+353830000009", firstName: "Nop", lastInitial: "U" } });
+      await callerAs(noPush.id, noPush.phoneNumber).rsvps.create({ eventId: event.id, paymentMethod: "CASH" });
+      fakeSmsSender.reset();
+
+      await organizer.caller.events.confirm({ eventId: event.id });
+      expect(fakeSmsSender.lastMessageTo("+353830000009")?.body).toContain("Game confirmed");
+
+      fakeSmsSender.reset();
+      await organizer.caller.events.cancel({ eventId: event.id });
+      expect(fakeSmsSender.lastMessageTo("+353830000009")?.body).toContain("Game cancelled");
+    });
+
+    it("doesn't text anything else", async () => {
+      const { organizer, member, event, eventInput } = await setup();
+      const rsvp = await member.caller.rsvps.create({ eventId: event.id, paymentMethod: "CASH" });
+
+      await organizer.caller.events.edit({ ...eventInput, eventId: event.id, location: "Court 2" });
+      await organizer.caller.rsvps.remove({ rsvpId: rsvp.id });
+
+      expect(fakeSmsSender.sentMessages).toEqual([]);
+    });
   });
 });

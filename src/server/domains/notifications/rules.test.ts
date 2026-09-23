@@ -3,8 +3,10 @@ import {
   eventCancelledMessage,
   eventChangedMessage,
   eventConfirmedMessage,
+  isMoneyRelated,
   newEventMessage,
   removedMessage,
+  smsBody,
   spotOpenMessage,
 } from "@/server/domains/notifications/rules";
 
@@ -36,5 +38,33 @@ describe("notification messages", () => {
   it("shows the locked price when confirming", () => {
     expect(eventConfirmedMessage({ ...event, lockedPriceCents: 800 }).body).toContain("€8.00");
     expect(eventConfirmedMessage({ ...event, lockedPriceCents: null }).body).not.toContain("price");
+  });
+});
+
+describe("isMoneyRelated", () => {
+  it.each([
+    ["EVENT_CONFIRMED", true],
+    ["EVENT_CANCELLED", true],
+    ["NEW_EVENT", false],
+    ["EVENT_CHANGED", false],
+    ["REMOVED", false],
+    ["SPOT_OPEN", false],
+    ["TEST", false],
+  ] as const)("%s → %s", (kind, expected) => {
+    expect(isMoneyRelated(kind)).toBe(expected);
+  });
+});
+
+describe("smsBody", () => {
+  const message = { title: "Game cancelled", body: "Friday game was cancelled.", url: "/e/friday" };
+
+  it("appends a link when the app's address is known", () => {
+    expect(smsBody(message, "https://rsvp.example")).toBe(
+      "Game cancelled. Friday game was cancelled. https://rsvp.example/e/friday",
+    );
+  });
+
+  it("is just the text otherwise", () => {
+    expect(smsBody(message, undefined)).toBe("Game cancelled. Friday game was cancelled.");
   });
 });
