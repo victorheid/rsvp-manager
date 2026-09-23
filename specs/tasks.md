@@ -66,13 +66,13 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 - [ ] Expire unconfirmed events 48h after start → release holds — rule (`isExpired`) exists and is tested; no job calls it yet
 
 ## 8. Organizer event list
-- [ ] Single list: attendance status + payment status + per-group no-show count
-- [ ] Mark attendance
-- [ ] Mark paid outside app
-- [ ] Add walk-in (name only, doesn't count against max)
-- [ ] Dropped-out entries stay on the list marked "Dropped out" with their payment status (organizer can refund as usual)
-- [ ] Remove a player (pending confirmation)
-- [ ] Refund one / refund all online-paid (price only, service fee kept; until payout)
+- [x] Single list: attendance status + payment status + per-group no-show count (`/e/{slug}/manage`)
+- [x] Mark attendance
+- [x] Mark paid outside app — added `PAID_OUTSIDE_APP` to `PaymentStatus`, per the note in the UI spec
+- [ ] Add walk-in (name only, doesn't count against max) — needs `Rsvp.userId` to become optional; not done yet
+- [x] Dropped-out entries stay on the list marked "Dropped out" with their payment status (organizer can refund as usual)
+- [x] Remove a player (pending confirmation) — no confirmation step in the UI yet, but the action itself is done
+- [ ] Refund one / refund all online-paid (price only, service fee kept; until payout) — needs online payments (§5)
 
 ## 9. Notifications
 - [ ] Trigger table from spec §9 wired to push

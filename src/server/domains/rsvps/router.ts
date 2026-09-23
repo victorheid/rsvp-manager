@@ -3,7 +3,11 @@ import { PaymentMethod } from "@/generated/prisma/enums";
 import { protectedProcedure, router } from "@/server/trpc";
 import { createRsvp } from "@/server/domains/rsvps/actions/createRsvp";
 import { dropRsvp } from "@/server/domains/rsvps/actions/dropRsvp";
+import { markAttendance } from "@/server/domains/rsvps/actions/markAttendance";
+import { markPaidOutsideApp } from "@/server/domains/rsvps/actions/markPaidOutsideApp";
+import { removeRsvp } from "@/server/domains/rsvps/actions/removeRsvp";
 import { getUpcomingRsvpsForUser } from "@/server/domains/rsvps/getters/getUpcomingRsvpsForUser";
+import { getRsvpsForOrganizer } from "@/server/domains/rsvps/getters/getRsvpsForOrganizer";
 
 export const rsvpsRouter = router({
   create: protectedProcedure
@@ -26,4 +30,24 @@ export const rsvpsRouter = router({
   myUpcoming: protectedProcedure.query(({ ctx }) =>
     getUpcomingRsvpsForUser(ctx.db, ctx.user.id, new Date()),
   ),
+
+  forOrganizer: protectedProcedure
+    .input(z.object({ eventId: z.string() }))
+    .query(({ ctx, input }) => getRsvpsForOrganizer(ctx.db, { eventId: input.eventId, organizerId: ctx.user.id })),
+
+  markAttendance: protectedProcedure
+    .input(z.object({ rsvpId: z.string(), attended: z.boolean().nullable() }))
+    .mutation(({ ctx, input }) =>
+      markAttendance(ctx.db, { rsvpId: input.rsvpId, organizerId: ctx.user.id, attended: input.attended }),
+    ),
+
+  markPaidOutsideApp: protectedProcedure
+    .input(z.object({ rsvpId: z.string() }))
+    .mutation(({ ctx, input }) =>
+      markPaidOutsideApp(ctx.db, { rsvpId: input.rsvpId, organizerId: ctx.user.id }),
+    ),
+
+  remove: protectedProcedure
+    .input(z.object({ rsvpId: z.string() }))
+    .mutation(({ ctx, input }) => removeRsvp(ctx.db, { rsvpId: input.rsvpId, organizerId: ctx.user.id })),
 });

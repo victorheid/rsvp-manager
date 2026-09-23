@@ -81,10 +81,16 @@ export default function EventPage() {
         </span>
       </div>
 
-      {event.isOrganizer && canJoin && (
+      {event.isOrganizer && (
         <div className="flex flex-col gap-2 rounded-lg border border-neutral-200 p-3 dark:border-neutral-800">
-          <div className="flex gap-2">
-            {event.status === "OPEN" && (
+          <div className="flex flex-wrap gap-2">
+            <a
+              href={`/e/${slug}/manage`}
+              className="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium dark:border-neutral-700"
+            >
+              Manage
+            </a>
+            {canJoin && event.status === "OPEN" && (
               <button
                 type="button"
                 disabled={confirmEvent.isPending}
@@ -94,14 +100,16 @@ export default function EventPage() {
                 Confirm now
               </button>
             )}
-            <button
-              type="button"
-              disabled={cancelEvent.isPending}
-              onClick={() => cancelEvent.mutate({ eventId: event.id })}
-              className="rounded-md border border-red-300 px-3 py-2 text-sm font-medium text-red-700 disabled:opacity-50 dark:border-red-800 dark:text-red-400"
-            >
-              Cancel event
-            </button>
+            {canJoin && (
+              <button
+                type="button"
+                disabled={cancelEvent.isPending}
+                onClick={() => cancelEvent.mutate({ eventId: event.id })}
+                className="rounded-md border border-red-300 px-3 py-2 text-sm font-medium text-red-700 disabled:opacity-50 dark:border-red-800 dark:text-red-400"
+              >
+                Cancel event
+              </button>
+            )}
           </div>
           {confirmEvent.error && <p className="text-sm text-red-600">{confirmEvent.error.message}</p>}
           {cancelEvent.error && <p className="text-sm text-red-600">{cancelEvent.error.message}</p>}
