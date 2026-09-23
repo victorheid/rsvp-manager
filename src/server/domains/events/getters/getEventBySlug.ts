@@ -43,7 +43,7 @@ export async function getEventBySlug(db: Db, slug: string, options: GetEventBySl
         where: { status: "GOING" },
         include: { user: { select: { firstName: true, lastInitial: true } } },
       },
-      group: { select: { name: true, slug: true } },
+      group: { select: { name: true, slug: true, organizerId: true } },
     },
   });
 
@@ -61,5 +61,7 @@ export async function getEventBySlug(db: Db, slug: string, options: GetEventBySl
       })
     : null;
 
-  return { ...event, costBreakdown, priceDisplay: priceDisplay(event), viewerRsvp };
+  const isOrganizer = options.viewerId !== undefined && options.viewerId === event.group.organizerId;
+
+  return { ...event, costBreakdown, priceDisplay: priceDisplay(event), viewerRsvp, isOrganizer };
 }

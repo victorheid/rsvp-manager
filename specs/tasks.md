@@ -17,11 +17,11 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 ## 1. Groups
 - [x] Create group (name, description) → shareable `/g/{slug}` link
 - [x] Join via group link, and auto-join on RSVP
-- [x] Group page: list of events (`/g/{slug}` — upcoming/past, join CTA; no create-event or edit-group UI yet)
+- [x] Group page: list of events (`/g/{slug}` — upcoming/past, join CTA, organizer's "New game" link; no edit-group UI yet)
 - [ ] Group admins model (one for MVP, many-ready) — schema only models one (`organizerId`); co-organizers not designed yet
 
 ## 2. Events
-- [x] Create event (title, description, start + end time, location, cut-off, min default 1, optional max) — backend only; no create-event form yet
+- [x] Create event (title, description, start + end time, location, cut-off, min default 1, optional max) — `/g/{slug}/events/new`, organizer only; no cost-breakdown editor in the form yet
 - [x] Cost: total + optional display-only breakdown
 - [x] Pricing modes: fixed per-head / split evenly (range shown before confirmation)
 - [ ] Payment options (cash only / online only / both; online only after Stripe onboarding) and "Auto-charge at cut-off" toggle — only a `cashAllowed` boolean + `autoChargeAtCutoff` exist; no online option until Stripe/wallet land

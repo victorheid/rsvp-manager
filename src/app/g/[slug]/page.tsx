@@ -27,7 +27,7 @@ export default function GroupPage() {
   const { slug } = useParams<{ slug: string }>();
   const utils = trpc.useUtils();
   const { data: group, isLoading, error } = trpc.groups.getBySlug.useQuery({ slug });
-  const { requireAuth, isSigningIn, handleSignedIn, cancelSignIn } = useRequireAuth();
+  const { me, requireAuth, isSigningIn, handleSignedIn, cancelSignIn } = useRequireAuth();
   const [now] = useState(() => Date.now());
 
   const join = trpc.groups.join.useMutation({
@@ -76,6 +76,15 @@ export default function GroupPage() {
       )}
 
       {join.error && <p className="text-sm text-red-600">{join.error.message}</p>}
+
+      {me?.id === group.organizerId && (
+        <a
+          href={`/g/${slug}/events/new`}
+          className="self-start rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+        >
+          New game
+        </a>
+      )}
 
       <section>
         <h2 className="mb-2 text-sm font-medium text-neutral-500">Upcoming games</h2>

@@ -38,6 +38,9 @@ export default function EventPage() {
   const dropRsvp = trpc.rsvps.drop.useMutation({
     onSuccess: () => utils.events.getBySlug.invalidate({ slug }),
   });
+  const confirmEvent = trpc.events.confirm.useMutation({
+    onSuccess: () => utils.events.getBySlug.invalidate({ slug }),
+  });
 
   if (isLoading) {
     return <main className="mx-auto max-w-2xl p-4">Loading…</main>;
@@ -74,6 +77,20 @@ export default function EventPage() {
           {STATUS_LABEL[event.status] ?? event.status}
         </span>
       </div>
+
+      {event.isOrganizer && event.status === "OPEN" && (
+        <div className="flex flex-col gap-2 rounded-lg border border-neutral-200 p-3 dark:border-neutral-800">
+          <button
+            type="button"
+            disabled={confirmEvent.isPending}
+            onClick={() => confirmEvent.mutate({ eventId: event.id })}
+            className="self-start rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
+          >
+            Confirm now
+          </button>
+          {confirmEvent.error && <p className="text-sm text-red-600">{confirmEvent.error.message}</p>}
+        </div>
+      )}
 
       {isGoing && (
         <div className="rounded-lg bg-green-50 p-3 text-sm text-green-900 dark:bg-green-950 dark:text-green-100">
