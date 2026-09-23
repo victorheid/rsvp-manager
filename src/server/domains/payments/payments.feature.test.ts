@@ -297,6 +297,23 @@ describe.skipIf(!hasTestDb)("online payments (wallet and card)", () => {
         await expect(caller.payments.owed({ token: payToken })).rejects.toThrow("nothing left to pay");
       });
 
+      it("lets the organizer send the pay link again", async () => {
+        const { organizerCaller, event } = await makeOrganizerAndEvent();
+        const { user, caller } = await makePlayer("Bea", "+353830000003");
+        await db.pushSubscription.create({ data: { userId: user.id, endpoint: "https://push.example/bea", p256dh: "k", auth: "a" } });
+        const rsvp = await rsvpWithCard(caller, event.id, "declined");
+        await organizerCaller.events.confirm({ eventId: event.id });
+        const { payToken } = await db.rsvp.findUniqueOrThrow({ where: { id: rsvp.id } });
+        fakePushSender.reset();
+
+        const view = await organizerCaller.rsvps.forOrganizer({ eventId: event.id });
+        expect(view.rsvps.find((r) => r.id === rsvp.id)?.actions).toContain("SEND_PAY_LINK");
+        await organizerCaller.rsvps.sendPayLink({ rsvpId: rsvp.id });
+
+        expect(fakePushSender.sent.map((entry) => entry.message.url)).toEqual([`/pay/${payToken}`]);
+        await expect(caller.rsvps.sendPayLink({ rsvpId: rsvp.id })).rejects.toThrow("Only the group's organizer");
+      });
+
       it("keeps them owing when the retry is declined too", async () => {
         const { organizerCaller, event } = await makeOrganizerAndEvent();
         const { caller } = await makePlayer("Bea", "+353830000003");

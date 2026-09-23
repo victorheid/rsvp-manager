@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import type { Db } from "@/server/db";
 import { PaymentMethod, RsvpStatus, WaitlistPromotionMode } from "@/generated/prisma/enums";
 import { eventRules } from "@/server/domains/events";
+import { assertWalletEnabled } from "@/server/domains/wallet";
 import { isWaitlistOpen } from "@/server/domains/waitlist/rules";
 import type { PaymentGateway } from "@/server/integrations/stripe";
 
@@ -50,6 +51,7 @@ export async function resolveWaitlistPreference(
   }
 
   if (preference.paymentMethod === PaymentMethod.WALLET) {
+    assertWalletEnabled();
     return {
       promotionMode: WaitlistPromotionMode.AUTO,
       paymentMethod: PaymentMethod.WALLET,

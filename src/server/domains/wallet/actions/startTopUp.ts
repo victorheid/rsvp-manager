@@ -1,5 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import type { Db } from "@/server/db";
+import { assertWalletEnabled } from "@/server/domains/wallet/actions/assertWalletEnabled";
 import { PaymentKind, PaymentRecordStatus } from "@/generated/prisma/enums";
 import { feeRules, getCurrentFeeSchedule } from "@/server/domains/fees";
 import { getOrCreateCustomerId } from "@/server/domains/wallet/actions/getOrCreateCustomerId";
@@ -23,6 +24,7 @@ const BLOCKED_MESSAGES = {
  * credited until `completeTopUp` sees the payment succeed.
  */
 export async function startTopUp(db: Db, gateway: PaymentGateway, input: StartTopUpInput, now: Date) {
+  assertWalletEnabled();
   const wallet = await db.wallet.findUnique({ where: { userId: input.userId } });
   const blocked = topUpBlockedReason(wallet?.balanceCents ?? 0, input.amountCents);
 

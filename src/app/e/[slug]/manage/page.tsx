@@ -96,6 +96,10 @@ export default function ManageEventPage() {
       return refresh();
     },
   });
+  const sendPayLink = trpc.rsvps.sendPayLink.useMutation({
+    onSuccess: () => toast({ message: "Pay link sent" }),
+    onError: (err) => failed(err.message),
+  });
   const refundRsvp = trpc.rsvps.refund.useMutation({
     onSuccess: (result) => {
       setRefunding(null);
@@ -246,6 +250,12 @@ export default function ManageEventPage() {
                     }),
                 },
               ),
+          };
+        case "SEND_PAY_LINK":
+          return {
+            label: "Send pay link again",
+            description: "They get the link to pay what they owe by push and text.",
+            onSelect: () => sendPayLink.mutate({ rsvpId: rsvp.id }),
           };
         case "REFUND":
           return {

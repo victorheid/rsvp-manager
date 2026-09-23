@@ -34,3 +34,14 @@ export function availableBalanceCents(balanceCents: number, heldCents: number): 
 export function canCover(availableCents: number, amountCents: number): boolean {
   return amountCents <= availableCents;
 }
+
+/**
+ * Whether the wallet is switched on. Until the legal check on holding
+ * balances clears (specs/tasks.md, blockers) it's off in production unless
+ * `WALLET_ENABLED=true`; everywhere else it's on unless `WALLET_ENABLED=false`.
+ */
+export function isWalletEnabled(env: { WALLET_ENABLED?: string; NODE_ENV?: string }): boolean {
+  if (env.WALLET_ENABLED === "true") return true;
+  if (env.WALLET_ENABLED === "false") return false;
+  return env.NODE_ENV !== "production";
+}

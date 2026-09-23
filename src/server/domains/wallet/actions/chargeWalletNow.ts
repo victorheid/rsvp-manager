@@ -1,5 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import type { Db } from "@/server/db";
+import { assertWalletEnabled } from "@/server/domains/wallet/actions/assertWalletEnabled";
 import { WalletHoldStatus } from "@/generated/prisma/enums";
 import { debitWalletForGame } from "@/server/domains/wallet/actions/debitWallet";
 import { lockWallet } from "@/server/domains/wallet/actions/lockWallet";
@@ -18,6 +19,7 @@ export interface ChargeWalletNowInput {
  * (after other holds) can't cover it. Call inside the RSVP's transaction.
  */
 export async function chargeWalletNow(tx: Db, input: ChargeWalletNowInput) {
+  assertWalletEnabled();
   const wallet = await lockWallet(tx, input.userId);
   const held = await tx.walletHold.aggregate({
     where: { walletId: wallet.id, status: WalletHoldStatus.HELD },

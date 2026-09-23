@@ -6,7 +6,7 @@ import { getWalletSummary } from "@/server/domains/wallet/getters/getWalletSumma
 import { getPaymentGateway } from "@/server/integrations/stripe";
 
 export const walletRouter = router({
-  summary: protectedProcedure.query(({ ctx }) => getWalletSummary(ctx.db, ctx.user.id)),
+  summary: protectedProcedure.query(({ ctx }) => getWalletSummary(ctx.db, ctx.user.id, new Date())),
 
   startTopUp: protectedProcedure
     .input(z.object({ amountCents: z.number().int() }))

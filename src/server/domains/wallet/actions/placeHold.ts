@@ -1,5 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import type { Db } from "@/server/db";
+import { assertWalletEnabled } from "@/server/domains/wallet/actions/assertWalletEnabled";
 import { WalletHoldStatus } from "@/generated/prisma/enums";
 import { lockWallet } from "@/server/domains/wallet/actions/lockWallet";
 import { availableBalanceCents, canCover } from "@/server/domains/wallet/rules";
@@ -17,6 +18,7 @@ export interface PlaceHoldInput {
  * hold exists exactly when the RSVP does.
  */
 export async function placeHold(tx: Db, input: PlaceHoldInput) {
+  assertWalletEnabled();
   const wallet = await lockWallet(tx, input.userId);
   const held = await tx.walletHold.aggregate({
     where: { walletId: wallet.id, status: WalletHoldStatus.HELD },

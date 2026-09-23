@@ -36,7 +36,7 @@ export function hasShownUp(rsvp: Pick<RsvpModel, "attended">): boolean {
 }
 
 /** Things the organizer can do to one person from the Manage screen. */
-export type OrganizerRowAction = "MARK_PAID" | "MARK_NO_SHOW" | "UNDO_NO_SHOW" | "REFUND" | "REMOVE";
+export type OrganizerRowAction = "MARK_PAID" | "MARK_NO_SHOW" | "UNDO_NO_SHOW" | "SEND_PAY_LINK" | "REFUND" | "REMOVE";
 
 /**
  * Which per-person actions exist right now (UI spec §10.5). The list is in
@@ -45,6 +45,8 @@ export type OrganizerRowAction = "MARK_PAID" | "MARK_NO_SHOW" | "UNDO_NO_SHOW" |
  *
  *  - Mark paid: only once the game is confirmed. Before that nothing has
  *    been charged, and cash is collected on the day.
+ *  - Send pay link again: a card payment that failed (owes), while the
+ *    game is still on.
  *  - Refund: an online payment that went through, until the organizer is
  *    paid out (`refundsOpen`, §5). It stays on someone who dropped out —
  *    that's where the organizer decides to refund them (§4) — and it
@@ -77,6 +79,14 @@ export function organizerRowActions(input: {
 
   if (isGoing && gameStarted && !isOrganizersOwnRsvp && hasShownUp(rsvp)) {
     actions.push("MARK_NO_SHOW");
+  }
+
+  if (
+    rsvp.paymentStatus === "OWES" &&
+    rsvp.paymentMethod === "CARD" &&
+    (phase === "CONFIRMED" || gameStarted)
+  ) {
+    actions.push("SEND_PAY_LINK");
   }
 
   if (rsvp.paymentStatus === "CHARGED" && rsvp.paymentMethod !== "CASH" && refundsOpen) {

@@ -3,6 +3,7 @@ import {
   allowedTopUpAmountsCents,
   availableBalanceCents,
   canCover,
+  isWalletEnabled,
   MAX_WALLET_BALANCE_CENTS,
   topUpBlockedReason,
 } from "./rules";
@@ -43,5 +44,17 @@ describe("available balance", () => {
   it("covers an amount up to and including what's available", () => {
     expect(canCover(850, 850)).toBe(true);
     expect(canCover(849, 850)).toBe(false);
+  });
+});
+
+describe("isWalletEnabled", () => {
+  it.each([
+    [{ NODE_ENV: "development" }, true],
+    [{ NODE_ENV: "production" }, false],
+    [{ NODE_ENV: "production", WALLET_ENABLED: "true" }, true],
+    [{ NODE_ENV: "development", WALLET_ENABLED: "false" }, false],
+    [{ NODE_ENV: "production", WALLET_ENABLED: "yes" }, false],
+  ])("%j → %s", (env, expected) => {
+    expect(isWalletEnabled(env)).toBe(expected);
   });
 });

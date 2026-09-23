@@ -38,6 +38,20 @@ describe("organizerRowActions", () => {
     return organizerRowActions({ rsvp, phase, isOrganizersOwnRsvp: own, refundsOpen });
   }
 
+  describe("Send pay link again", () => {
+    const failedCard = { status: "GOING", paymentStatus: "OWES", paymentMethod: "CARD", attended: null } as const;
+
+    it("is offered for a failed card payment once the game is confirmed, after Mark paid", () => {
+      expect(actions(failedCard, "CONFIRMED")).toEqual(["MARK_PAID", "SEND_PAY_LINK", "REMOVE"]);
+      expect(actions(failedCard, "OPEN")).toEqual(["REMOVE"]);
+    });
+
+    it("is not offered for cash that's owed, or once the game is cancelled", () => {
+      expect(actions({ ...failedCard, paymentMethod: "CASH" }, "CONFIRMED")).not.toContain("SEND_PAY_LINK");
+      expect(actions(failedCard, "CANCELLED")).toEqual([]);
+    });
+  });
+
   describe("Refund (§8)", () => {
     const paidByCard = { status: "GOING", paymentStatus: "CHARGED", paymentMethod: "CARD", attended: null } as const;
     const paidFromWallet = { ...paidByCard, paymentMethod: "WALLET" } as const;

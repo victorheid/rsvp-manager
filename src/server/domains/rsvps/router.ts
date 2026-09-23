@@ -8,6 +8,7 @@ import { dropRsvp } from "@/server/domains/rsvps/actions/dropRsvp";
 import { markAttendance } from "@/server/domains/rsvps/actions/markAttendance";
 import { markPaidOutsideApp } from "@/server/domains/rsvps/actions/markPaidOutsideApp";
 import { undoMarkPaidOutsideApp } from "@/server/domains/rsvps/actions/undoMarkPaidOutsideApp";
+import { sendPayLink } from "@/server/domains/rsvps/actions/sendPayLink";
 import { refundAllOnline } from "@/server/domains/rsvps/actions/refundAllOnline";
 import { refundRsvp } from "@/server/domains/rsvps/actions/refundRsvp";
 import { removeRsvp } from "@/server/domains/rsvps/actions/removeRsvp";
@@ -77,6 +78,10 @@ export const rsvpsRouter = router({
   remove: protectedProcedure
     .input(z.object({ rsvpId: z.string() }))
     .mutation(({ ctx, input }) => removeRsvp(ctx.db, getPaymentGateway(), { rsvpId: input.rsvpId, organizerId: ctx.user.id }, new Date())),
+
+  sendPayLink: protectedProcedure
+    .input(z.object({ rsvpId: z.string() }))
+    .mutation(({ ctx, input }) => sendPayLink(ctx.db, { rsvpId: input.rsvpId, organizerId: ctx.user.id }, new Date())),
 
   refund: protectedProcedure
     .input(z.object({ rsvpId: z.string() }))

@@ -119,6 +119,11 @@ class FakePaymentGateway implements PaymentGateway {
     return { setupIntentId, clientSecret: `${setupIntentId}_secret` };
   }
 
+  /** The id a client secret was made from (`<id>_secret`), for the dev card form that only has the secret. */
+  intentIdFromClientSecret(clientSecret: string) {
+    return clientSecret.replace(/_secret$/, "");
+  }
+
   /** Plays the browser: the cardholder enters a card that behaves as `scenario`. */
   completeSetupIntent(setupIntentId: string, scenario: FakeCardScenario) {
     this.setupIntents.set(setupIntentId, { status: "succeeded", card: this.card(scenario) });

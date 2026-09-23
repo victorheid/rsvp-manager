@@ -97,7 +97,7 @@ describe.skipIf(!hasTestDb)("wallet", () => {
       await topUp(caller, 10_000);
       await topUp(caller, 5000);
       await expect(caller.wallet.startTopUp({ amountCents: 2000 })).rejects.toThrow("€150 max");
-      expect((await caller.wallet.summary()).allowedTopUpAmountsCents).toEqual([]);
+      expect((await caller.wallet.summary()).topUpOptions).toEqual([]);
     });
 
     it("refunds in full, fee included, if a racing top-up would have passed the cap", async () => {
@@ -141,6 +141,30 @@ describe.skipIf(!hasTestDb)("wallet", () => {
     });
   });
 
+  it("offers the top-up amounts with their fees", async () => {
+    const { caller } = await makeUser();
+
+    expect((await caller.wallet.summary()).topUpOptions).toEqual([
+      { amountCents: 2000, feeCents: 100, totalCents: 2100 },
+      { amountCents: 5000, feeCents: 150, totalCents: 5150 },
+      { amountCents: 10_000, feeCents: 250, totalCents: 10_250 },
+    ]);
+  });
+
+  it("refuses top-ups and wallet RSVPs while the wallet is switched off", async () => {
+    const { caller } = await makeUser();
+    const previous = process.env.WALLET_ENABLED;
+    process.env.WALLET_ENABLED = "false";
+
+    try {
+      expect((await caller.wallet.summary()).enabled).toBe(false);
+      await expect(caller.wallet.startTopUp({ amountCents: 2000 })).rejects.toThrow("isn't available yet");
+    } finally {
+      if (previous === undefined) delete process.env.WALLET_ENABLED;
+      else process.env.WALLET_ENABLED = previous;
+    }
+  });
+
   describe("holds", () => {
     async function fundedWallet(cents: number) {
       const { user, caller } = await makeUser();
@@ -176,7 +200,7 @@ describe.skipIf(!hasTestDb)("wallet", () => {
 
       await db.$transaction((tx) => placeHold(tx, { userId: user.id, rsvpId: rsvp.id, amountCents: 800 }));
 
-      expect(await getWalletSummary(db, user.id)).toMatchObject({ balanceCents: 2000, heldCents: 800, availableCents: 1200 });
+      expect(await getWalletSummary(db, user.id, new Date())).toMatchObject({ balanceCents: 2000, heldCents: 800, availableCents: 1200 });
     });
 
     it("refuses a hold the available balance can't cover, counting other holds", async () => {
@@ -200,7 +224,7 @@ describe.skipIf(!hasTestDb)("wallet", () => {
       );
 
       expect(payment).toMatchObject({ kind: "GAME_WALLET", status: "SUCCEEDED", amountCents: 750, feeCents: 0, rsvpId: rsvp.id });
-      expect(await getWalletSummary(db, user.id)).toMatchObject({ balanceCents: 1250, heldCents: 0, availableCents: 1250 });
+      expect(await getWalletSummary(db, user.id, new Date())).toMatchObject({ balanceCents: 1250, heldCents: 0, availableCents: 1250 });
       expect(await db.walletEntry.findMany({ where: { kind: "GAME_PAYMENT" } })).toMatchObject([{ amountCents: -750 }]);
     });
 
@@ -214,7 +238,7 @@ describe.skipIf(!hasTestDb)("wallet", () => {
       const again = await db.$transaction((tx) => realizeHold(tx, input, new Date()));
 
       expect(again.id).toBe(first.id);
-      expect((await getWalletSummary(db, user.id)).balanceCents).toBe(1200);
+      expect((await getWalletSummary(db, user.id, new Date())).balanceCents).toBe(1200);
     });
 
     it("gives the money back to the available balance when a hold is released", async () => {
@@ -224,7 +248,7 @@ describe.skipIf(!hasTestDb)("wallet", () => {
 
       await db.$transaction((tx) => releaseHold(tx, { rsvpId: rsvp.id }, new Date()));
 
-      expect(await getWalletSummary(db, user.id)).toMatchObject({ balanceCents: 2000, heldCents: 0, availableCents: 2000 });
+      expect(await getWalletSummary(db, user.id, new Date())).toMatchObject({ balanceCents: 2000, heldCents: 0, availableCents: 2000 });
       await expect(
         db.$transaction((tx) => realizeHold(tx, { userId: user.id, rsvpId: rsvp.id, priceCents: 800, feeScheduleId: FEE_SCHEDULE_V1_ID }, new Date())),
       ).rejects.toThrow("already released");
@@ -235,7 +259,7 @@ describe.skipIf(!hasTestDb)("wallet", () => {
       const rsvp = await makeRsvp(user.id, 1);
 
       await db.$transaction((tx) => chargeWalletNow(tx, { userId: user.id, rsvpId: rsvp.id, priceCents: 800, feeScheduleId: FEE_SCHEDULE_V1_ID }));
-      expect((await getWalletSummary(db, user.id)).balanceCents).toBe(1200);
+      expect((await getWalletSummary(db, user.id, new Date())).balanceCents).toBe(1200);
 
       const other = await makeRsvp(user.id, 2);
       await expect(
@@ -252,7 +276,7 @@ describe.skipIf(!hasTestDb)("wallet", () => {
       );
 
       expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(2); // 2000 covers two €8 holds, not three
-      expect((await getWalletSummary(db, user.id)).availableCents).toBe(400);
+      expect((await getWalletSummary(db, user.id, new Date())).availableCents).toBe(400);
     });
   });
 });

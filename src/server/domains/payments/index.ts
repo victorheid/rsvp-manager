@@ -4,3 +4,4 @@ export { chargeCardRsvp, chargeCardRsvpsForEvent } from "./actions/chargeCardRsv
 export { refundEventPayments, retryCancelledEventRefunds } from "./actions/refundEventPayments";
 export { refundRsvpPayment } from "./actions/refundRsvpPayment";
 export * as paymentRules from "./rules";
+export { resendPayLink } from "./actions/resendPayLink";

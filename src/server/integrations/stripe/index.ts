@@ -1,7 +1,8 @@
-import { fakePaymentGateway } from "@/server/integrations/stripe/fake";
+import { fakePaymentGateway, FAKE_CARD_SCENARIOS } from "@/server/integrations/stripe/fake";
 import type { PaymentGateway } from "@/server/integrations/stripe/types";
 
 export type * from "@/server/integrations/stripe/types";
+export { FAKE_CARD_SCENARIOS };
 
 /**
  * Picks the payment adapter for the current process. Until the real Stripe
@@ -15,4 +16,9 @@ export function getPaymentGateway(): PaymentGateway {
   }
 
   return fakePaymentGateway;
+}
+
+/** The fake gateway when that's what's running — the dev card form needs it to play the browser. */
+export function getFakePaymentGateway() {
+  return getPaymentGateway() === fakePaymentGateway ? fakePaymentGateway : null;
 }

@@ -3,6 +3,7 @@ import { EventStatus, PricingMode } from "@/generated/prisma/enums";
 import type { EventModel } from "@/generated/prisma/models";
 // The rules file only: waitlist's index depends on events, so importing it here would be a cycle.
 import { sortWaitlist } from "@/server/domains/waitlist/rules";
+import { feeRules, getFeeScheduleById } from "@/server/domains/fees";
 import { costBreakdownSchema } from "@/server/domains/events/costBreakdown";
 import { splitPriceRangeCents } from "@/server/domains/events/rules";
 
@@ -80,8 +81,16 @@ export async function getEventBySlug(db: Db, slug: string, options: GetEventBySl
     ? waitlistEntries.findIndex((entry) => entry.userId === options.viewerId)
     : -1;
 
+  // §5: the service fee a card payment adds, from the schedule pinned at creation — on the locked
+  // price once there is one, else on the most it could be. Wallet and cash carry no fee.
+  const display = priceDisplay(event);
+  const quotedPriceCents = display.mode === "range" ? display.maxCents : display.amountCents;
+  const schedule = await getFeeScheduleById(db, event.feeScheduleId);
+  const cardFeeCents = feeRules.feeForAmountCents(schedule.gameCardFeeTiers, quotedPriceCents);
+
   return {
     ...event,
+    cardFeeCents,
     waitlistEntries,
     costBreakdown,
     priceDisplay: priceDisplay(event),
