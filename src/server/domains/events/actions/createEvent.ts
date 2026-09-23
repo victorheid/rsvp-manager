@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import type { Db } from "@/server/db";
 import { PricingMode } from "@/generated/prisma/enums";
 import { getCurrentFeeSchedule } from "@/server/domains/fees";
+import { authRules } from "@/server/domains/auth";
 import { paymentOptionsProblem } from "@/server/domains/events/rules";
 import { slugify } from "@/server/domains/groups/rules";
 import { notifyUsers, notificationRules } from "@/server/domains/notifications";
@@ -35,7 +36,7 @@ export interface CreateEventInput {
 export async function createEvent(db: Db, input: CreateEventInput, now: Date = new Date()) {
   const group = await db.group.findUnique({
     where: { id: input.groupId },
-    select: { organizerId: true, name: true, organizer: { select: { payoutsEnabled: true } } },
+    select: { organizerId: true, name: true, organizer: { select: { payoutsEnabled: true, emailVerifiedAt: true } } },
   });
 
   if (!group) {
@@ -44,6 +45,12 @@ export async function createEvent(db: Db, input: CreateEventInput, now: Date = n
 
   if (group.organizerId !== input.organizerId) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Only the group's organizer can create events." });
+  }
+
+  const emailProblem = authRules.organizerEmailProblem(group.organizer);
+
+  if (emailProblem) {
+    throw new TRPCError({ code: "FORBIDDEN", message: emailProblem });
   }
 
   if (input.endsAt <= input.startsAt) {

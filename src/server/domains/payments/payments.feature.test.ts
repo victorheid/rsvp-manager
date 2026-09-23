@@ -33,7 +33,7 @@ describe.skipIf(!hasTestDb)("online payments (wallet and card)", () => {
   type Caller = ReturnType<typeof callerAs>;
 
   async function makeOrganizerAndEvent(overrides: { pricingMode?: PricingMode; totalCostCents?: number; minPlayers?: number } = {}) {
-    const organizer = await db.user.create({ data: { phoneNumber: "+353830000001", firstName: "Org", lastInitial: "O" } });
+    const organizer = await db.user.create({ data: { phoneNumber: "+353830000001", firstName: "Org", email: "+353830000001@example.test", emailVerifiedAt: new Date(), lastInitial: "O" } });
     const caller = callerAs(organizer.id, organizer.phoneNumber);
     await caller.payouts.startOnboarding({ returnPath: "/" });
     await caller.payouts.refreshOnboarding();

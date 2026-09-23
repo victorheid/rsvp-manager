@@ -35,7 +35,7 @@ describe.skipIf(!hasTestDb)("payout release (§5)", () => {
   }
 
   async function confirmedEventWithPayments(options: { onboard?: boolean } = {}) {
-    const organizer = await db.user.create({ data: { phoneNumber: "+353830000001", firstName: "Org", lastInitial: "O" } });
+    const organizer = await db.user.create({ data: { phoneNumber: "+353830000001", firstName: "Org", email: "+353830000001@example.test", emailVerifiedAt: new Date(), lastInitial: "O" } });
     const organizerCaller = callerAs(organizer.id, organizer.phoneNumber);
     if (options.onboard !== false) {
       await organizerCaller.payouts.startOnboarding({ returnPath: "/" });

@@ -5,6 +5,8 @@ import {
   isValidPhoneNumber,
   isVerificationCodeExpired,
   MAX_VERIFICATION_ATTEMPTS,
+  normalizeEmail,
+  organizerEmailProblem,
 } from "./rules";
 
 describe("isValidPhoneNumber", () => {
@@ -49,5 +51,18 @@ describe("hasExceededVerificationAttempts", () => {
 
   it("blocks once the max is reached", () => {
     expect(hasExceededVerificationAttempts({ attempts: MAX_VERIFICATION_ATTEMPTS })).toBe(true);
+  });
+});
+
+describe("normalizeEmail", () => {
+  it("lower-cases and trims", () => {
+    expect(normalizeEmail("  Ann.B@Example.COM ")).toBe("ann.b@example.com");
+  });
+});
+
+describe("organizerEmailProblem", () => {
+  it("asks for a verified email, and is satisfied by one", () => {
+    expect(organizerEmailProblem({ emailVerifiedAt: null })).toBe("Verify your email first — organizers need one.");
+    expect(organizerEmailProblem({ emailVerifiedAt: new Date() })).toBeNull();
   });
 });

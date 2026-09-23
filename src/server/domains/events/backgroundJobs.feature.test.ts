@@ -23,7 +23,7 @@ describe.skipIf(!hasTestDb)("background jobs", () => {
 
   async function createGroupAndOrganizer() {
     const organizer = await db.user.create({
-      data: { phoneNumber: "+353820000001", firstName: "Org", lastInitial: "O" },
+      data: { phoneNumber: "+353820000001", firstName: "Org", email: "+353820000001@example.test", emailVerifiedAt: new Date(), lastInitial: "O" },
     });
     const group = await db.group.create({
       data: { slug: "job-test-group", name: "Job Test Group", organizerId: organizer.id },

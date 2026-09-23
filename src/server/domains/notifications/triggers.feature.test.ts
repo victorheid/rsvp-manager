@@ -30,7 +30,9 @@ describe.skipIf(!hasTestDb)("notification triggers (§9)", () => {
 
   /** A user with one subscribed device whose endpoint is `https://push.example/<name>`. */
   async function makeUser(name: string, phoneNumber: string) {
-    const user = await db.user.create({ data: { phoneNumber, firstName: name, lastInitial: "X" } });
+    const user = await db.user.create({
+      data: { phoneNumber, firstName: name, lastInitial: "X", email: `${phoneNumber}@example.test`, emailVerifiedAt: new Date() },
+    });
     await db.pushSubscription.create({
       data: { userId: user.id, endpoint: `https://push.example/${name}`, p256dh: "k", auth: "a" },
     });

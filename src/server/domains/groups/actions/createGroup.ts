@@ -1,5 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import type { Db } from "@/server/db";
+import { authRules } from "@/server/domains/auth";
 import { isValidSlug, slugify } from "@/server/domains/groups/rules";
 
 export interface CreateGroupInput {
@@ -34,9 +35,17 @@ async function nextAvailableSlug(db: Db, baseSlug: string): Promise<string> {
 
 /**
  * Creates a group with a shareable slug and makes the organizer its first
- * member (§1). One business operation, one transaction.
+ * member (§1). The organizer must have a verified email. One business operation, one transaction.
  */
 export async function createGroup(db: Db, input: CreateGroupInput) {
+  // Organizers need a verified email (recovery channel); players never do.
+  const organizer = await db.user.findUniqueOrThrow({ where: { id: input.organizerId } });
+  const emailProblem = authRules.organizerEmailProblem(organizer);
+
+  if (emailProblem) {
+    throw new TRPCError({ code: "FORBIDDEN", message: emailProblem });
+  }
+
   const baseSlug = slugify(input.name);
 
   if (!isValidSlug(baseSlug)) {

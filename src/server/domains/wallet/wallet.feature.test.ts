@@ -176,7 +176,7 @@ describe.skipIf(!hasTestDb)("wallet", () => {
     async function makeRsvp(userId: string, n: number) {
       const organizer = await db.user.upsert({
         where: { phoneNumber: "+353830009999" },
-        create: { phoneNumber: "+353830009999", firstName: "Org", lastInitial: "O" },
+        create: { phoneNumber: "+353830009999", firstName: "Org", email: "+353830009999@example.test", emailVerifiedAt: new Date(), lastInitial: "O" },
         update: {},
       });
       const group = await db.group.upsert({

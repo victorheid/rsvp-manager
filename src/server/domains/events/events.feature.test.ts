@@ -26,7 +26,7 @@ describe.skipIf(!hasTestDb)("events", () => {
 
   async function createOrganizerAndGroup() {
     const organizer = await db.user.create({
-      data: { phoneNumber: "+353850000001", firstName: "Org", lastInitial: "O" },
+      data: { phoneNumber: "+353850000001", firstName: "Org", email: "+353850000001@example.test", emailVerifiedAt: new Date(), lastInitial: "O" },
     });
     const caller = callerAs(organizer.id, organizer.phoneNumber);
     const group = await caller.groups.create({ name: "Wednesday Volleyball" });

@@ -1,4 +1,6 @@
 import type { Db } from "@/server/db";
+import { TRPCError } from "@trpc/server";
+import { authRules } from "@/server/domains/auth";
 import type { PaymentGateway } from "@/server/integrations/stripe";
 
 export interface StartOnboardingInput {
@@ -15,6 +17,12 @@ export interface StartOnboardingInput {
  */
 export async function startOnboarding(db: Db, gateway: PaymentGateway, input: StartOnboardingInput) {
   const user = await db.user.findUniqueOrThrow({ where: { id: input.userId } });
+  const emailProblem = authRules.organizerEmailProblem(user);
+
+  if (emailProblem) {
+    throw new TRPCError({ code: "FORBIDDEN", message: emailProblem });
+  }
+
   const account = await gateway.ensureConnectedAccount({ userId: user.id, name: `${user.firstName} ${user.lastInitial}` });
 
   if (user.stripeAccountId !== account.accountId) {

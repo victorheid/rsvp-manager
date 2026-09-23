@@ -26,7 +26,7 @@ describe.skipIf(!hasTestDb)("waitlist", () => {
 
   async function setup(maxPlayers = 1) {
     const organizer = await db.user.create({
-      data: { phoneNumber: "+353800100001", firstName: "Org", lastInitial: "O" },
+      data: { phoneNumber: "+353800100001", firstName: "Org", email: "+353800100001@example.test", emailVerifiedAt: new Date(), lastInitial: "O" },
     });
     const organizerCaller = callerAs(organizer.id, organizer.phoneNumber);
     const group = await organizerCaller.groups.create({ name: "Full Group" });

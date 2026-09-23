@@ -46,7 +46,9 @@ export async function verifyCode(db: Db, input: VerifyCodeInput, now: Date): Pro
     }
 
     if (verification.codeHash !== hashVerificationCode(input.code)) {
-      await tx.verificationCode.update({
+      // Counted on the plain client: inside `tx` the increment would be rolled
+      // back by the error thrown right after, and the attempt limit would never bite.
+      await db.verificationCode.update({
         where: { id: verification.id },
         data: { attempts: { increment: 1 } },
       });

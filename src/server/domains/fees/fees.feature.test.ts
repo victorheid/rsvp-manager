@@ -46,7 +46,7 @@ describe.skipIf(!hasTestDb)("fee schedules", () => {
   });
 
   it("pins the schedule in force when an event is created, and duplicates take the current one", async () => {
-    const organizer = await db.user.create({ data: { phoneNumber: "+353830000001", firstName: "Org", lastInitial: "O" } });
+    const organizer = await db.user.create({ data: { phoneNumber: "+353830000001", firstName: "Org", email: "+353830000001@example.test", emailVerifiedAt: new Date(), lastInitial: "O" } });
     const caller = appRouter.createCaller({
       db,
       user: { id: organizer.id, phoneNumber: organizer.phoneNumber },

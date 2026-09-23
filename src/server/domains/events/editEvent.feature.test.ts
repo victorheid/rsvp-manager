@@ -26,7 +26,7 @@ describe.skipIf(!hasTestDb)("editEvent", () => {
 
   async function setup() {
     const organizer = await db.user.create({
-      data: { phoneNumber: "+353810000001", firstName: "Org", lastInitial: "O" },
+      data: { phoneNumber: "+353810000001", firstName: "Org", email: "+353810000001@example.test", emailVerifiedAt: new Date(), lastInitial: "O" },
     });
     const organizerCaller = callerAs(organizer.id, organizer.phoneNumber);
     const group = await organizerCaller.groups.create({ name: "Monday Squash" });

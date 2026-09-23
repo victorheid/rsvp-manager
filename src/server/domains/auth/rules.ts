@@ -32,3 +32,18 @@ export function hasExceededVerificationAttempts(
 ): boolean {
   return verification.attempts >= MAX_VERIFICATION_ATTEMPTS;
 }
+
+/** Email addresses are compared and stored lower-case, without stray spaces. */
+export function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+/**
+ * Decision (organizers): players sign in with a phone number alone, but
+ * anyone who organizes games needs a verified email too — a recovery and
+ * confirmation channel for when a phone number is lost or recycled. Returns
+ * what's missing, or null.
+ */
+export function organizerEmailProblem(user: { emailVerifiedAt: Date | null }): string | null {
+  return user.emailVerifiedAt === null ? "Verify your email first — organizers need one." : null;
+}

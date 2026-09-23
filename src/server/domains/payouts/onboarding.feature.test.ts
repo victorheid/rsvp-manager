@@ -27,7 +27,7 @@ describe.skipIf(!hasTestDb)("organizer onboarding and payment options", () => {
   });
 
   async function setup() {
-    const organizer = await db.user.create({ data: { phoneNumber: "+353830000001", firstName: "Org", lastInitial: "O" } });
+    const organizer = await db.user.create({ data: { phoneNumber: "+353830000001", firstName: "Org", email: "+353830000001@example.test", emailVerifiedAt: new Date(), lastInitial: "O" } });
     const caller = callerAs(organizer.id, organizer.phoneNumber);
     const group = await caller.groups.create({ name: "Futsal" });
     const startsAt = new Date(Date.now() + 86_400_000);

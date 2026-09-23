@@ -30,7 +30,7 @@ describe.skipIf(!hasTestDb)("groups", () => {
 
   it("suffixes the slug on a name collision instead of failing", async () => {
     const organizer = await db.user.create({
-      data: { phoneNumber: "+353870000001", firstName: "Ana", lastInitial: "O" },
+      data: { phoneNumber: "+353870000001", email: "+353870000001@example.test", emailVerifiedAt: new Date(), firstName: "Ana", lastInitial: "O" },
     });
     const caller = callerAs(organizer.id, organizer.phoneNumber);
 
@@ -45,7 +45,7 @@ describe.skipIf(!hasTestDb)("groups", () => {
 
   it("makes the organizer a member on create, and reports member count + membership on getBySlug", async () => {
     const organizer = await db.user.create({
-      data: { phoneNumber: "+353870000002", firstName: "Ben", lastInitial: "L" },
+      data: { phoneNumber: "+353870000002", email: "+353870000002@example.test", emailVerifiedAt: new Date(), firstName: "Ben", lastInitial: "L" },
     });
     const caller = callerAs(organizer.id, organizer.phoneNumber);
     const group = await caller.groups.create({ name: "Tuesday Padel" });
@@ -57,7 +57,7 @@ describe.skipIf(!hasTestDb)("groups", () => {
 
   it("lets another user join via the group link, idempotently", async () => {
     const organizer = await db.user.create({
-      data: { phoneNumber: "+353870000003", firstName: "Cy", lastInitial: "K" },
+      data: { phoneNumber: "+353870000003", email: "+353870000003@example.test", emailVerifiedAt: new Date(), firstName: "Cy", lastInitial: "K" },
     });
     const player = await db.user.create({
       data: { phoneNumber: "+353870000004", firstName: "Dee", lastInitial: "P" },
@@ -93,7 +93,7 @@ describe.skipIf(!hasTestDb)("groups", () => {
 
   it("lets the organizer edit the group's name and description, but not its slug", async () => {
     const organizer = await db.user.create({
-      data: { phoneNumber: "+353870000006", firstName: "Fay", lastInitial: "R" },
+      data: { phoneNumber: "+353870000006", email: "+353870000006@example.test", emailVerifiedAt: new Date(), firstName: "Fay", lastInitial: "R" },
     });
     const caller = callerAs(organizer.id, organizer.phoneNumber);
     const group = await caller.groups.create({ name: "Old Name" });
@@ -107,7 +107,7 @@ describe.skipIf(!hasTestDb)("groups", () => {
 
   it("rejects a non-organizer editing the group", async () => {
     const organizer = await db.user.create({
-      data: { phoneNumber: "+353870000007", firstName: "Gia", lastInitial: "S" },
+      data: { phoneNumber: "+353870000007", email: "+353870000007@example.test", emailVerifiedAt: new Date(), firstName: "Gia", lastInitial: "S" },
     });
     const impostor = await db.user.create({
       data: { phoneNumber: "+353870000008", firstName: "Hal", lastInitial: "T" },

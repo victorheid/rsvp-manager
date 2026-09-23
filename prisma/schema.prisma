@@ -13,17 +13,21 @@ datasource db {
 // --- Groups & auth -----------------------------------------------------
 
 model User {
-  id               String   @id @default(cuid())
-  phoneNumber      String   @unique
+  id               String    @id @default(cuid())
+  phoneNumber      String    @unique
   firstName        String
   lastInitial      String
-  createdAt        DateTime @default(now())
+  createdAt        DateTime  @default(now())
   // The payment provider's customer for this user, created on first payment (§5).
-  stripeCustomerId String?  @unique
+  stripeCustomerId String?   @unique
+  // Organizers verify an email (a recovery and confirmation channel next to the phone number).
+  // Players never need one. emailVerifiedAt is set only once a code sent to `email` was entered.
+  email            String?   @unique
+  emailVerifiedAt  DateTime?
   // Stripe Connect account for receiving payouts as an organizer (§5); payoutsEnabled
   // is refreshed from the provider when the organizer returns from onboarding.
-  stripeAccountId  String?  @unique
-  payoutsEnabled   Boolean  @default(false)
+  stripeAccountId  String?   @unique
+  payoutsEnabled   Boolean   @default(false)
 
   memberships       GroupMembership[]
   organizedGroups   Group[]            @relation("GroupOrganizer")
@@ -343,4 +347,28 @@ model Payout {
   releasedAt         DateTime
 
   event Event @relation(fields: [eventId], references: [id])
+}
+
+// --- Email verification --------------------------------------------------------
+
+enum EmailCodePurpose {
+  // Proving an address is the user's, to organize games.
+  VERIFY_EMAIL
+  // Confirming a phone number change, sent to the address already on the account.
+  CHANGE_PHONE
+}
+
+model EmailVerificationCode {
+  id         String           @id @default(cuid())
+  userId     String
+  purpose    EmailCodePurpose
+  // The address the code was sent to (for VERIFY_EMAIL, the one being verified).
+  email      String
+  codeHash   String
+  expiresAt  DateTime
+  attempts   Int              @default(0)
+  consumedAt DateTime?
+  createdAt  DateTime         @default(now())
+
+  @@index([userId, purpose])
 }

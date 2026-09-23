@@ -26,7 +26,7 @@ describe.skipIf(!hasTestDb)("rsvps", () => {
 
   async function createCashEvent(overrides: { maxPlayers?: number } = {}) {
     const organizer = await db.user.create({
-      data: { phoneNumber: "+353860000001", firstName: "Org", lastInitial: "O" },
+      data: { phoneNumber: "+353860000001", firstName: "Org", email: "+353860000001@example.test", emailVerifiedAt: new Date(), lastInitial: "O" },
     });
     const group = await db.group.create({
       data: { slug: "test-group", name: "Test Group", organizerId: organizer.id },
