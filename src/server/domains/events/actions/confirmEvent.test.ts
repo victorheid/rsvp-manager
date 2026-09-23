@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { PricingMode } from "@/generated/prisma/enums";
 import { appRouter } from "@/server/router";
 import { db } from "@/server/db";
-import { resetDatabase } from "@/server/testing/resetDatabase";
+import { FEE_SCHEDULE_V1_ID, resetDatabase } from "@/server/testing/resetDatabase";
 
 /**
  * Feature test: exercises confirmEvent through the tRPC caller against a
@@ -40,7 +40,7 @@ describe.skipIf(!hasTestDb)("confirmEvent", () => {
     const event = await db.event.create({
       data: {
         slug: "test-event",
-        groupId: group.id,
+        groupId: group.id, feeScheduleId: FEE_SCHEDULE_V1_ID,
         title: "Thursday game",
         startsAt: new Date(Date.now() + 86_400_000),
         endsAt: new Date(Date.now() + 90_000_000),

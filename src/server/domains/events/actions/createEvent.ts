@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import type { Db } from "@/server/db";
 import { PricingMode } from "@/generated/prisma/enums";
+import { getCurrentFeeSchedule } from "@/server/domains/fees";
 import { slugify } from "@/server/domains/groups/rules";
 import { notifyUsers, notificationRules } from "@/server/domains/notifications";
 import type { CostBreakdownItem } from "@/server/domains/events/costBreakdown";
@@ -26,9 +27,10 @@ export interface CreateEventInput {
 /**
  * Creates an event within a group (§2), organizer only. Slug uniqueness is
  * scoped globally (public /e/{slug} links), so we suffix on collision
- * rather than failing the whole create.
+ * rather than failing the whole create. Pins the fee schedule in force at
+ * creation (§5), which duplicating an event therefore refreshes too.
  */
-export async function createEvent(db: Db, input: CreateEventInput) {
+export async function createEvent(db: Db, input: CreateEventInput, now: Date = new Date()) {
   const group = await db.group.findUnique({
     where: { id: input.groupId },
     select: { organizerId: true, name: true },
@@ -63,6 +65,9 @@ export async function createEvent(db: Db, input: CreateEventInput) {
     });
   }
 
+  // §5: pin the fee schedule in force now; every payment for this event uses it.
+  const feeSchedule = await getCurrentFeeSchedule(db, now);
+
   const baseSlug = slugify(input.title);
   const slug = `${baseSlug}-${Date.now().toString(36)}`;
 
@@ -70,6 +75,7 @@ export async function createEvent(db: Db, input: CreateEventInput) {
     data: {
       slug,
       groupId: input.groupId,
+      feeScheduleId: feeSchedule.id,
       title: input.title,
       description: input.description,
       startsAt: input.startsAt,

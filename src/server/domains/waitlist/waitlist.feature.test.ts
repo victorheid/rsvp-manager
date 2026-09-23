@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { PricingMode } from "@/generated/prisma/enums";
 import { appRouter } from "@/server/router";
 import { db } from "@/server/db";
-import { resetDatabase } from "@/server/testing/resetDatabase";
+import { FEE_SCHEDULE_V1_ID, resetDatabase } from "@/server/testing/resetDatabase";
 
 const hasTestDb = Boolean(process.env.DATABASE_URL);
 
@@ -158,7 +158,7 @@ describe.skipIf(!hasTestDb)("waitlist", () => {
     const { organizer, group } = await setup(1);
     const startedEvent = await db.event.create({
       data: {
-        slug: "already-started", groupId: group.id, title: "Started", startsAt: new Date(Date.now() - 1000),
+        slug: "already-started", groupId: group.id, feeScheduleId: FEE_SCHEDULE_V1_ID, title: "Started", startsAt: new Date(Date.now() - 1000),
         endsAt: new Date(Date.now() + 3_600_000), location: "A", cutoffAt: new Date(Date.now() - 10_000),
         maxPlayers: 1, totalCostCents: 500, pricingMode: PricingMode.FIXED_PER_HEAD, cashAllowed: true,
       },

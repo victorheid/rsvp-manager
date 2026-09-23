@@ -79,32 +79,35 @@ enum EventStatus {
 }
 
 model Event {
-  id                 String      @id @default(cuid())
-  slug               String      @unique
-  groupId            String
-  title              String
-  description        String?
-  startsAt           DateTime
-  endsAt             DateTime
-  location           String
-  cutoffAt           DateTime
-  minPlayers         Int         @default(1)
-  maxPlayers         Int?
-  totalCostCents     Int
-  costBreakdown      Json?
-  pricingMode        PricingMode
-  cashAllowed        Boolean     @default(false)
-  autoChargeAtCutoff Boolean     @default(true)
-  status             EventStatus @default(OPEN)
-  confirmedAt        DateTime?
-  lockedPriceCents   Int?
+  id                   String      @id @default(cuid())
+  slug                 String      @unique
+  groupId              String
+  title                String
+  description          String?
+  startsAt             DateTime
+  endsAt               DateTime
+  location             String
+  cutoffAt             DateTime
+  minPlayers           Int         @default(1)
+  maxPlayers           Int?
+  totalCostCents       Int
+  costBreakdown        Json?
+  pricingMode          PricingMode
+  cashAllowed          Boolean     @default(false)
+  autoChargeAtCutoff   Boolean     @default(true)
+  status               EventStatus @default(OPEN)
+  confirmedAt          DateTime?
+  lockedPriceCents     Int?
   // Set when the §9 cut-off reminder went out, so the worker sends it once.
   cutoffReminderSentAt DateTime?
   // Set when the organizer was alerted that the cut-off passed unconfirmed (§9).
-  organizerAlertedAt DateTime?
-  createdAt          DateTime    @default(now())
+  organizerAlertedAt   DateTime?
+  // §5: the fee schedule live when the event was created; every payment for it uses this one.
+  feeScheduleId        String
+  createdAt            DateTime    @default(now())
 
   group           Group           @relation(fields: [groupId], references: [id])
+  feeSchedule     FeeSchedule     @relation(fields: [feeScheduleId], references: [id])
   rsvps           Rsvp[]
   waitlistEntries WaitlistEntry[]
 }
@@ -199,4 +202,20 @@ model PushSubscription {
   user User @relation(fields: [userId], references: [id])
 
   @@index([userId])
+}
+
+// --- Fees ----------------------------------------------------------------------
+
+// §5: versioned, never edited in place — a change is a new row with a later
+// effectiveFrom. Tiers are JSON (see fees/rules.ts for the shape, parsed
+// with Zod on read).
+model FeeSchedule {
+  id               String   @id @default(cuid())
+  version          Int      @unique
+  effectiveFrom    DateTime
+  gameCardFeeTiers Json
+  topUpFeeTiers    Json
+  createdAt        DateTime @default(now())
+
+  events Event[]
 }

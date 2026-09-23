@@ -41,8 +41,8 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 - [x] Drop out: free before confirmation; after confirmation no auto-refund, organizer may refund (self-cancel only; organizer refund actions are §8)
 
 ## 5. Payments, wallet & payouts
-- [ ] Fee schedules: versioned tiers (game card payments, top-ups), never edited in place
-- [ ] Pin fee schedule version on event at creation; duplicates use current schedule
+- [x] Fee schedules: versioned tiers (game card payments, top-ups), never edited in place — `fees` domain; v1 seeded by the migration, `publishFeeSchedule` adds a version (no UI/router: operator action)
+- [x] Pin fee schedule version on event at creation; duplicates use current schedule — `Event.feeScheduleId`, set by `createEvent`
 - [ ] Store exact fee charged on every payment
 - [ ] Wallet: balance, top-ups (€20 min / €50 / €100) + stepped top-up fee, €150 max balance
 - [ ] Wallet holds (upper bound for split pricing), realized or released

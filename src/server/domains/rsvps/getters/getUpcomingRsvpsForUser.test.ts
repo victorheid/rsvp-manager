@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { PricingMode } from "@/generated/prisma/enums";
 import { db } from "@/server/db";
-import { resetDatabase } from "@/server/testing/resetDatabase";
+import { FEE_SCHEDULE_V1_ID, resetDatabase } from "@/server/testing/resetDatabase";
 import { getUpcomingRsvpsForUser } from "./getUpcomingRsvpsForUser";
 
 const hasTestDb = Boolean(process.env.DATABASE_URL);
@@ -28,21 +28,21 @@ describe.skipIf(!hasTestDb)("getUpcomingRsvpsForUser", () => {
 
     const soon = await db.event.create({
       data: {
-        slug: "soon", groupId: group.id, title: "Soon", startsAt: new Date(Date.now() + 3_600_000),
+        slug: "soon", groupId: group.id, feeScheduleId: FEE_SCHEDULE_V1_ID, title: "Soon", startsAt: new Date(Date.now() + 3_600_000),
         endsAt: new Date(Date.now() + 7_200_000), location: "A", cutoffAt: new Date(Date.now() + 1_800_000),
         totalCostCents: 500, pricingMode: PricingMode.FIXED_PER_HEAD,
       },
     });
     const later = await db.event.create({
       data: {
-        slug: "later", groupId: group.id, title: "Later", startsAt: new Date(Date.now() + 86_400_000),
+        slug: "later", groupId: group.id, feeScheduleId: FEE_SCHEDULE_V1_ID, title: "Later", startsAt: new Date(Date.now() + 86_400_000),
         endsAt: new Date(Date.now() + 90_000_000), location: "A", cutoffAt: new Date(Date.now() + 1_800_000),
         totalCostCents: 500, pricingMode: PricingMode.FIXED_PER_HEAD,
       },
     });
     const past = await db.event.create({
       data: {
-        slug: "past", groupId: group.id, title: "Past", startsAt: new Date(Date.now() - 86_400_000),
+        slug: "past", groupId: group.id, feeScheduleId: FEE_SCHEDULE_V1_ID, title: "Past", startsAt: new Date(Date.now() - 86_400_000),
         endsAt: new Date(Date.now() - 82_800_000), location: "A", cutoffAt: new Date(Date.now() - 90_000_000),
         totalCostCents: 500, pricingMode: PricingMode.FIXED_PER_HEAD,
       },

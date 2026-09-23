@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { PricingMode } from "@/generated/prisma/enums";
 import { db } from "@/server/db";
-import { resetDatabase } from "@/server/testing/resetDatabase";
+import { FEE_SCHEDULE_V1_ID, resetDatabase } from "@/server/testing/resetDatabase";
 import { autoConfirmDueEvents } from "./actions/autoConfirmDueEvents";
 import { expireOverdueEvents } from "./actions/expireOverdueEvents";
 import { alertOrganizersOfUnconfirmedEvents } from "./actions/alertOrganizersOfUnconfirmedEvents";
@@ -39,7 +39,7 @@ describe.skipIf(!hasTestDb)("background jobs", () => {
       const now = new Date("2026-01-10T18:00:01Z");
       const event = await db.event.create({
         data: {
-          slug: "due-event", groupId: group.id, title: "Due", startsAt: new Date("2026-01-11T18:00:00Z"),
+          slug: "due-event", groupId: group.id, feeScheduleId: FEE_SCHEDULE_V1_ID, title: "Due", startsAt: new Date("2026-01-11T18:00:00Z"),
           endsAt: new Date("2026-01-11T19:00:00Z"), location: "A", cutoffAt: new Date("2026-01-10T18:00:00Z"),
           minPlayers: 1, totalCostCents: 1000, pricingMode: PricingMode.FIXED_PER_HEAD, autoChargeAtCutoff: true,
         },
@@ -58,7 +58,7 @@ describe.skipIf(!hasTestDb)("background jobs", () => {
       const now = new Date("2026-01-10T18:00:01Z");
       await db.event.create({
         data: {
-          slug: "under-min", groupId: group.id, title: "Under min", startsAt: new Date("2026-01-11T18:00:00Z"),
+          slug: "under-min", groupId: group.id, feeScheduleId: FEE_SCHEDULE_V1_ID, title: "Under min", startsAt: new Date("2026-01-11T18:00:00Z"),
           endsAt: new Date("2026-01-11T19:00:00Z"), location: "A", cutoffAt: new Date("2026-01-10T18:00:00Z"),
           minPlayers: 2, totalCostCents: 1000, pricingMode: PricingMode.FIXED_PER_HEAD, autoChargeAtCutoff: true,
         },
@@ -73,14 +73,14 @@ describe.skipIf(!hasTestDb)("background jobs", () => {
       const now = new Date("2026-01-10T18:00:01Z");
       await db.event.create({
         data: {
-          slug: "not-due-yet", groupId: group.id, title: "Not due", startsAt: new Date("2026-01-11T18:00:00Z"),
+          slug: "not-due-yet", groupId: group.id, feeScheduleId: FEE_SCHEDULE_V1_ID, title: "Not due", startsAt: new Date("2026-01-11T18:00:00Z"),
           endsAt: new Date("2026-01-11T19:00:00Z"), location: "A", cutoffAt: new Date("2026-01-10T19:00:00Z"),
           minPlayers: 1, totalCostCents: 1000, pricingMode: PricingMode.FIXED_PER_HEAD, autoChargeAtCutoff: true,
         },
       });
       await db.event.create({
         data: {
-          slug: "auto-charge-off", groupId: group.id, title: "Manual only", startsAt: new Date("2026-01-11T18:00:00Z"),
+          slug: "auto-charge-off", groupId: group.id, feeScheduleId: FEE_SCHEDULE_V1_ID, title: "Manual only", startsAt: new Date("2026-01-11T18:00:00Z"),
           endsAt: new Date("2026-01-11T19:00:00Z"), location: "A", cutoffAt: new Date("2026-01-10T17:00:00Z"),
           minPlayers: 1, totalCostCents: 1000, pricingMode: PricingMode.FIXED_PER_HEAD, autoChargeAtCutoff: false,
         },
@@ -97,7 +97,7 @@ describe.skipIf(!hasTestDb)("background jobs", () => {
       const startsAt = new Date("2026-01-10T18:00:00Z");
       const event = await db.event.create({
         data: {
-          slug: "overdue", groupId: group.id, title: "Overdue", startsAt,
+          slug: "overdue", groupId: group.id, feeScheduleId: FEE_SCHEDULE_V1_ID, title: "Overdue", startsAt,
           endsAt: new Date("2026-01-10T19:00:00Z"), location: "A", cutoffAt: new Date("2026-01-10T17:00:00Z"),
           minPlayers: 4, totalCostCents: 1000, pricingMode: PricingMode.FIXED_PER_HEAD,
         },
@@ -116,7 +116,7 @@ describe.skipIf(!hasTestDb)("background jobs", () => {
       const startsAt = new Date("2026-01-10T18:00:00Z");
       await db.event.create({
         data: {
-          slug: "too-soon", groupId: group.id, title: "Too soon", startsAt,
+          slug: "too-soon", groupId: group.id, feeScheduleId: FEE_SCHEDULE_V1_ID, title: "Too soon", startsAt,
           endsAt: new Date("2026-01-10T19:00:00Z"), location: "A", cutoffAt: new Date("2026-01-10T17:00:00Z"),
           minPlayers: 4, totalCostCents: 1000, pricingMode: PricingMode.FIXED_PER_HEAD,
         },
@@ -132,7 +132,7 @@ describe.skipIf(!hasTestDb)("background jobs", () => {
       const startsAt = new Date("2026-01-10T18:00:00Z");
       await db.event.create({
         data: {
-          slug: "already-confirmed", groupId: group.id, title: "Confirmed", startsAt,
+          slug: "already-confirmed", groupId: group.id, feeScheduleId: FEE_SCHEDULE_V1_ID, title: "Confirmed", startsAt,
           endsAt: new Date("2026-01-10T19:00:00Z"), location: "A", cutoffAt: new Date("2026-01-10T17:00:00Z"),
           minPlayers: 1, totalCostCents: 1000, pricingMode: PricingMode.FIXED_PER_HEAD,
           status: "CONFIRMED", confirmedAt: new Date("2026-01-10T17:30:00Z"), lockedPriceCents: 1000,
@@ -156,7 +156,7 @@ describe.skipIf(!hasTestDb)("background jobs", () => {
       });
       const event = await db.event.create({
         data: {
-          slug: "reminder-event", groupId: group.id, title: "Reminder", startsAt: new Date(cutoffAt.getTime() + 86_400_000),
+          slug: "reminder-event", groupId: group.id, feeScheduleId: FEE_SCHEDULE_V1_ID, title: "Reminder", startsAt: new Date(cutoffAt.getTime() + 86_400_000),
           endsAt: new Date(cutoffAt.getTime() + 90_000_000), location: "A", cutoffAt,
           totalCostCents: 1000, pricingMode: PricingMode.FIXED_PER_HEAD, createdAt: new Date(cutoffAt.getTime() - 5 * 86_400_000),
         },
@@ -198,7 +198,7 @@ describe.skipIf(!hasTestDb)("background jobs", () => {
       });
       const event = await db.event.create({
         data: {
-          slug: "alert-event", groupId: group.id, title: "Alert", startsAt: new Date("2026-01-11T18:00:00Z"),
+          slug: "alert-event", groupId: group.id, feeScheduleId: FEE_SCHEDULE_V1_ID, title: "Alert", startsAt: new Date("2026-01-11T18:00:00Z"),
           endsAt: new Date("2026-01-11T19:00:00Z"), location: "A", cutoffAt: new Date("2026-01-10T18:00:00Z"),
           totalCostCents: 1000, pricingMode: PricingMode.FIXED_PER_HEAD, ...overrides,
         },
