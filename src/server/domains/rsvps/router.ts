@@ -3,6 +3,7 @@ import { PaymentMethod } from "@/generated/prisma/enums";
 import { protectedProcedure, router } from "@/server/trpc";
 import { createRsvp } from "@/server/domains/rsvps/actions/createRsvp";
 import { dropRsvp } from "@/server/domains/rsvps/actions/dropRsvp";
+import { getUpcomingRsvpsForUser } from "@/server/domains/rsvps/getters/getUpcomingRsvpsForUser";
 
 export const rsvpsRouter = router({
   create: protectedProcedure
@@ -21,4 +22,8 @@ export const rsvpsRouter = router({
     .mutation(({ ctx, input }) =>
       dropRsvp(ctx.db, { eventId: input.eventId, userId: ctx.user.id }, new Date()),
     ),
+
+  myUpcoming: protectedProcedure.query(({ ctx }) =>
+    getUpcomingRsvpsForUser(ctx.db, ctx.user.id, new Date()),
+  ),
 });

@@ -4,3 +4,4 @@ export { groupsRouter } from "./router";
 export { createGroup } from "./actions/createGroup";
 export { joinGroup, joinGroupById } from "./actions/joinGroup";
 export { getGroupBySlug } from "./getters/getGroupBySlug";
+export { getGroupsForUser } from "./getters/getGroupsForUser";

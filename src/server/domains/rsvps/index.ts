@@ -2,4 +2,5 @@
 export { rsvpsRouter } from "./router";
 export { createRsvp } from "./actions/createRsvp";
 export { dropRsvp } from "./actions/dropRsvp";
+export { getUpcomingRsvpsForUser } from "./getters/getUpcomingRsvpsForUser";
 export * as rsvpRules from "./rules";

@@ -4,6 +4,7 @@ import { protectedProcedure, publicProcedure, router } from "@/server/trpc";
 import { createGroup } from "@/server/domains/groups/actions/createGroup";
 import { joinGroup } from "@/server/domains/groups/actions/joinGroup";
 import { getGroupBySlug } from "@/server/domains/groups/getters/getGroupBySlug";
+import { getGroupsForUser } from "@/server/domains/groups/getters/getGroupsForUser";
 
 export const groupsRouter = router({
   create: protectedProcedure
@@ -32,4 +33,6 @@ export const groupsRouter = router({
 
       return group;
     }),
+
+  mine: protectedProcedure.query(({ ctx }) => getGroupsForUser(ctx.db, ctx.user.id)),
 });
