@@ -17,16 +17,23 @@ export const NOTIFICATION_KINDS = [
   "SPOT_OPEN",
   "CUTOFF_REMINDER",
   "ORGANIZER_CUTOFF_ALERT",
+  "PAYMENT_FAILED",
+  "REFUND_ISSUED",
   "TEST",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
 /**
  * §9: SMS/WhatsApp is only for money-related messages, to keep costs down —
- * charged, cancelled/refunded (and, once §5 exists, payment failed and moved
- * in from the waitlist). Everything else is web push only.
+ * charged, payment failed, cancelled/refunded (and, once auto-join exists,
+ * moved in from the waitlist). Everything else is web push only.
  */
-const MONEY_RELATED_KINDS: readonly NotificationKind[] = ["EVENT_CONFIRMED", "EVENT_CANCELLED"];
+const MONEY_RELATED_KINDS: readonly NotificationKind[] = [
+  "EVENT_CONFIRMED",
+  "EVENT_CANCELLED",
+  "PAYMENT_FAILED",
+  "REFUND_ISSUED",
+];
 
 export function isMoneyRelated(kind: NotificationKind): boolean {
   return MONEY_RELATED_KINDS.includes(kind);
@@ -139,6 +146,30 @@ export function organizerCutoffAlertMessage(
     title: "Your game needs a decision",
     body,
     url: `${eventUrl(event)}/manage`,
+  };
+}
+
+/** §9 trigger: "Payment failed + pay link" → that person. */
+export function paymentFailedMessage(
+  event: NotifiedEvent,
+  payToken: string,
+  owedCents: number,
+): NotificationMessage {
+  return {
+    kind: "PAYMENT_FAILED",
+    title: "Your payment didn't go through",
+    body: `We couldn't charge your card ${formatCents(owedCents)} for ${event.title}. Tap to pay.`,
+    url: `/pay/${payToken}`,
+  };
+}
+
+/** §9 trigger: "Refund issued" → that person. */
+export function refundIssuedMessage(event: NotifiedEvent, refundedCents: number): NotificationMessage {
+  return {
+    kind: "REFUND_ISSUED",
+    title: "You've been refunded",
+    body: `${formatCents(refundedCents)} for ${event.title} is on its way back to you.`,
+    url: eventUrl(event),
   };
 }
 

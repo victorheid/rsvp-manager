@@ -27,7 +27,10 @@ export async function placeHold(tx: Db, input: PlaceHoldInput) {
     throw new TRPCError({ code: "BAD_REQUEST", message: "Not enough in your wallet — top up or pay another way." });
   }
 
-  return tx.walletHold.create({
-    data: { walletId: wallet.id, rsvpId: input.rsvpId, amountCents: input.amountCents },
+  // Someone who dropped out and rejoins reuses their RSVP, and so its (released) hold.
+  return tx.walletHold.upsert({
+    where: { rsvpId: input.rsvpId },
+    create: { walletId: wallet.id, rsvpId: input.rsvpId, amountCents: input.amountCents },
+    update: { amountCents: input.amountCents, status: WalletHoldStatus.HELD, settledAt: null },
   });
 }

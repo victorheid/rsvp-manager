@@ -5,6 +5,7 @@ import { protectedProcedure, publicProcedure, router } from "@/server/trpc";
 import { createEvent } from "@/server/domains/events/actions/createEvent";
 import { editEvent } from "@/server/domains/events/actions/editEvent";
 import { confirmEvent } from "@/server/domains/events/actions/confirmEvent";
+import { getPaymentGateway } from "@/server/integrations/stripe";
 import { cancelEvent } from "@/server/domains/events/actions/cancelEvent";
 import { getEventBySlug } from "@/server/domains/events/getters/getEventBySlug";
 import { getEventDefaults } from "@/server/domains/events/getters/getEventDefaults";
@@ -39,11 +40,11 @@ export const eventsRouter = router({
 
   confirm: protectedProcedure
     .input(z.object({ eventId: z.string() }))
-    .mutation(({ ctx, input }) => confirmEvent(ctx.db, { eventId: input.eventId, organizerId: ctx.user.id })),
+    .mutation(({ ctx, input }) => confirmEvent(ctx.db, getPaymentGateway(), { eventId: input.eventId, organizerId: ctx.user.id })),
 
   cancel: protectedProcedure
     .input(z.object({ eventId: z.string() }))
-    .mutation(({ ctx, input }) => cancelEvent(ctx.db, { eventId: input.eventId, organizerId: ctx.user.id })),
+    .mutation(({ ctx, input }) => cancelEvent(ctx.db, getPaymentGateway(), { eventId: input.eventId, organizerId: ctx.user.id })),
 
   suggestDefaults: protectedProcedure
     .input(z.object({ groupId: z.string(), startsAt: z.date() }))

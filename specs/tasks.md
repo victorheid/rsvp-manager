@@ -43,11 +43,11 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 ## 5. Payments, wallet & payouts
 - [x] Fee schedules: versioned tiers (game card payments, top-ups), never edited in place — `fees` domain; v1 seeded by the migration, `publishFeeSchedule` adds a version (no UI/router: operator action)
 - [x] Pin fee schedule version on event at creation; duplicates use current schedule — `Event.feeScheduleId`, set by `createEvent`
-- [ ] Store exact fee charged on every payment
+- [x] Store exact fee charged on every payment — `Payment.feeCents` + `feeScheduleId`, written when the payment is created and never recalculated (a pay link re-uses it)
 - [x] Wallet: balance, top-ups (€20 min / €50 / €100) + stepped top-up fee, €150 max balance — `wallet` domain, against the fake payment gateway (real Stripe pending keys; production refuses to run without a real gateway). Feature-flag the wallet in the UI until the legal check clears
 - [x] Wallet holds (upper bound for split pricing), realized or released — `placeHold` / `realizeHold` / `releaseHold` / `chargeWalletNow`, race-safe; wiring them into RSVP, confirm and cancel comes with the wallet RSVP option
-- [ ] Card RSVP: SetupIntent at RSVP, charge price + service fee at confirmation
-- [ ] Failed charge → "owes" status + pay link
+- [x] Card RSVP: SetupIntent at RSVP, charge price + service fee at confirmation — `rsvps.beginCardSetup` → `rsvps.create` with the SetupIntent; charged after commit at confirmation (or at once when joining a confirmed event). Also wallet RSVPs: hold at RSVP, realized at confirmation, released on drop / cancel / expiry, refunded onto the balance if a confirmed event is cancelled. Against the fake gateway
+- [x] Failed charge → "owes" status + pay link — decline, expired card, insufficient funds and 3-D Secure all end as OWES with a `/pay/{token}` link (push + SMS); `payments.owed / startOwedPayment / completeOwedPayment` back the page. Page UI not built yet
 - [ ] Price + service fee display, and "save by topping up" prompt on card RSVP
 - [ ] Wallet refund on request at full value; ID check for refunds over €50 (pending legal)
 - [x] Stripe Connect onboarding for organizers (only for events accepting online payment) — `payouts` domain: start / refresh / status, against the fake gateway. UI for it comes with the create-event form
@@ -62,8 +62,8 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 
 ## 7. Event lifecycle
 - [x] States: Open / Confirmed / Cancelled / Expired — all four reachable
-- [x] Cancel → full refunds including service fee, release holds — no refunds/holds needed yet since only cash RSVPs exist; revisit once §5 lands
-- [x] Expire unconfirmed events 48h after start → release holds — `expireOverdueEvents`, run by `pnpm worker`; no holds to release yet (§5)
+- [x] Cancel → full refunds including service fee, release holds — `cancelEvent` releases wallet holds and refunds every online payment (fee included), including people who dropped out after paying
+- [x] Expire unconfirmed events 48h after start → release holds — `expireOverdueEvents`, run by `pnpm worker`; releases wallet holds
 
 ## 8. Organizer event list
 - [x] Single list: attendance status + payment status + per-group no-show count (`/e/{slug}/manage`)

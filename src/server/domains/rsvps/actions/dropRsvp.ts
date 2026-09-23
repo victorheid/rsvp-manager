@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import type { Db } from "@/server/db";
 import { RsvpStatus } from "@/generated/prisma/enums";
 import { eventRules } from "@/server/domains/events";
+import { releaseHold } from "@/server/domains/wallet";
 import { countGoingTowardMax, notifyWaitlistOfOpenSpot } from "@/server/domains/rsvps/actions/notifyWaitlistOfOpenSpot";
 
 export interface DropRsvpInput {
@@ -39,6 +40,10 @@ export async function dropRsvp(db: Db, input: DropRsvpInput, now: Date) {
       where: { id: rsvp.id },
       data: { status: RsvpStatus.CANCELLED },
     });
+
+    // §5: dropping out before confirmation frees the wallet hold. After it, the
+    // money stays where it is — refunds are the organizer's call.
+    await releaseHold(tx, { rsvpId: rsvp.id }, now);
 
     return { rsvp: updated, goingCountBefore };
   });

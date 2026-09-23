@@ -2,7 +2,10 @@ import type { Db } from "@/server/db";
 import { EventStatus, RsvpStatus } from "@/generated/prisma/enums";
 import { notifyEventAudience } from "@/server/domains/events/actions/notifyEventAudience";
 import { notificationRules } from "@/server/domains/notifications";
-import { perHeadPriceCents, shouldAutoConfirmAtCutoff } from "@/server/domains/events/rules";
+import { lockPriceAndRealizeHolds } from "@/server/domains/events/actions/lockPriceAndRealizeHolds";
+import { shouldAutoConfirmAtCutoff } from "@/server/domains/events/rules";
+import { chargeCardRsvpsForEvent } from "@/server/domains/payments";
+import type { PaymentGateway } from "@/server/integrations/stripe";
 
 /**
  * §3 "At cut-off": confirms every open event whose cut-off has passed,
@@ -11,7 +14,7 @@ import { perHeadPriceCents, shouldAutoConfirmAtCutoff } from "@/server/domains/e
  * unlike the manual confirmEvent action, this one runs the rule itself
  * instead of checking who's asking.
  */
-export async function autoConfirmDueEvents(db: Db, now: Date) {
+export async function autoConfirmDueEvents(db: Db, gateway: PaymentGateway, now: Date) {
   const candidates = await db.event.findMany({
     where: { status: EventStatus.OPEN, autoChargeAtCutoff: true, cutoffAt: { lte: now } },
     include: { rsvps: { where: { status: RsvpStatus.GOING } } },
@@ -26,14 +29,8 @@ export async function autoConfirmDueEvents(db: Db, now: Date) {
       continue; // stays Open — §10.9 "not confirmed yet", organizer gets alerted (not built)
     }
 
-    const updated = await db.event.update({
-      where: { id: event.id },
-      data: {
-        status: EventStatus.CONFIRMED,
-        confirmedAt: now,
-        lockedPriceCents: perHeadPriceCents(event, headcount),
-      },
-    });
+    const { event: updated } = await db.$transaction((tx) => lockPriceAndRealizeHolds(tx, event.id, now));
+    await chargeCardRsvpsForEvent(db, gateway, { eventId: event.id });
 
     confirmed.push(updated);
 

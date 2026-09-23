@@ -3,7 +3,9 @@ import type { Db } from "@/server/db";
 import { EventStatus, RsvpStatus } from "@/generated/prisma/enums";
 import { notifyEventAudience } from "@/server/domains/events/actions/notifyEventAudience";
 import { notificationRules } from "@/server/domains/notifications";
-import { perHeadPriceCents } from "@/server/domains/events/rules";
+import { lockPriceAndRealizeHolds } from "@/server/domains/events/actions/lockPriceAndRealizeHolds";
+import { chargeCardRsvpsForEvent } from "@/server/domains/payments";
+import type { PaymentGateway } from "@/server/integrations/stripe";
 
 export interface ConfirmEventInput {
   eventId: string;
@@ -12,17 +14,13 @@ export interface ConfirmEventInput {
 
 /**
  * Manual or auto confirm (§3), organizer only. Locks the per-head price
- * against current headcount and flips status. Charging held wallet funds /
- * cards is the wallet domain's job — this action ends by returning the
- * confirmed event plus its going RSVPs, and the caller (router or the
- * cut-off job) is responsible for triggering `wallet.realizeHolds` / card
- * charges after commit, never inside this transaction (see CLAUDE.md:
- * never call an external service inside a transaction).
- *
- * TODO(wallet domain): wire up hold realization + card charge dispatch
- * once src/server/domains/wallet exists (specs/tasks.md §5).
+ * against current headcount and flips status, then returns the confirmed
+ * event plus its going RSVPs. Wallet holds are realized inside
+ * the transaction; card charges go out after commit (see CLAUDE.md: never
+ * call an external service inside a transaction). A failed card charge
+ * marks that person "owes" — it never undoes the confirmation.
  */
-export async function confirmEvent(db: Db, input: ConfirmEventInput) {
+export async function confirmEvent(db: Db, gateway: PaymentGateway, input: ConfirmEventInput, now: Date = new Date()) {
   const result = await db.$transaction(async (tx) => {
     const event = await tx.event.findUnique({
       where: { id: input.eventId },
@@ -56,19 +54,11 @@ export async function confirmEvent(db: Db, input: ConfirmEventInput) {
       });
     }
 
-    const lockedPriceCents = perHeadPriceCents(event, headcount);
-
-    const confirmed = await tx.event.update({
-      where: { id: input.eventId },
-      data: {
-        status: EventStatus.CONFIRMED,
-        confirmedAt: new Date(),
-        lockedPriceCents,
-      },
-    });
-
-    return { event: confirmed, rsvps: event.rsvps };
+    return lockPriceAndRealizeHolds(tx, input.eventId, now);
   });
+
+  // §5: card RSVPs are charged now the price is locked — after commit, since it calls the provider.
+  await chargeCardRsvpsForEvent(db, gateway, { eventId: input.eventId });
 
   await notifyEventAudience(db, {
     eventId: input.eventId,

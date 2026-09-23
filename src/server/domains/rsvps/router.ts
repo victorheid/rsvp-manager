@@ -1,7 +1,9 @@
 import { z } from "zod";
 import { PaymentMethod, PaymentStatus } from "@/generated/prisma/enums";
 import { protectedProcedure, router } from "@/server/trpc";
+import { getPaymentGateway } from "@/server/integrations/stripe";
 import { createRsvp } from "@/server/domains/rsvps/actions/createRsvp";
+import { beginCardSetup } from "@/server/domains/rsvps/actions/beginCardSetup";
 import { dropRsvp } from "@/server/domains/rsvps/actions/dropRsvp";
 import { markAttendance } from "@/server/domains/rsvps/actions/markAttendance";
 import { markPaidOutsideApp } from "@/server/domains/rsvps/actions/markPaidOutsideApp";
@@ -17,11 +19,21 @@ export const rsvpsRouter = router({
       z.object({
         eventId: z.string(),
         paymentMethod: z.nativeEnum(PaymentMethod),
+        setupIntentId: z.string().optional(),
       }),
     )
     .mutation(({ ctx, input }) =>
-      createRsvp(ctx.db, { eventId: input.eventId, userId: ctx.user.id, paymentMethod: input.paymentMethod }),
+      createRsvp(ctx.db, getPaymentGateway(), {
+        eventId: input.eventId,
+        userId: ctx.user.id,
+        paymentMethod: input.paymentMethod,
+        setupIntentId: input.setupIntentId,
+      }),
     ),
+
+  beginCardSetup: protectedProcedure
+    .input(z.object({ eventId: z.string() }))
+    .mutation(({ ctx, input }) => beginCardSetup(ctx.db, getPaymentGateway(), { eventId: input.eventId, userId: ctx.user.id })),
 
   drop: protectedProcedure
     .input(z.object({ eventId: z.string() }))

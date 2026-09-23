@@ -1,4 +1,5 @@
 import { db } from "@/server/db";
+import { getPaymentGateway } from "@/server/integrations/stripe";
 import { alertOrganizersOfUnconfirmedEvents, autoConfirmDueEvents, expireOverdueEvents, sendCutoffReminders } from "@/server/domains/events";
 
 /**
@@ -18,7 +19,7 @@ async function tick() {
     console.log(`[worker] sent cut-off reminders for ${reminded.length} event(s): ${reminded.map((e) => e.slug).join(", ")}`);
   }
 
-  const confirmed = await autoConfirmDueEvents(db, now);
+  const confirmed = await autoConfirmDueEvents(db, getPaymentGateway(), now);
   if (confirmed.length > 0) {
     console.log(`[worker] confirmed ${confirmed.length} event(s): ${confirmed.map((e) => e.slug).join(", ")}`);
   }

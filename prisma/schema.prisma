@@ -117,6 +117,7 @@ model Event {
 
   group           Group           @relation(fields: [groupId], references: [id])
   feeSchedule     FeeSchedule     @relation(fields: [feeScheduleId], references: [id])
+  payout          Payout?
   rsvps           Rsvp[]
   waitlistEntries WaitlistEntry[]
 }
@@ -144,18 +145,24 @@ enum PaymentStatus {
 }
 
 model Rsvp {
-  id            String        @id @default(cuid())
-  eventId       String
+  id                    String        @id @default(cuid())
+  eventId               String
   // Exactly one of userId/walkInName is set — enforced in code (addWalkIn
   // only ever sets walkInName, every other action only ever sets userId),
   // not a DB constraint, since only those two paths ever write this row.
-  userId        String?
-  walkInName    String?
-  status        RsvpStatus    @default(GOING)
-  paymentMethod PaymentMethod
-  paymentStatus PaymentStatus @default(PENDING)
-  attended      Boolean?
-  createdAt     DateTime      @default(now())
+  userId                String?
+  walkInName            String?
+  status                RsvpStatus    @default(GOING)
+  paymentMethod         PaymentMethod
+  paymentStatus         PaymentStatus @default(PENDING)
+  attended              Boolean?
+  // Card RSVPs (§5): the card saved at RSVP time, charged at confirmation.
+  // payToken is the secret in the /pay/{token} link for a failed charge.
+  stripePaymentMethodId String?
+  cardBrand             String?
+  cardLast4             String?
+  payToken              String?       @unique
+  createdAt             DateTime      @default(now())
 
   event    Event     @relation(fields: [eventId], references: [id])
   user     User?     @relation(fields: [userId], references: [id])
@@ -317,4 +324,18 @@ model FeeSchedule {
   createdAt        DateTime @default(now())
 
   events Event[]
+}
+
+// --- Payouts -------------------------------------------------------------------
+
+// §5: money released to the organizer after the event (+2 days). One per event.
+model Payout {
+  id                 String   @id @default(cuid())
+  eventId            String   @unique
+  organizerId        String
+  amountCents        Int
+  providerTransferId String
+  releasedAt         DateTime
+
+  event Event @relation(fields: [eventId], references: [id])
 }

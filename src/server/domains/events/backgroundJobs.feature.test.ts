@@ -6,6 +6,7 @@ import { autoConfirmDueEvents } from "./actions/autoConfirmDueEvents";
 import { expireOverdueEvents } from "./actions/expireOverdueEvents";
 import { alertOrganizersOfUnconfirmedEvents } from "./actions/alertOrganizersOfUnconfirmedEvents";
 import { sendCutoffReminders } from "./actions/sendCutoffReminders";
+import { fakePaymentGateway } from "@/server/integrations/stripe/fake";
 import { fakePushSender } from "@/server/integrations/push/fake";
 
 const hasTestDb = Boolean(process.env.DATABASE_URL);
@@ -46,7 +47,7 @@ describe.skipIf(!hasTestDb)("background jobs", () => {
       });
       await db.rsvp.create({ data: { eventId: event.id, userId: player.id, paymentMethod: "CASH" } });
 
-      const confirmed = await autoConfirmDueEvents(db, now);
+      const confirmed = await autoConfirmDueEvents(db, fakePaymentGateway, now);
 
       expect(confirmed).toHaveLength(1);
       expect(confirmed[0]?.status).toBe("CONFIRMED");
@@ -64,7 +65,7 @@ describe.skipIf(!hasTestDb)("background jobs", () => {
         },
       });
 
-      const confirmed = await autoConfirmDueEvents(db, now);
+      const confirmed = await autoConfirmDueEvents(db, fakePaymentGateway, now);
       expect(confirmed).toHaveLength(0);
     });
 
@@ -86,7 +87,7 @@ describe.skipIf(!hasTestDb)("background jobs", () => {
         },
       });
 
-      const confirmed = await autoConfirmDueEvents(db, now);
+      const confirmed = await autoConfirmDueEvents(db, fakePaymentGateway, now);
       expect(confirmed).toHaveLength(0);
     });
   });

@@ -7,6 +7,8 @@ import {
   isMoneyRelated,
   newEventMessage,
   organizerCutoffAlertMessage,
+  paymentFailedMessage,
+  refundIssuedMessage,
   removedMessage,
   smsBody,
   spotOpenMessage,
@@ -53,6 +55,8 @@ describe("isMoneyRelated", () => {
   it.each([
     ["EVENT_CONFIRMED", true],
     ["EVENT_CANCELLED", true],
+    ["PAYMENT_FAILED", true],
+    ["REFUND_ISSUED", true],
     ["NEW_EVENT", false],
     ["EVENT_CHANGED", false],
     ["REMOVED", false],
@@ -90,5 +94,18 @@ describe("organizerCutoffAlertMessage", () => {
 
   it("links to the Manage screen", () => {
     expect(organizerCutoffAlertMessage(alertEvent, 5).url).toBe("/e/friday-game-abc/manage");
+  });
+});
+
+describe("payment messages", () => {
+  it("send the player to their pay link with the amount owed", () => {
+    const message = paymentFailedMessage(event, "tok123", 850);
+
+    expect(message).toMatchObject({ kind: "PAYMENT_FAILED", url: "/pay/tok123" });
+    expect(message.body).toContain("€8.50");
+  });
+
+  it("say how much was refunded", () => {
+    expect(refundIssuedMessage(event, 800).body).toContain("€8.00");
   });
 });

@@ -12,3 +12,11 @@ export async function releaseHold(tx: Db, input: { rsvpId: string }, now: Date) 
     data: { status: WalletHoldStatus.RELEASED, settledAt: now },
   });
 }
+
+/** Releases every hold belonging to these RSVPs — when an event is cancelled or expires (§7). */
+export async function releaseHolds(tx: Db, input: { rsvpIds: readonly string[] }, now: Date) {
+  await tx.walletHold.updateMany({
+    where: { rsvpId: { in: [...input.rsvpIds] }, status: WalletHoldStatus.HELD },
+    data: { status: WalletHoldStatus.RELEASED, settledAt: now },
+  });
+}

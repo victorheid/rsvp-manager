@@ -68,7 +68,7 @@ describe.skipIf(!hasTestDb)("rsvps", () => {
     expect(membership).not.toBeNull();
   });
 
-  it("rejects wallet/card RSVPs — not wired up yet", async () => {
+  it("rejects wallet/card RSVPs on a cash-only event", async () => {
     const { event } = await createCashEvent();
     const player = await db.user.create({
       data: { phoneNumber: "+353860000003", firstName: "Cy", lastInitial: "K" },
@@ -77,7 +77,10 @@ describe.skipIf(!hasTestDb)("rsvps", () => {
 
     await expect(
       caller.rsvps.create({ eventId: event.id, paymentMethod: PaymentMethod.CARD }),
-    ).rejects.toThrow("Online payments");
+    ).rejects.toThrow("doesn't accept online payments");
+    await expect(
+      caller.rsvps.create({ eventId: event.id, paymentMethod: PaymentMethod.WALLET }),
+    ).rejects.toThrow("doesn't accept online payments");
   });
 
   it("rejects a second RSVP while already going", async () => {
