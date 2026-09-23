@@ -128,4 +128,49 @@ describe.skipIf(!hasTestDb)("events", () => {
     const fetched = await caller.events.getBySlug({ slug: created.slug });
     expect(fetched.costBreakdown).toEqual([]);
   });
+
+  it("rejects creating an event in someone else's group", async () => {
+    const { group } = await createOrganizerAndGroup();
+    const impostor = await db.user.create({
+      data: { phoneNumber: "+353850000002", firstName: "Im", lastInitial: "P" },
+    });
+    const startsAt = new Date(Date.now() + 86_400_000);
+
+    await expect(
+      callerAs(impostor.id, impostor.phoneNumber).events.create({
+        groupId: group.id,
+        title: "Not your group",
+        startsAt,
+        endsAt: new Date(startsAt.getTime() + 60 * 60 * 1000),
+        location: "Court 1",
+        cutoffAt: new Date(Date.now() + 3_600_000),
+        totalCostCents: 5000,
+        pricingMode: PricingMode.FIXED_PER_HEAD,
+      }),
+    ).rejects.toThrow("Only the group's organizer");
+  });
+
+  it("rejects confirming someone else's event", async () => {
+    const { caller, group } = await createOrganizerAndGroup();
+    const startsAt = new Date(Date.now() + 86_400_000);
+
+    const event = await caller.events.create({
+      groupId: group.id,
+      title: "Owned event",
+      startsAt,
+      endsAt: new Date(startsAt.getTime() + 60 * 60 * 1000),
+      location: "Court 1",
+      cutoffAt: new Date(Date.now() + 3_600_000),
+      totalCostCents: 5000,
+      pricingMode: PricingMode.FIXED_PER_HEAD,
+    });
+
+    const impostor = await db.user.create({
+      data: { phoneNumber: "+353850000003", firstName: "Im", lastInitial: "P" },
+    });
+
+    await expect(
+      callerAs(impostor.id, impostor.phoneNumber).events.confirm({ eventId: event.id }),
+    ).rejects.toThrow("Only the group's organizer");
+  });
 });

@@ -27,11 +27,11 @@ export const eventsRouter = router({
         autoChargeAtCutoff: z.boolean().optional(),
       }),
     )
-    .mutation(({ ctx, input }) => createEvent(ctx.db, input)),
+    .mutation(({ ctx, input }) => createEvent(ctx.db, { ...input, organizerId: ctx.user.id })),
 
   confirm: protectedProcedure
     .input(z.object({ eventId: z.string() }))
-    .mutation(({ ctx, input }) => confirmEvent(ctx.db, input.eventId)),
+    .mutation(({ ctx, input }) => confirmEvent(ctx.db, { eventId: input.eventId, organizerId: ctx.user.id })),
 
   getBySlug: publicProcedure
     .input(z.object({ slug: z.string() }))

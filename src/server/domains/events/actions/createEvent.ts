@@ -6,6 +6,7 @@ import type { CostBreakdownItem } from "@/server/domains/events/costBreakdown";
 
 export interface CreateEventInput {
   groupId: string;
+  organizerId: string;
   title: string;
   description?: string;
   startsAt: Date;
@@ -22,11 +23,24 @@ export interface CreateEventInput {
 }
 
 /**
- * Creates an event within a group (§2). Slug uniqueness is scoped
- * globally (public /e/{slug} links), so we suffix on collision rather than
- * failing the whole create.
+ * Creates an event within a group (§2), organizer only. Slug uniqueness is
+ * scoped globally (public /e/{slug} links), so we suffix on collision
+ * rather than failing the whole create.
  */
 export async function createEvent(db: Db, input: CreateEventInput) {
+  const group = await db.group.findUnique({
+    where: { id: input.groupId },
+    select: { organizerId: true },
+  });
+
+  if (!group) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Group not found." });
+  }
+
+  if (group.organizerId !== input.organizerId) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Only the group's organizer can create events." });
+  }
+
   if (input.endsAt <= input.startsAt) {
     throw new TRPCError({
       code: "BAD_REQUEST",
