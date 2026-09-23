@@ -1,4 +1,5 @@
 import type { Db } from "@/server/db";
+import { RsvpStatus } from "@/generated/prisma/enums";
 
 export interface GetGroupBySlugOptions {
   /** Signed-in viewer, if any — used to flag their own membership. */
@@ -16,6 +17,7 @@ export async function getGroupBySlug(db: Db, slug: string, options: GetGroupBySl
     include: {
       events: {
         orderBy: { startsAt: "asc" },
+        include: { _count: { select: { rsvps: { where: { status: RsvpStatus.GOING } } } } },
       },
       _count: { select: { memberships: true } },
     },
@@ -31,7 +33,15 @@ export async function getGroupBySlug(db: Db, slug: string, options: GetGroupBySl
       })) !== null
     : false;
 
-  const { _count, ...rest } = group;
+  const { _count, events, ...rest } = group;
 
-  return { ...rest, memberCount: _count.memberships, isMember };
+  return {
+    ...rest,
+    memberCount: _count.memberships,
+    isMember,
+    events: events.map((event) => {
+      const { _count: eventCount, ...eventRest } = event;
+      return { ...eventRest, goingCount: eventCount.rsvps };
+    }),
+  };
 }

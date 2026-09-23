@@ -36,7 +36,7 @@ export const eventsRouter = router({
   getBySlug: publicProcedure
     .input(z.object({ slug: z.string() }))
     .query(async ({ ctx, input }) => {
-      const event = await getEventBySlug(ctx.db, input.slug);
+      const event = await getEventBySlug(ctx.db, input.slug, { viewerId: ctx.user?.id });
 
       if (!event) {
         throw new TRPCError({ code: "NOT_FOUND" });

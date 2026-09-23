@@ -54,6 +54,42 @@ describe.skipIf(!hasTestDb)("events", () => {
     const fetched = await caller.events.getBySlug({ slug: created.slug });
     expect(fetched.costBreakdown).toEqual([{ label: "Court booking", amountCents: 8000 }]);
     expect(fetched.endsAt.getTime()).toBe(endsAt.getTime());
+    // Split, no max set: "up to total ÷ min" (§2).
+    expect(fetched.priceDisplay).toEqual({ mode: "range", minCents: null, maxCents: 8000 });
+    expect(fetched.viewerRsvp).toBeNull();
+  });
+
+  it("shows a fixed price, and the locked price once confirmed", async () => {
+    const { caller, group } = await createOrganizerAndGroup();
+    const startsAt = new Date(Date.now() + 86_400_000);
+
+    const created = await caller.events.create({
+      groupId: group.id,
+      title: "Fixed price game",
+      startsAt,
+      endsAt: new Date(startsAt.getTime() + 60 * 60 * 1000),
+      location: "Court 2",
+      cutoffAt: new Date(Date.now() + 3_600_000),
+      totalCostCents: 1000,
+      pricingMode: PricingMode.FIXED_PER_HEAD,
+      cashAllowed: true,
+    });
+
+    const beforeConfirm = await caller.events.getBySlug({ slug: created.slug });
+    expect(beforeConfirm.priceDisplay).toEqual({ mode: "fixed", amountCents: 1000 });
+
+    const player = await db.user.create({
+      data: { phoneNumber: "+353850000099", firstName: "Kim", lastInitial: "Z" },
+    });
+    await callerAs(player.id, player.phoneNumber).rsvps.create({
+      eventId: created.id,
+      paymentMethod: "CASH",
+    });
+
+    await caller.events.confirm({ eventId: created.id });
+
+    const afterConfirm = await caller.events.getBySlug({ slug: created.slug });
+    expect(afterConfirm.priceDisplay).toEqual({ mode: "locked", amountCents: 1000 });
   });
 
   it("rejects an end time at or before the start time", async () => {
