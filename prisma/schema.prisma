@@ -39,6 +39,18 @@ model Group {
   events      Event[]
 }
 
+model VerificationCode {
+  id          String    @id @default(cuid())
+  phoneNumber String
+  codeHash    String
+  expiresAt   DateTime
+  attempts    Int       @default(0)
+  consumedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([phoneNumber])
+}
+
 model GroupMembership {
   id       String   @id @default(cuid())
   groupId  String

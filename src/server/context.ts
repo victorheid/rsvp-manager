@@ -1,4 +1,6 @@
+import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
 import { db } from "@/server/db";
+import { createSessionCookie, expireSessionCookie, readSessionUserId } from "@/server/domains/auth";
 
 export interface SessionUser {
   id: string;
@@ -6,15 +8,28 @@ export interface SessionUser {
 }
 
 /**
- * Per-request tRPC context. `user` is null until the auth domain is wired
- * up (see specs/tasks.md §0) — it reads the session and resolves the
- * signed-in user. Nothing else should read cookies/headers directly.
+ * Per-request tRPC context. Reads the session cookie and resolves the
+ * signed-in user; nothing else should read cookies/headers directly.
+ * `setSession`/`clearSession` are transport plumbing for the auth router —
+ * writing a `Set-Cookie` response header, not business logic.
  */
-export function createContext(): { db: typeof db; user: SessionUser | null } {
+export async function createContext({ req, resHeaders }: FetchCreateContextFnOptions) {
+  const now = new Date();
+  const userId = readSessionUserId(req.headers.get("cookie"), now);
+  const user: SessionUser | null = userId
+    ? await db.user.findUnique({ where: { id: userId }, select: { id: true, phoneNumber: true } })
+    : null;
+
   return {
     db,
-    user: null,
+    user,
+    setSession(id: string) {
+      resHeaders.append("set-cookie", createSessionCookie(id, now));
+    },
+    clearSession() {
+      resHeaders.append("set-cookie", expireSessionCookie());
+    },
   };
 }
 
-export type Context = ReturnType<typeof createContext>;
+export type Context = Awaited<ReturnType<typeof createContext>>;

@@ -8,7 +8,7 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 
 ## 0. Foundations
 - [x] Repo scaffold: Next.js + TypeScript + Postgres + Prisma (+ tRPC, Zod, Vitest — see [CLAUDE.md](../CLAUDE.md))
-- [ ] Auth: phone number + SMS code, triggered only at RSVP
+- [x] Auth: phone number + SMS code, triggered only at RSVP (real SMS provider not wired up yet — codes log to the server console locally, see the item below)
 - [ ] Stripe account/keys wired up (test mode), incl. Connect
 - [ ] Background worker for time-based jobs (cut-off auto-confirm, event expiry, payout release)
 - [ ] Web push setup (service worker, subscription storage)

@@ -2,27 +2,26 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { PricingMode } from "@/generated/prisma/enums";
 import { appRouter } from "@/server/router";
 import { db } from "@/server/db";
+import { resetDatabase } from "@/server/testing/resetDatabase";
 
 /**
  * Feature test: exercises confirmEvent through the tRPC caller against a
  * real Postgres test database (per CLAUDE.md — no mocked Prisma). Needs
- * TEST_DATABASE_URL / DATABASE_URL pointed at a disposable database; skips
- * itself otherwise so `pnpm test` still passes in environments without one
- * (e.g. this scaffold's CI-less setup). Once the DB is available, remove
- * the `.skipIf` guard's condition check as needed and add a real reset
- * step (e.g. via prisma migrate reset) in a beforeEach/globalSetup.
+ * DATABASE_URL pointed at a disposable database (see README — `.env.test`
+ * + `pnpm db:test:migrate`); skips itself otherwise.
  */
 const hasTestDb = Boolean(process.env.DATABASE_URL);
 
 describe.skipIf(!hasTestDb)("confirmEvent", () => {
-  const caller = appRouter.createCaller({ db, user: { id: "organizer-1", phoneNumber: "+353000" } });
+  const caller = appRouter.createCaller({
+    db,
+    user: { id: "organizer-1", phoneNumber: "+353000" },
+    setSession: () => {},
+    clearSession: () => {},
+  });
 
   beforeEach(async () => {
-    await db.rsvp.deleteMany();
-    await db.event.deleteMany();
-    await db.groupMembership.deleteMany();
-    await db.group.deleteMany();
-    await db.user.deleteMany();
+    await resetDatabase();
   });
 
   afterAll(async () => {
