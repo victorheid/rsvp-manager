@@ -90,4 +90,33 @@ describe.skipIf(!hasTestDb)("groups", () => {
 
     await expect(caller.groups.join({ slug: "no-such-group" })).rejects.toThrow();
   });
+
+  it("lets the organizer edit the group's name and description, but not its slug", async () => {
+    const organizer = await db.user.create({
+      data: { phoneNumber: "+353870000006", firstName: "Fay", lastInitial: "R" },
+    });
+    const caller = callerAs(organizer.id, organizer.phoneNumber);
+    const group = await caller.groups.create({ name: "Old Name" });
+
+    const edited = await caller.groups.edit({ groupId: group.id, name: "New Name", description: "New description" });
+
+    expect(edited.name).toBe("New Name");
+    expect(edited.description).toBe("New description");
+    expect(edited.slug).toBe(group.slug);
+  });
+
+  it("rejects a non-organizer editing the group", async () => {
+    const organizer = await db.user.create({
+      data: { phoneNumber: "+353870000007", firstName: "Gia", lastInitial: "S" },
+    });
+    const impostor = await db.user.create({
+      data: { phoneNumber: "+353870000008", firstName: "Hal", lastInitial: "T" },
+    });
+    const caller = callerAs(organizer.id, organizer.phoneNumber);
+    const group = await caller.groups.create({ name: "Guarded Group" });
+
+    await expect(
+      callerAs(impostor.id, impostor.phoneNumber).groups.edit({ groupId: group.id, name: "Hijacked" }),
+    ).rejects.toThrow("Only the group's organizer");
+  });
 });

@@ -78,12 +78,20 @@ export default function GroupPage() {
       {join.error && <p className="text-sm text-red-600">{join.error.message}</p>}
 
       {me?.id === group.organizerId && (
-        <a
-          href={`/g/${slug}/events/new`}
-          className="self-start rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
-        >
-          New game
-        </a>
+        <div className="flex gap-2">
+          <a
+            href={`/g/${slug}/events/new`}
+            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+          >
+            New game
+          </a>
+          <a
+            href={`/g/${slug}/edit`}
+            className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium dark:border-neutral-700"
+          >
+            Edit group
+          </a>
+        </div>
       )}
 
       <section>
