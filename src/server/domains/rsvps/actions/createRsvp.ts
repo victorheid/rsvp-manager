@@ -7,7 +7,7 @@ import { joinGroupById } from "@/server/domains/groups";
 import { chargeCardRsvp } from "@/server/domains/payments";
 import { chargeWalletNow, placeHold } from "@/server/domains/wallet";
 import type { PaymentGateway } from "@/server/integrations/stripe";
-import { countsTowardMax, hasCapacity, isJoinableEventStatus } from "@/server/domains/rsvps/rules";
+import { isJoinableEventStatus } from "@/server/domains/rsvps/rules";
 
 export interface CreateRsvpInput {
   eventId: string;
@@ -66,7 +66,7 @@ export async function createRsvp(db: Db, gateway: PaymentGateway, input: CreateR
       throw new TRPCError({ code: "BAD_REQUEST", message: "You're already in." });
     }
 
-    if (!hasCapacity(event, event.rsvps.filter(countsTowardMax).length)) {
+    if (!eventRules.hasCapacity(event, event.rsvps.filter(eventRules.countsTowardMax).length)) {
       throw new TRPCError({ code: "BAD_REQUEST", message: "This event is full — join the waitlist instead." });
     }
 

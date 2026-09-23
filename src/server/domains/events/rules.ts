@@ -1,5 +1,5 @@
 import { PricingMode } from "@/generated/prisma/enums";
-import type { EventModel } from "@/generated/prisma/models";
+import type { EventModel, RsvpModel } from "@/generated/prisma/models";
 import { EVENT_TIME_ZONE } from "@/lib/format";
 
 /**
@@ -356,4 +356,14 @@ export function paymentOptionsProblem(
   }
 
   return null;
+}
+
+/** §8: "Walk-ins don't count towards the max." */
+export function countsTowardMax(rsvp: Pick<RsvpModel, "userId">): boolean {
+  return rsvp.userId !== null;
+}
+
+/** §6: once an event is at capacity, new RSVPs go to the waitlist instead. */
+export function hasCapacity(event: Pick<EventModel, "maxPlayers">, goingCount: number): boolean {
+  return event.maxPlayers === null || goingCount < event.maxPlayers;
 }

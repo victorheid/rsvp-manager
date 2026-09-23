@@ -41,10 +41,13 @@ export async function getEventBySlug(db: Db, slug: string, options: GetEventBySl
     include: {
       rsvps: {
         where: { status: "GOING" },
+        // Public: nothing about how anyone pays — no saved card, no pay-link secret.
+        omit: { payToken: true, stripePaymentMethodId: true, cardBrand: true, cardLast4: true },
         include: { user: { select: { firstName: true, lastInitial: true } } },
       },
       waitlistEntries: {
         orderBy: { createdAt: "asc" },
+        omit: { stripePaymentMethodId: true, cardBrand: true, cardLast4: true },
         include: { user: { select: { firstName: true, lastInitial: true } } },
       },
       group: { select: { name: true, slug: true, organizerId: true } },
@@ -62,6 +65,8 @@ export async function getEventBySlug(db: Db, slug: string, options: GetEventBySl
   const viewerRsvp = options.viewerId
     ? await db.rsvp.findUnique({
         where: { eventId_userId: { eventId: event.id, userId: options.viewerId } },
+        // The viewer's own row keeps its pay link (they may owe), but never the provider's card id.
+        omit: { stripePaymentMethodId: true },
       })
     : null;
 

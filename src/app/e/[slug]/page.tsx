@@ -32,7 +32,7 @@ import { useOpenShareOnArrival } from "@/app/_components/useOpenShareOnArrival";
 import { useOrigin } from "@/app/_components/useOrigin";
 import { useRequireAuth } from "@/app/_components/useRequireAuth";
 import { eventPhase } from "@/server/domains/events/rules";
-import { countsTowardMax, hasCapacity } from "@/server/domains/rsvps/rules";
+import { countsTowardMax, hasCapacity } from "@/server/domains/events/rules";
 import { IsItOnBanner, ViewerStatusBanner, expectedPriceCents } from "./_components/EventStatusBanners";
 import { RsvpSheet } from "./_components/RsvpSheet";
 

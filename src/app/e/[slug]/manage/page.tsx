@@ -31,7 +31,8 @@ import { headcountText } from "@/app/_components/eventPrice";
 import { useNow } from "@/app/_components/useNow";
 import { useOrigin } from "@/app/_components/useOrigin";
 import type { OrganizerEventAction } from "@/server/domains/events";
-import { countsTowardMax, hasShownUp } from "@/server/domains/rsvps/rules";
+import { countsTowardMax } from "@/server/domains/events/rules";
+import { hasShownUp } from "@/server/domains/rsvps/rules";
 import { AddWalkInSheet } from "./_components/AddWalkInSheet";
 import {
   attentionRank,

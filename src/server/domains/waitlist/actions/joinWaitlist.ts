@@ -1,7 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import type { Db } from "@/server/db";
 import { RsvpStatus, WaitlistPromotionMode } from "@/generated/prisma/enums";
-import { rsvpRules } from "@/server/domains/rsvps";
+import { eventRules } from "@/server/domains/events";
 import { isWaitlistOpen } from "@/server/domains/waitlist/rules";
 
 export interface JoinWaitlistInput {
@@ -30,7 +30,7 @@ export async function joinWaitlist(db: Db, input: JoinWaitlistInput) {
       throw new TRPCError({ code: "BAD_REQUEST", message: "The waitlist is closed — the event has started." });
     }
 
-    if (rsvpRules.hasCapacity(event, event.rsvps.filter(rsvpRules.countsTowardMax).length)) {
+    if (eventRules.hasCapacity(event, event.rsvps.filter(eventRules.countsTowardMax).length)) {
       throw new TRPCError({ code: "BAD_REQUEST", message: "This event isn't full — just RSVP." });
     }
 

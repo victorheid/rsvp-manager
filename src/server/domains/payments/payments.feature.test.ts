@@ -414,6 +414,28 @@ describe.skipIf(!hasTestDb)("online payments (wallet and card)", () => {
     });
   });
 
+  it("keeps how people pay out of the public event page", async () => {
+    const { organizerCaller, event } = await makeOrganizerAndEvent();
+    const ok = await makePlayer("Ann", "+353830000002");
+    const bad = await makePlayer("Bea", "+353830000003");
+    await rsvpWithCard(ok.caller, event.id);
+    const badRsvp = await rsvpWithCard(bad.caller, event.id, "declined");
+    await organizerCaller.events.confirm({ eventId: event.id });
+    const owing = await db.rsvp.findUniqueOrThrow({ where: { id: badRsvp.id } });
+    const anonymous = appRouter.createCaller({ db, user: null, setSession: () => {}, clearSession: () => {} });
+
+    const publicView = JSON.stringify(await anonymous.events.getBySlug({ slug: event.slug }));
+
+    expect(publicView).not.toContain(owing.payToken);
+    expect(publicView).not.toContain("pm_fake_");
+    expect(publicView).not.toContain("cardLast4");
+    expect(publicView).not.toContain("stripePaymentMethodId");
+    // The player themself does get their own pay link (the page tells them they owe).
+    const own = await bad.caller.events.getBySlug({ slug: event.slug });
+    expect(own.viewerRsvp?.payToken).toBe(owing.payToken);
+    expect(JSON.stringify(own)).not.toContain("pm_fake_");
+  });
+
   describe("organizer refunds (§8)", () => {
     async function confirmedWithCardAndWalletPlayers() {
       const setup = await makeOrganizerAndEvent();

@@ -177,15 +177,19 @@ enum WaitlistPromotionMode {
 }
 
 model WaitlistEntry {
-  id            String                @id @default(cuid())
-  eventId       String
-  userId        String
+  id                    String                @id @default(cuid())
+  eventId               String
+  userId                String
   // Null for MANUAL ("notify me") entries — no payment method is picked
   // until they claim a spot. AUTO ("auto-join and pay") entries would
   // have one, but AUTO isn't offered yet (needs wallet/card, §5).
-  paymentMethod PaymentMethod?
-  promotionMode WaitlistPromotionMode @default(MANUAL)
-  createdAt     DateTime              @default(now())
+  paymentMethod         PaymentMethod?
+  promotionMode         WaitlistPromotionMode @default(MANUAL)
+  // AUTO card entries: the card saved when joining the waitlist (§6), charged on move-in.
+  stripePaymentMethodId String?
+  cardBrand             String?
+  cardLast4             String?
+  createdAt             DateTime              @default(now())
 
   event Event @relation(fields: [eventId], references: [id])
   user  User  @relation(fields: [userId], references: [id])

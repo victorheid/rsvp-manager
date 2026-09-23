@@ -8,6 +8,7 @@ import { RsvpStatus } from "@/generated/prisma/enums";
 export async function getUpcomingRsvpsForUser(db: Db, userId: string, now: Date) {
   return db.rsvp.findMany({
     where: { userId, status: RsvpStatus.GOING, event: { startsAt: { gte: now } } },
+    omit: { stripePaymentMethodId: true },
     include: { event: { include: { group: { select: { name: true, slug: true } } } } },
     orderBy: { event: { startsAt: "asc" } },
   });

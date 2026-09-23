@@ -1,23 +1,11 @@
 import type { EventModel, RsvpModel } from "@/generated/prisma/models";
 import type { EventPhase } from "@/server/domains/events";
+import { countsTowardMax, hasCapacity } from "@/server/domains/events/rules";
 
 /**
  * Business rules for RSVPs (spec §4, §6, §8). Pure functions only: no
  * Prisma calls, no Date.now(), no I/O.
  */
-
-/** §8: "Walk-ins don't count towards the max." */
-export function countsTowardMax(rsvp: Pick<RsvpModel, "userId">): boolean {
-  return rsvp.userId !== null;
-}
-
-/** §6: once an event is at capacity, new RSVPs go to the waitlist instead. */
-export function hasCapacity(
-  event: Pick<EventModel, "maxPlayers">,
-  goingCount: number,
-): boolean {
-  return event.maxPlayers === null || goingCount < event.maxPlayers;
-}
 
 /**
  * §9 "Spot open": whether someone leaving just freed a spot that the

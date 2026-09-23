@@ -2,7 +2,7 @@ import type { Db } from "@/server/db";
 import { RsvpStatus } from "@/generated/prisma/enums";
 import { eventRules } from "@/server/domains/events";
 import { notificationRules, notifyUsers } from "@/server/domains/notifications";
-import { countsTowardMax, freedAWaitlistedSpot } from "@/server/domains/rsvps/rules";
+import { freedAWaitlistedSpot } from "@/server/domains/rsvps/rules";
 import type { RsvpModel } from "@/generated/prisma/models";
 
 /**
@@ -35,5 +35,5 @@ export async function notifyWaitlistOfOpenSpot(
 /** How many going players count against the event's max right now (walk-ins don't, §8). */
 export async function countGoingTowardMax(db: Db, eventId: string) {
   const going = await db.rsvp.findMany({ where: { eventId, status: RsvpStatus.GOING }, select: { userId: true } });
-  return going.filter(countsTowardMax).length;
+  return going.filter(eventRules.countsTowardMax).length;
 }

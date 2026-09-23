@@ -1,20 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { EventStatus } from "@/generated/prisma/enums";
-import { freedAWaitlistedSpot, hasCapacity, hasShownUp, isJoinableEventStatus, organizerRowActions } from "./rules";
-
-describe("hasCapacity", () => {
-  it("has no limit when maxPlayers is null", () => {
-    expect(hasCapacity({ maxPlayers: null }, 1000)).toBe(true);
-  });
-
-  it("has room below the max", () => {
-    expect(hasCapacity({ maxPlayers: 10 }, 9)).toBe(true);
-  });
-
-  it("is full at the max", () => {
-    expect(hasCapacity({ maxPlayers: 10 }, 10)).toBe(false);
-  });
-});
+import { freedAWaitlistedSpot, hasShownUp, isJoinableEventStatus, organizerRowActions } from "./rules";
 
 describe("isJoinableEventStatus", () => {
   it("allows joining while open or confirmed", () => {

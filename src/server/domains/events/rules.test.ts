@@ -3,6 +3,7 @@ import { PricingMode, EventStatus } from "@/generated/prisma/enums";
 import {
   canSelfCancel,
   eventDetailsChanged,
+  hasCapacity,
   eventPhase,
   isCutoffReminderDue,
   needsOrganizerCutoffAlert,
@@ -429,5 +430,19 @@ describe("organizerEventActions: refund all", () => {
 
   it("is not offered when nothing is refundable", () => {
     expect(organizerEventActions(confirmed, new Date("2026-10-01T20:00:00Z")).menu).not.toContain("REFUND_ALL");
+  });
+});
+
+describe("hasCapacity", () => {
+  it("has no limit when maxPlayers is null", () => {
+    expect(hasCapacity({ maxPlayers: null }, 1000)).toBe(true);
+  });
+
+  it("has room below the max", () => {
+    expect(hasCapacity({ maxPlayers: 10 }, 9)).toBe(true);
+  });
+
+  it("is full at the max", () => {
+    expect(hasCapacity({ maxPlayers: 10 }, 10)).toBe(false);
   });
 });
