@@ -4,12 +4,15 @@ import { db } from "@/server/db";
 import { resetDatabase } from "@/server/testing/resetDatabase";
 import { autoConfirmDueEvents } from "./actions/autoConfirmDueEvents";
 import { expireOverdueEvents } from "./actions/expireOverdueEvents";
+import { sendCutoffReminders } from "./actions/sendCutoffReminders";
+import { fakePushSender } from "@/server/integrations/push/fake";
 
 const hasTestDb = Boolean(process.env.DATABASE_URL);
 
 describe.skipIf(!hasTestDb)("background jobs", () => {
   beforeEach(async () => {
     await resetDatabase();
+    fakePushSender.reset();
   });
 
   afterAll(async () => {
@@ -138,6 +141,51 @@ describe.skipIf(!hasTestDb)("background jobs", () => {
       const now = new Date(startsAt.getTime() + 48 * 60 * 60 * 1000);
       const expired = await expireOverdueEvents(db, now);
       expect(expired).toHaveLength(0);
+    });
+  });
+
+  describe("sendCutoffReminders", () => {
+    async function openEventWithPlayer(cutoffAt: Date) {
+      const { group } = await createGroupAndOrganizer();
+      const player = await db.user.create({
+        data: { phoneNumber: "+353820000002", firstName: "Ana", lastInitial: "K" },
+      });
+      await db.pushSubscription.create({
+        data: { userId: player.id, endpoint: "https://push.example/ana", p256dh: "k", auth: "a" },
+      });
+      const event = await db.event.create({
+        data: {
+          slug: "reminder-event", groupId: group.id, title: "Reminder", startsAt: new Date(cutoffAt.getTime() + 86_400_000),
+          endsAt: new Date(cutoffAt.getTime() + 90_000_000), location: "A", cutoffAt,
+          totalCostCents: 1000, pricingMode: PricingMode.FIXED_PER_HEAD, createdAt: new Date(cutoffAt.getTime() - 5 * 86_400_000),
+        },
+      });
+      await db.rsvp.create({ data: { eventId: event.id, userId: player.id, paymentMethod: "CASH" } });
+      return event;
+    }
+
+    it("reminds people once, within 24h of the cut-off", async () => {
+      const cutoffAt = new Date("2026-01-10T18:00:00Z");
+      const event = await openEventWithPlayer(cutoffAt);
+
+      expect(await sendCutoffReminders(db, new Date("2026-01-09T12:00:00Z"))).toHaveLength(0);
+      expect(fakePushSender.sent).toHaveLength(0);
+
+      const reminded = await sendCutoffReminders(db, new Date("2026-01-09T18:00:00Z"));
+      expect(reminded.map((e) => e.id)).toEqual([event.id]);
+      expect(fakePushSender.sent).toHaveLength(1);
+      expect(fakePushSender.sent[0]?.message.title).toBe("Cut-off coming up");
+
+      // The next tick doesn't repeat it.
+      expect(await sendCutoffReminders(db, new Date("2026-01-09T18:01:00Z"))).toHaveLength(0);
+      expect(fakePushSender.sent).toHaveLength(1);
+    });
+
+    it("doesn't remind for a confirmed event", async () => {
+      const event = await openEventWithPlayer(new Date("2026-01-10T18:00:00Z"));
+      await db.event.update({ where: { id: event.id }, data: { status: "CONFIRMED" } });
+
+      expect(await sendCutoffReminders(db, new Date("2026-01-10T10:00:00Z"))).toHaveLength(0);
     });
   });
 });

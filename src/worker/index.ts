@@ -1,9 +1,9 @@
 import { db } from "@/server/db";
-import { autoConfirmDueEvents, expireOverdueEvents } from "@/server/domains/events";
+import { autoConfirmDueEvents, expireOverdueEvents, sendCutoffReminders } from "@/server/domains/events";
 
 /**
  * Background worker for time-based jobs (specs/tasks.md §0, §3, §7):
- * cut-off auto-confirm and event expiry. Payout release will join this
+ * cut-off reminders, cut-off auto-confirm and event expiry. Payout release will join this
  * once §5 exists. Run with `pnpm worker` — a single always-on process is
  * enough at this scale; move to a real scheduler (Vercel Cron, a queue)
  * before running more than one instance.
@@ -12,6 +12,11 @@ const TICK_MS = 60_000;
 
 async function tick() {
   const now = new Date();
+
+  const reminded = await sendCutoffReminders(db, now);
+  if (reminded.length > 0) {
+    console.log(`[worker] sent cut-off reminders for ${reminded.length} event(s): ${reminded.map((e) => e.slug).join(", ")}`);
+  }
 
   const confirmed = await autoConfirmDueEvents(db, now);
   if (confirmed.length > 0) {

@@ -5,6 +5,7 @@ export { editEvent } from "./actions/editEvent";
 export { confirmEvent } from "./actions/confirmEvent";
 export { cancelEvent } from "./actions/cancelEvent";
 export { autoConfirmDueEvents } from "./actions/autoConfirmDueEvents";
+export { sendCutoffReminders } from "./actions/sendCutoffReminders";
 export { expireOverdueEvents } from "./actions/expireOverdueEvents";
 export { getEventBySlug } from "./getters/getEventBySlug";
 export * as eventRules from "./rules";

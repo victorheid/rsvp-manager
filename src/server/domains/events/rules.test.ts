@@ -4,6 +4,7 @@ import {
   canSelfCancel,
   eventDetailsChanged,
   eventPhase,
+  isCutoffReminderDue,
   isDisallowedPriceIncrease,
   isExpired,
   organizerEventActions,
@@ -320,5 +321,43 @@ describe("eventDetailsChanged", () => {
     ["price", { totalCostCents: 700 }],
   ])("is true when the %s changes", (_field, change) => {
     expect(eventDetailsChanged(before, { ...before, ...change })).toBe(true);
+  });
+});
+
+describe("isCutoffReminderDue", () => {
+  const cutoffAt = new Date("2026-10-01T18:00:00Z");
+  const event = {
+    status: EventStatus.OPEN,
+    cutoffAt,
+    createdAt: new Date("2026-09-20T12:00:00Z"),
+    cutoffReminderSentAt: null,
+  };
+
+  it("is not due more than 24h before the cut-off", () => {
+    expect(isCutoffReminderDue(event, new Date("2026-09-30T17:59:59Z"))).toBe(false);
+  });
+
+  it("is due from 24h before the cut-off until the cut-off", () => {
+    expect(isCutoffReminderDue(event, new Date("2026-09-30T18:00:00Z"))).toBe(true);
+    expect(isCutoffReminderDue(event, new Date("2026-10-01T17:59:59Z"))).toBe(true);
+  });
+
+  it("is not due at or after the cut-off", () => {
+    expect(isCutoffReminderDue(event, cutoffAt)).toBe(false);
+  });
+
+  it("is not due twice", () => {
+    expect(isCutoffReminderDue({ ...event, cutoffReminderSentAt: new Date("2026-09-30T18:01:00Z") }, new Date("2026-10-01T10:00:00Z"))).toBe(false);
+  });
+
+  it("is not due once the event is confirmed or cancelled", () => {
+    const now = new Date("2026-10-01T10:00:00Z");
+    expect(isCutoffReminderDue({ ...event, status: EventStatus.CONFIRMED }, now)).toBe(false);
+    expect(isCutoffReminderDue({ ...event, status: EventStatus.CANCELLED }, now)).toBe(false);
+  });
+
+  it("is skipped for an event posted inside the 24h window", () => {
+    const now = new Date("2026-10-01T10:00:00Z");
+    expect(isCutoffReminderDue({ ...event, createdAt: new Date("2026-09-30T20:00:00Z") }, now)).toBe(false);
   });
 });

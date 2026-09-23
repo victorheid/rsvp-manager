@@ -15,6 +15,7 @@ export const NOTIFICATION_KINDS = [
   "EVENT_CANCELLED",
   "REMOVED",
   "SPOT_OPEN",
+  "CUTOFF_REMINDER",
   "TEST",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
@@ -104,6 +105,16 @@ export function spotOpenMessage(event: NotifiedEvent): NotificationMessage {
     kind: "SPOT_OPEN",
     title: "A spot opened up",
     body: `${event.title} has room now. First to claim it gets it.`,
+    url: eventUrl(event),
+  };
+}
+
+/** §9 trigger: "Cut-off reminder" → everyone in, and waitlist. */
+export function cutoffReminderMessage(event: NotifiedEvent & Pick<EventModel, "cutoffAt">): NotificationMessage {
+  return {
+    kind: "CUTOFF_REMINDER",
+    title: "Cut-off coming up",
+    body: `${event.title}: sign-ups close ${formatDateTime(event.cutoffAt)}. Can't make it? Drop out before then.`,
     url: eventUrl(event),
   };
 }

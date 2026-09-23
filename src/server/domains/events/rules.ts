@@ -285,3 +285,27 @@ export function eventDetailsChanged(
     before.totalCostCents !== after.totalCostCents
   );
 }
+
+/** §9: the cut-off reminder goes out this long before the cut-off. */
+export const CUTOFF_REMINDER_LEAD_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * §9 "Cut-off reminder (e.g. 24h before)": due once an open event is within
+ * 24h of its cut-off, and not already sent. An event posted inside that
+ * window never gets one — everyone was just told about it, and a reminder
+ * minutes later is noise.
+ */
+export function isCutoffReminderDue(
+  event: Pick<EventModel, "status" | "cutoffAt" | "createdAt" | "cutoffReminderSentAt">,
+  now: Date,
+): boolean {
+  const windowStart = event.cutoffAt.getTime() - CUTOFF_REMINDER_LEAD_MS;
+
+  return (
+    event.status === "OPEN" &&
+    event.cutoffReminderSentAt === null &&
+    now.getTime() >= windowStart &&
+    now < event.cutoffAt &&
+    event.createdAt.getTime() <= windowStart
+  );
+}

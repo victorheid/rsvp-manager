@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  cutoffReminderMessage,
   eventCancelledMessage,
   eventChangedMessage,
   eventConfirmedMessage,
@@ -24,6 +25,12 @@ describe("notification messages", () => {
     ];
 
     expect(messages.map((message) => message.url)).toEqual(Array(6).fill("/e/friday-game-abc"));
+  });
+
+  it("reminds people when sign-ups close", () => {
+    const reminder = cutoffReminderMessage({ ...event, cutoffAt: new Date("2026-10-01T18:00:00Z") });
+    expect(reminder.kind).toBe("CUTOFF_REMINDER");
+    expect(reminder.url).toBe("/e/friday-game-abc");
   });
 
   it("tags each message with its trigger", () => {

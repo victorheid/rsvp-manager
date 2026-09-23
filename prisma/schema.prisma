@@ -98,6 +98,8 @@ model Event {
   status             EventStatus @default(OPEN)
   confirmedAt        DateTime?
   lockedPriceCents   Int?
+  // Set when the §9 cut-off reminder went out, so the worker sends it once.
+  cutoffReminderSentAt DateTime?
   createdAt          DateTime    @default(now())
 
   group           Group           @relation(fields: [groupId], references: [id])
