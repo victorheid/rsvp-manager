@@ -8,7 +8,8 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 
 ### Pending from Tech Lead
 Everything else that can be built without these is built (against fakes). These need a person to act or decide:
-- [ ] Stripe account + test keys, so the real `PaymentGateway` adapter, Connect and Stripe Elements (replacing the test-mode `CardForm`) can be built and run against the contract suite in `integrations/stripe/contract.ts`
+- [ ] Stripe webhooks: add `STRIPE_WEBHOOK_SECRET` and (locally) `stripe listen --forward-to localhost:3000/api/stripe/webhook`, once the handler exists — completes top-ups and pay-link payments if the browser closed early
+- [ ] Try Connect onboarding by hand in the browser (organizer → event form → "Set up payouts") with Stripe's test data, then a payout
 - [ ] Pick an SMS/WhatsApp provider (Twilio or similar) and provide an account, to replace the console SMS sender
 - [ ] Decide: allow confirming below the minimum ("confirm anyway", UI spec §10.9)? Today `confirmEvent` refuses and the organizer alert says "wait for more, or cancel"
 - [ ] Design: group admins / co-organizers (schema has one `organizerId`; every organizer check would change)
@@ -21,7 +22,7 @@ Everything else that can be built without these is built (against fakes). These 
 ## 0. Foundations
 - [x] Repo scaffold: Next.js + TypeScript + Postgres + Prisma (+ tRPC, Zod, Vitest — see [CLAUDE.md](../CLAUDE.md))
 - [x] Auth: phone number + SMS code, triggered only at RSVP (real SMS provider not wired up yet — codes log to the server console locally, see the item below)
-- [ ] Stripe account/keys wired up (test mode), incl. Connect — the `PaymentGateway` interface, in-memory fake and contract tests are built (`integrations/stripe`); what's left is the real adapter against Stripe test mode, which needs keys
+- [x] Stripe account/keys wired up (test mode), incl. Connect — real `PaymentGateway` (`integrations/stripe/real.ts`, used whenever `STRIPE_SECRET_KEY` is set), Stripe Elements in `CardForm`, and `pnpm test:stripe` runs the shared contract + the card/top-up flows against the sandbox. Not yet verified by hand: Connect onboarding in the browser and a payout (needs an onboarded account and platform funds). No webhooks yet: payments are confirmed when the browser returns, so a player who closes the tab right after paying isn't credited until they come back (or a webhook handler exists)
 - [x] Background worker for time-based jobs (cut-off auto-confirm, event expiry) — `pnpm worker`, a single always-on interval process; payout release now included
 - [x] Web push setup (service worker, subscription storage) — `public/sw.js`, `PushSubscription` table, `notifications.subscribePush/unsubscribePush/sendTest`, `integrations/push` (real `web-push` sender once `VAPID_*` env keys are set, console logger otherwise). Entry point for now is the Home account menu ("Turn on notifications"); the `/me` screen and post-RSVP prompt (UI spec §9) come with §5
 - [ ] SMS/WhatsApp fallback provider wired up

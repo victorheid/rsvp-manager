@@ -31,7 +31,6 @@ export function describeGatewayContract(
 ) {
   describe(`${name} satisfies the PaymentGateway contract`, () => {
     it("gives the same customer back for the same user", async () => {
-      const id = randomUUID(); // idempotency keys are remembered by Stripe: never reuse one across tests or runs
       const { gateway } = create();
       const first = await gateway.ensureCustomer({ userId: "u1", name: "Ann B" });
       const second = await gateway.ensureCustomer({ userId: "u1", name: "Ann B" });
@@ -40,7 +39,6 @@ export function describeGatewayContract(
     });
 
     it("reports a setup intent as pending until the card is entered, then returns the card", async () => {
-      const id = randomUUID(); // idempotency keys are remembered by Stripe: never reuse one across tests or runs
       const { gateway, play } = create();
       const { customerId } = await gateway.ensureCustomer({ userId: "u1", name: "Ann B" });
       const { setupIntentId } = await gateway.createSetupIntent({ customerId });

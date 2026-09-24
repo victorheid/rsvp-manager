@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "dotenv -e .env.test -- vitest run",
-    "test:stripe": "STRIPE_CONTRACT=1 dotenv -e .env -- vitest run src/server/integrations/stripe/real.contract.test.ts",
+    "test:stripe": "STRIPE_CONTRACT=1 dotenv -e .env.test -e .env -- vitest run src/server/integrations/stripe/real.",
     "test:watch": "dotenv -e .env.test -- vitest",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import Stripe from "stripe";
-import { describe } from "vitest";
+import { describe, vi } from "vitest";
 import { describeGatewayContract } from "@/server/integrations/stripe/contract";
 import { createStripeGateway } from "@/server/integrations/stripe/real";
 
@@ -12,7 +12,11 @@ const secretKey = process.env.STRIPE_SECRET_KEY;
 const enabled = process.env.STRIPE_CONTRACT === "1" && secretKey?.startsWith("sk_test_");
 
 describe.skipIf(!enabled)("StripeGateway (sandbox)", () => {
-  const stripe = new Stripe(secretKey ?? "");
+  // Real network calls: several per test.
+  vi.setConfig({ testTimeout: 60_000 });
+
+  // The describe body runs even when skipped, so give the client a placeholder key it never uses.
+  const stripe = new Stripe(secretKey ?? "sk_test_unused");
 
   // Fresh user ids per run: Stripe replays idempotent calls made within 24 hours.
   const run = randomUUID().slice(0, 8);
@@ -20,7 +24,7 @@ describe.skipIf(!enabled)("StripeGateway (sandbox)", () => {
   describeGatewayContract(
     "StripeGateway",
     () => ({
-      gateway: createStripeGateway(secretKey ?? ""),
+      gateway: createStripeGateway(secretKey ?? "sk_test_unused"),
       play: {
         // Test payment-method tokens stand in for the card a person would type into Stripe Elements.
         async saveCard(_gateway, setupIntentId, good) {

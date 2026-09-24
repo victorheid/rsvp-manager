@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState, type FormEvent } from "react";
+import { loadStripe } from "@stripe/stripe-js";
+import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { Banner, Button, OptionCard } from "@/components/ui";
 import { trpc } from "@/lib/trpc/client";
 import { FAKE_CARD_SCENARIOS } from "@/server/integrations/stripe/fake-scenarios";
@@ -15,13 +17,15 @@ const SCENARIO_COPY: Record<Scenario, { title: string; description: string }> = 
   insufficient_funds: { title: "Visa •••• 9995", description: "Has insufficient funds" },
 };
 
+const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+
 /**
- * Where the card details are entered — for now a stand-in for Stripe's card
- * element, since no real payment provider is wired up yet (specs/tasks.md
- * §0). It lets you pick how the pretend card behaves, so every path (works,
- * declined, needs 3-D Secure…) can be tried. When the real adapter lands,
- * this is the one component that becomes Stripe Elements: it keeps the same
- * props, and `onDone` still means "the provider has the card / the payment".
+ * Where the card details are entered. With a Stripe publishable key it's
+ * Stripe's own Payment Element (card number, 3-D Secure and all — card data
+ * never touches our servers); without one it's a test-mode stand-in for the
+ * in-memory fake gateway, where you pick how the pretend card behaves.
+ * Either way `onDone` means "the provider has the card / the payment": the
+ * caller then asks the server, which checks with the provider itself.
  */
 export interface CardFormProps {
   /** `setup` saves a card for later; `payment` pays now. */
@@ -32,7 +36,68 @@ export interface CardFormProps {
   onBack?: () => void;
 }
 
-export function CardForm({ kind, clientSecret, submitLabel, onDone, onBack }: CardFormProps) {
+export function CardForm(props: CardFormProps) {
+  return PUBLISHABLE_KEY ? <StripeCardForm {...props} publishableKey={PUBLISHABLE_KEY} /> : <FakeCardForm {...props} />;
+}
+
+function StripeCardForm({ kind, clientSecret, submitLabel, onDone, onBack, publishableKey }: CardFormProps & { publishableKey: string }) {
+  const stripePromise = useMemo(() => loadStripe(publishableKey), [publishableKey]);
+
+  return (
+    <Elements stripe={stripePromise} options={{ clientSecret }}>
+      <StripePaymentFields kind={kind} submitLabel={submitLabel} onDone={onDone} onBack={onBack} />
+    </Elements>
+  );
+}
+
+function StripePaymentFields({ kind, submitLabel, onDone, onBack }: Pick<CardFormProps, "kind" | "submitLabel" | "onDone" | "onBack">) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!stripe || !elements) return;
+
+    setPending(true);
+    setError(null);
+    // Stay on the page unless the bank forces a redirect; 3-D Secure opens in a modal.
+    const result =
+      kind === "setup"
+        ? await stripe.confirmSetup({ elements, redirect: "if_required" })
+        : await stripe.confirmPayment({ elements, redirect: "if_required" });
+    setPending(false);
+
+    if (result.error) {
+      setError(result.error.message ?? "That card didn’t work. Try another.");
+      return;
+    }
+
+    onDone();
+  }
+
+  return (
+    <form className="flex flex-col gap-4" onSubmit={submit}>
+      <PaymentElement />
+      {error && (
+        <Banner tone="danger" title="Couldn’t use that card">
+          {error}
+        </Banner>
+      )}
+      <Button type="submit" size="lg" fullWidth loading={pending} disabled={!stripe || !elements}>
+        {submitLabel}
+      </Button>
+      {onBack && (
+        <Button variant="ghost" fullWidth onClick={onBack}>
+          Back
+        </Button>
+      )}
+    </form>
+  );
+}
+
+function FakeCardForm({ kind, clientSecret, submitLabel, onDone, onBack }: CardFormProps) {
   const [scenario, setScenario] = useState<Scenario>("visa");
   const complete = trpc.payments.devCompleteIntent.useMutation({ onSuccess: onDone });
 
