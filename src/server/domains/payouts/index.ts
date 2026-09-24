@@ -5,3 +5,4 @@ export { releaseDuePayouts } from "./actions/releaseDuePayouts";
 export { refreshOnboarding } from "./actions/refreshOnboarding";
 export { getOnboardingStatus } from "./getters/getOnboardingStatus";
 export * as payoutRules from "./rules";
+export { refreshOnboardingByAccount } from "./actions/refreshOnboardingByAccount";

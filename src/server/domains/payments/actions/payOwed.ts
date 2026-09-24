@@ -118,3 +118,25 @@ export async function completeOwedPayment(
 
   return { status: "paid" };
 }
+
+/**
+ * Webhook entry to `completeOwedPayment`: finds the pay-link payment a
+ * provider payment belongs to. Returns null if it isn't one of ours (an
+ * off-session game charge, say, which is settled synchronously).
+ */
+export async function completeOwedPaymentByIntent(
+  db: Db,
+  gateway: PaymentGateway,
+  input: { paymentIntentId: string },
+): Promise<CompleteOwedPaymentResult | null> {
+  const payment = await db.payment.findFirst({
+    where: { providerIntentId: input.paymentIntentId, kind: PaymentKind.GAME_CARD },
+    include: { rsvp: true },
+  });
+
+  if (!payment?.rsvp?.payToken || !payment.rsvp.userId) {
+    return null;
+  }
+
+  return completeOwedPayment(db, gateway, { token: payment.rsvp.payToken, userId: payment.rsvp.userId });
+}

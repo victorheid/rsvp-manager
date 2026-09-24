@@ -9,3 +9,4 @@ export { creditRefund } from "./actions/creditRefund";
 export { chargeWalletNow } from "./actions/chargeWalletNow";
 export * as walletRules from "./rules";
 export { assertWalletEnabled } from "./actions/assertWalletEnabled";
+export { completeTopUpByIntent } from "./actions/completeTopUpByIntent";

@@ -1,5 +1,7 @@
+import { z } from "zod";
 import type {
   ConnectedAccountState,
+  GatewayEvent,
   DeclineReason,
   OffSessionChargeResult,
   PaymentGateway,
@@ -101,6 +103,24 @@ class FakePaymentGateway implements PaymentGateway {
     this.charges.set(chargeId, { amountCents, refundedCents: 0 });
     this.chargesMade.push({ chargeId, customerId, amountCents, description });
     return chargeId;
+  }
+
+  /** The signature the fake accepts on webhooks. Tests post `JSON.stringify(event)` with it. */
+  static readonly WEBHOOK_SIGNATURE = "fake-signature";
+
+  parseWebhook(rawBody: string, signature: string | null): GatewayEvent | null {
+    if (signature !== FakePaymentGateway.WEBHOOK_SIGNATURE) {
+      throw new Error("Invalid webhook signature");
+    }
+
+    const parsed = z
+      .union([
+        z.object({ type: z.literal("payment_updated"), paymentIntentId: z.string() }),
+        z.object({ type: z.literal("account_updated"), accountId: z.string() }),
+      ])
+      .safeParse(JSON.parse(rawBody));
+
+    return parsed.success ? parsed.data : null;
   }
 
   async ensureCustomer(input: { userId: string; name: string }) {

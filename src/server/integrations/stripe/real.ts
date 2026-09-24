@@ -3,6 +3,7 @@ import type {
   CardBrand,
   ConnectedAccountState,
   DeclineReason,
+  GatewayEvent,
   OffSessionChargeResult,
   PaymentGateway,
   PaymentIntent,
@@ -48,10 +49,29 @@ function connectedAccountState(account: Stripe.Account): ConnectedAccountState {
   };
 }
 
-export function createStripeGateway(secretKey: string): PaymentGateway {
+export function createStripeGateway(secretKey: string, webhookSecret?: string): PaymentGateway {
   const stripe = new Stripe(secretKey);
 
   return {
+    parseWebhook(rawBody, signature): GatewayEvent | null {
+      if (!webhookSecret || !signature) {
+        throw new Error("Webhooks aren't configured (STRIPE_WEBHOOK_SECRET) or the request wasn't signed");
+      }
+
+      // Throws StripeSignatureVerificationError on a bad or replayed signature.
+      const event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
+
+      switch (event.type) {
+        case "payment_intent.succeeded":
+        case "payment_intent.payment_failed":
+          return { type: "payment_updated", paymentIntentId: event.data.object.id };
+        case "account.updated":
+          return { type: "account_updated", accountId: event.data.object.id };
+        default:
+          return null;
+      }
+    },
+
     async ensureCustomer(input) {
       const customer = await stripe.customers.create(
         { name: input.name, metadata: { userId: input.userId } },

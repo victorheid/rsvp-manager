@@ -53,7 +53,23 @@ export interface ConnectedAccountState {
   payoutsEnabled: boolean;
 }
 
+/**
+ * What a provider webhook tells us, reduced to "go and look": we never trust
+ * the payload's contents, only that *something changed* for this object, and
+ * then ask the provider (and update our records idempotently).
+ */
+export type GatewayEvent =
+  | { type: "payment_updated"; paymentIntentId: string }
+  | { type: "account_updated"; accountId: string };
+
 export interface PaymentGateway {
+  /**
+   * Checks a webhook's signature and turns it into a `GatewayEvent`, or null
+   * for event types we don't act on. Throws when the signature is wrong —
+   * anyone can POST to the endpoint, so nothing unsigned is believed.
+   */
+  parseWebhook(rawBody: string, signature: string | null): GatewayEvent | null;
+
   /** One customer per user; the same `userId` always maps to the same customer. */
   ensureCustomer(input: { userId: string; name: string }): Promise<{ customerId: string }>;
 

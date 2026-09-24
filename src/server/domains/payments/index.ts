@@ -5,3 +5,4 @@ export { refundEventPayments, retryCancelledEventRefunds } from "./actions/refun
 export { refundRsvpPayment } from "./actions/refundRsvpPayment";
 export * as paymentRules from "./rules";
 export { resendPayLink } from "./actions/resendPayLink";
+export { completeOwedPaymentByIntent } from "./actions/payOwed";

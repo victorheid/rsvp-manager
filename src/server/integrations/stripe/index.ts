@@ -5,7 +5,7 @@ import type { PaymentGateway } from "@/server/integrations/stripe/types";
 export type * from "@/server/integrations/stripe/types";
 export { FAKE_CARD_SCENARIOS };
 
-let realGateway: { key: string; gateway: PaymentGateway } | null = null;
+let realGateway: { key: string; webhookSecret: string | undefined; gateway: PaymentGateway } | null = null;
 
 /**
  * Picks the payment adapter for the current process: the fake under tests;
@@ -17,8 +17,8 @@ export function getPaymentGateway(): PaymentGateway {
   const key = process.env.STRIPE_SECRET_KEY;
 
   if (!process.env.VITEST && key) {
-    if (realGateway?.key !== key) {
-      realGateway = { key, gateway: createStripeGateway(key) };
+    if (realGateway?.key !== key || realGateway.webhookSecret !== process.env.STRIPE_WEBHOOK_SECRET) {
+      realGateway = { key, webhookSecret: process.env.STRIPE_WEBHOOK_SECRET, gateway: createStripeGateway(key, process.env.STRIPE_WEBHOOK_SECRET) };
     }
     return realGateway.gateway;
   }
