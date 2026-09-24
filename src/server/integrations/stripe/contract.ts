@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import type { PaymentGateway } from "@/server/integrations/stripe/types";
 
@@ -19,9 +20,18 @@ export interface GatewayPlayer {
 export function describeGatewayContract(
   name: string,
   create: () => { gateway: PaymentGateway; play: GatewayPlayer },
+  options: {
+    /**
+     * Whether the payout test can run: real Stripe needs a fully onboarded
+     * connected account (a human filling in Stripe's form) and platform funds,
+     * so that one test is fake-only.
+     */
+    canPayOut: boolean;
+  } = { canPayOut: true },
 ) {
   describe(`${name} satisfies the PaymentGateway contract`, () => {
     it("gives the same customer back for the same user", async () => {
+      const id = randomUUID(); // idempotency keys are remembered by Stripe: never reuse one across tests or runs
       const { gateway } = create();
       const first = await gateway.ensureCustomer({ userId: "u1", name: "Ann B" });
       const second = await gateway.ensureCustomer({ userId: "u1", name: "Ann B" });
@@ -30,6 +40,7 @@ export function describeGatewayContract(
     });
 
     it("reports a setup intent as pending until the card is entered, then returns the card", async () => {
+      const id = randomUUID(); // idempotency keys are remembered by Stripe: never reuse one across tests or runs
       const { gateway, play } = create();
       const { customerId } = await gateway.ensureCustomer({ userId: "u1", name: "Ann B" });
       const { setupIntentId } = await gateway.createSetupIntent({ customerId });
@@ -42,6 +53,7 @@ export function describeGatewayContract(
     });
 
     it("charges a good saved card once per idempotency key", async () => {
+      const id = randomUUID(); // idempotency keys are remembered by Stripe: never reuse one across tests or runs
       const { gateway, play } = create();
       const { customerId } = await gateway.ensureCustomer({ userId: "u1", name: "Ann B" });
       const { setupIntentId } = await gateway.createSetupIntent({ customerId });
@@ -49,7 +61,7 @@ export function describeGatewayContract(
       const state = await gateway.retrieveSetupIntent(setupIntentId);
       if (state.status !== "succeeded") throw new Error("card not saved");
 
-      const charge = { customerId, paymentMethodId: state.card.paymentMethodId, amountCents: 850, idempotencyKey: "k1", description: "game" };
+      const charge = { customerId, paymentMethodId: state.card.paymentMethodId, amountCents: 850, idempotencyKey: `${id}-k1`, description: "game" };
       const first = await gateway.chargeSavedCard(charge);
       const again = await gateway.chargeSavedCard(charge);
 
@@ -58,6 +70,7 @@ export function describeGatewayContract(
     });
 
     it("reports a bad saved card as declined or needing action, not as an error", async () => {
+      const id = randomUUID(); // idempotency keys are remembered by Stripe: never reuse one across tests or runs
       const { gateway, play } = create();
       const { customerId } = await gateway.ensureCustomer({ userId: "u1", name: "Ann B" });
       const { setupIntentId } = await gateway.createSetupIntent({ customerId });
@@ -69,7 +82,7 @@ export function describeGatewayContract(
         customerId,
         paymentMethodId: state.card.paymentMethodId,
         amountCents: 850,
-        idempotencyKey: "k2",
+        idempotencyKey: `${id}-k2`,
         description: "game",
       });
 
@@ -77,12 +90,13 @@ export function describeGatewayContract(
     });
 
     it("completes a payment intent and returns the charge", async () => {
+      const id = randomUUID(); // idempotency keys are remembered by Stripe: never reuse one across tests or runs
       const { gateway, play } = create();
       const { customerId } = await gateway.ensureCustomer({ userId: "u1", name: "Ann B" });
       const { paymentIntentId } = await gateway.createPaymentIntent({
         customerId,
         amountCents: 2100,
-        idempotencyKey: "topup-1",
+        idempotencyKey: `${id}-topup-1`,
         description: "top-up",
       });
 
@@ -93,9 +107,10 @@ export function describeGatewayContract(
     });
 
     it("creates one payment intent per idempotency key", async () => {
+      const id = randomUUID(); // idempotency keys are remembered by Stripe: never reuse one across tests or runs
       const { gateway } = create();
       const { customerId } = await gateway.ensureCustomer({ userId: "u1", name: "Ann B" });
-      const input = { customerId, amountCents: 2100, idempotencyKey: "topup-1", description: "top-up" };
+      const input = { customerId, amountCents: 2100, idempotencyKey: `${id}-topup-1`, description: "top-up" };
 
       const first = await gateway.createPaymentIntent(input);
       const again = await gateway.createPaymentIntent(input);
@@ -104,49 +119,52 @@ export function describeGatewayContract(
     });
 
     it("refunds a charge partly, but never more than was charged", async () => {
+      const id = randomUUID(); // idempotency keys are remembered by Stripe: never reuse one across tests or runs
       const { gateway, play } = create();
       const { customerId } = await gateway.ensureCustomer({ userId: "u1", name: "Ann B" });
       const { paymentIntentId } = await gateway.createPaymentIntent({
         customerId,
         amountCents: 1000,
-        idempotencyKey: "pay-1",
+        idempotencyKey: `${id}-pay-1`,
         description: "game",
       });
       await play.pay(gateway, paymentIntentId, customerId, true);
       const state = await gateway.retrievePaymentIntent(paymentIntentId);
       if (state.status !== "succeeded") throw new Error("payment failed");
 
-      await gateway.refund({ chargeId: state.chargeId, amountCents: 600, idempotencyKey: "r1" });
-      await expect(gateway.refund({ chargeId: state.chargeId, amountCents: 500, idempotencyKey: "r2" })).rejects.toThrow();
-      await gateway.refund({ chargeId: state.chargeId, amountCents: 400, idempotencyKey: "r3" });
+      await gateway.refund({ chargeId: state.chargeId, amountCents: 600, idempotencyKey: `${id}-r1` });
+      await expect(gateway.refund({ chargeId: state.chargeId, amountCents: 500, idempotencyKey: `${id}-r2` })).rejects.toThrow();
+      await gateway.refund({ chargeId: state.chargeId, amountCents: 400, idempotencyKey: `${id}-r3` });
     });
 
     it("refunds once per idempotency key", async () => {
+      const id = randomUUID(); // idempotency keys are remembered by Stripe: never reuse one across tests or runs
       const { gateway, play } = create();
       const { customerId } = await gateway.ensureCustomer({ userId: "u1", name: "Ann B" });
       const { paymentIntentId } = await gateway.createPaymentIntent({
         customerId,
         amountCents: 1000,
-        idempotencyKey: "pay-1",
+        idempotencyKey: `${id}-pay-1`,
         description: "game",
       });
       await play.pay(gateway, paymentIntentId, customerId, true);
       const state = await gateway.retrievePaymentIntent(paymentIntentId);
       if (state.status !== "succeeded") throw new Error("payment failed");
 
-      const first = await gateway.refund({ chargeId: state.chargeId, amountCents: 1000, idempotencyKey: "r1" });
-      const again = await gateway.refund({ chargeId: state.chargeId, amountCents: 1000, idempotencyKey: "r1" });
+      const first = await gateway.refund({ chargeId: state.chargeId, amountCents: 1000, idempotencyKey: `${id}-r1` });
+      const again = await gateway.refund({ chargeId: state.chargeId, amountCents: 1000, idempotencyKey: `${id}-r1` });
 
       expect(again).toEqual(first);
     });
 
-    it("pays out once per idempotency key to an onboarded account", async () => {
+    it.skipIf(!options.canPayOut)("pays out once per idempotency key to an onboarded account", async () => {
+      const id = randomUUID(); // idempotency keys are remembered by Stripe: never reuse one across tests or runs
       const { gateway } = create();
       const account = await gateway.ensureConnectedAccount({ userId: "org", name: "Org O" });
       const link = await gateway.createOnboardingLink({ accountId: account.accountId, returnUrl: "https://app.example/back" });
       expect(link.url).toContain("https://");
 
-      const payout = { accountId: account.accountId, amountCents: 4000, idempotencyKey: "p1", description: "event" };
+      const payout = { accountId: account.accountId, amountCents: 4000, idempotencyKey: `${id}-p1`, description: "event" };
       const first = await gateway.payout(payout);
       const again = await gateway.payout(payout);
 
