@@ -17,8 +17,12 @@ interface FieldProps {
   error?: string;
 }
 
+// `min-w-0` + `appearance-none`: iOS Safari gives native date/time inputs an intrinsic width they won't
+// shrink below, so without these they spill past the screen edge. The pseudo-element keeps the value
+// left-aligned like every other field (Safari centres it once the native look is gone).
 const CONTROL =
-  "w-full rounded-md border-[1.5px] bg-bg-surface px-4 text-body text-text-primary placeholder:text-text-tertiary " +
+  "w-full min-w-0 appearance-none rounded-md border-[1.5px] bg-bg-surface px-4 text-body text-text-primary placeholder:text-text-tertiary " +
+  "[&::-webkit-date-and-time-value]:text-left " +
   "focus:border-2 focus:border-border-focus focus:outline-none disabled:bg-bg-subtle disabled:text-text-tertiary";
 
 function controlClass(error: string | undefined, extra: string): string {
@@ -34,7 +38,8 @@ function FieldShell({
 }: FieldProps & { id: string; children: ReactNode }) {
   const message = error ?? helper;
   return (
-    <div className="flex flex-col gap-1">
+    // `min-w-0` so a field can shrink inside a grid cell (Starts / Ends side by side).
+    <div className="flex min-w-0 flex-col gap-1">
       <label htmlFor={id} className="text-small-strong text-text-primary">
         {label}
       </label>
