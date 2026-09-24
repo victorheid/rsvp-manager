@@ -26,7 +26,6 @@ import {
 import { trpc } from "@/lib/trpc/client";
 import { formatCents, formatDateTime, formatTime } from "@/lib/format";
 import { phaseChip } from "@/app/_components/eventPhase";
-import { headcountText } from "@/app/_components/eventPrice";
 import { useNow } from "@/app/_components/useNow";
 import { useOrigin } from "@/app/_components/useOrigin";
 import type { OrganizerEventAction } from "@/server/domains/events";
@@ -42,6 +41,7 @@ import {
   type OrganizerRsvp,
   type OrganizerWaitlistEntry,
 } from "./_components/managePresentation";
+import { eventSharePreview, eventShareUrl } from "../_components/eventSharePreview";
 
 /**
  * UI spec §10.5: manage one game, one screen per phase. What it shows and
@@ -163,6 +163,8 @@ export default function ManageEventPage() {
   const amountCents = event.priceDisplay.mode === "range" ? event.priceDisplay.maxCents : event.priceDisplay.amountCents;
   const organizerId = event.group.organizerId;
   const startsAt = new Date(event.startsAt);
+  // Same card and link as the public page's share sheet, so both send the same preview.
+  const sharePreview = eventSharePreview(event, now);
   const chip = phaseChip(phase);
 
   const going = view.rsvps.filter((rsvp) => rsvp.status === "GOING");
@@ -644,15 +646,9 @@ export default function ManageEventPage() {
         open={shareOpen}
         onClose={() => setShareOpen(false)}
         title="Share this game"
-        url={`${origin}/e/${slug}`}
-        message={`${event.title} · ${formatDateTime(startsAt)} · ${event.location}`}
-        preview={
-          <SharePreview
-            title={event.title}
-            details={`${formatDateTime(startsAt)} · ${event.location}`}
-            summary={`${headcountText(going.length, event.maxPlayers)} · ${formatCents(amountCents)} each`}
-          />
-        }
+        url={eventShareUrl(origin, slug, sharePreview)}
+        message={`${sharePreview.title} · ${sharePreview.details}`}
+        preview={<SharePreview {...sharePreview} />}
       />
     </Screen>
   );
