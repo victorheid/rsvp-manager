@@ -41,7 +41,7 @@ describe.skipIf(!hasTestDb)("notification triggers (§9)", () => {
 
   const notified = () => fakePushSender.sent.map((entry) => entry.endpoint.replace("https://push.example/", "")).sort();
 
-  async function setup(maxPlayers?: number) {
+  async function setup(maxPlayers?: number, waitlistMode: "IN_ORDER" | "FIRST_TO_CLAIM" = "IN_ORDER") {
     const organizer = await makeUser("org", "+353830000001");
     const group = await organizer.caller.groups.create({ name: "Friday Futsal" });
     const member = await makeUser("member", "+353830000002");
@@ -60,6 +60,7 @@ describe.skipIf(!hasTestDb)("notification triggers (§9)", () => {
       totalCostCents: 800,
       pricingMode: PricingMode.FIXED_PER_HEAD,
       cashAllowed: true,
+      waitlistMode,
     };
     const event = await organizer.caller.events.create(eventInput);
 
@@ -109,32 +110,43 @@ describe.skipIf(!hasTestDb)("notification triggers (§9)", () => {
     expect(notified()).toEqual(["member"]);
   });
 
-  it("tells a player when the organizer removes them", async () => {
+  it("tells a player when the organizer marks them dropped out", async () => {
     const { organizer, member, event } = await setup();
     const rsvp = await member.caller.rsvps.create({ eventId: event.id, paymentMethod: "CASH" });
     fakePushSender.reset();
 
-    await organizer.caller.rsvps.remove({ rsvpId: rsvp.id });
+    await organizer.caller.rsvps.markDroppedOut({ rsvpId: rsvp.id });
 
     expect(notified()).toEqual(["member"]);
-    expect(fakePushSender.sent[0]?.message.title).toBe("You were removed from a game");
+    expect(fakePushSender.sent[0]?.message.title).toBe("You've been marked as dropped out");
   });
 
-  it("tells the waitlist when a full game loses a player — by dropping out or by removal", async () => {
+  it("in order: tells only the next person that a spot is held for them — by drop-out or by the organizer", async () => {
     const { organizer, member, event } = await setup(1);
-    const waiter = await makeUser("waiter", "+353830000003");
+    const next = await makeUser("next", "+353830000003");
+    const later = await makeUser("later", "+353830000004");
     const rsvp = await member.caller.rsvps.create({ eventId: event.id, paymentMethod: "CASH" });
+    await next.caller.waitlist.join({ eventId: event.id });
+    await later.caller.waitlist.join({ eventId: event.id });
+    fakePushSender.reset();
+
+    await organizer.caller.rsvps.markDroppedOut({ rsvpId: rsvp.id });
+
+    expect(notified()).toEqual(["member", "next"]);
+    expect(fakePushSender.sent.find((entry) => entry.endpoint.endsWith("/next"))?.message.title).toBe("A spot is yours");
+  });
+
+  it("first to claim: tells everyone waiting when a full game loses a player", async () => {
+    const { member, event } = await setup(1, "FIRST_TO_CLAIM");
+    const waiter = await makeUser("waiter", "+353830000003");
+    await member.caller.rsvps.create({ eventId: event.id, paymentMethod: "CASH" });
     await waiter.caller.waitlist.join({ eventId: event.id });
     fakePushSender.reset();
 
     await member.caller.rsvps.drop({ eventId: event.id });
+
     expect(notified()).toEqual(["waiter"]);
     expect(fakePushSender.sent[0]?.message.title).toBe("A spot opened up");
-
-    fakePushSender.reset();
-    await member.caller.rsvps.create({ eventId: event.id, paymentMethod: "CASH" });
-    await organizer.caller.rsvps.remove({ rsvpId: rsvp.id });
-    expect(notified()).toEqual(["member", "waiter"]);
   });
 
   it("doesn't tell the waitlist when the game still had room", async () => {
@@ -185,7 +197,7 @@ describe.skipIf(!hasTestDb)("notification triggers (§9)", () => {
       const rsvp = await member.caller.rsvps.create({ eventId: event.id, paymentMethod: "CASH" });
 
       await organizer.caller.events.edit({ ...eventInput, eventId: event.id, location: "Court 2" });
-      await organizer.caller.rsvps.remove({ rsvpId: rsvp.id });
+      await organizer.caller.rsvps.markDroppedOut({ rsvpId: rsvp.id });
 
       expect(fakeSmsSender.sentMessages).toEqual([]);
     });

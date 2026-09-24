@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { EventStatus } from "@/generated/prisma/enums";
-import { freedAWaitlistedSpot, hasShownUp, isJoinableEventStatus, organizerRowActions } from "./rules";
+import { hasShownUp, isJoinableEventStatus, organizerRowActions } from "./rules";
 
 describe("isJoinableEventStatus", () => {
   it("allows joining while open or confirmed", () => {
@@ -42,8 +42,8 @@ describe("organizerRowActions", () => {
     const failedCard = { status: "GOING", paymentStatus: "OWES", paymentMethod: "CARD", attended: null } as const;
 
     it("is offered for a failed card payment once the game is confirmed, after Mark paid", () => {
-      expect(actions(failedCard, "CONFIRMED")).toEqual(["MARK_PAID", "SEND_PAY_LINK", "REMOVE"]);
-      expect(actions(failedCard, "OPEN")).toEqual(["REMOVE"]);
+      expect(actions(failedCard, "CONFIRMED")).toEqual(["MARK_PAID", "SEND_PAY_LINK", "MARK_DROPPED_OUT"]);
+      expect(actions(failedCard, "OPEN")).toEqual(["MARK_DROPPED_OUT"]);
     });
 
     it("is not offered for cash that's owed, or once the game is cancelled", () => {
@@ -58,8 +58,8 @@ describe("organizerRowActions", () => {
     const droppedOutPaid = { ...paidByCard, status: "CANCELLED" } as const;
 
     it("is offered on an online payment that went through, last before Remove", () => {
-      expect(actions(paidByCard, "OPEN")).toEqual(["REFUND", "REMOVE"]);
-      expect(actions(paidFromWallet, "CONFIRMED")).toEqual(["REFUND", "REMOVE"]);
+      expect(actions(paidByCard, "OPEN")).toEqual(["REFUND", "MARK_DROPPED_OUT"]);
+      expect(actions(paidFromWallet, "CONFIRMED")).toEqual(["REFUND", "MARK_DROPPED_OUT"]);
       expect(actions(paidByCard, "LIVE")).toEqual(["MARK_NO_SHOW", "REFUND"]);
     });
 
@@ -85,19 +85,19 @@ describe("organizerRowActions", () => {
   });
 
   it("offers only Remove while the game is open — nothing has been charged or played yet", () => {
-    expect(actions(going, "OPEN")).toEqual(["REMOVE"]);
-    expect(actions(cashDue, "OPEN")).toEqual(["REMOVE"]);
+    expect(actions(going, "OPEN")).toEqual(["MARK_DROPPED_OUT"]);
+    expect(actions(cashDue, "OPEN")).toEqual(["MARK_DROPPED_OUT"]);
   });
 
   it("offers Mark paid once confirmed, ahead of Remove", () => {
-    expect(actions(owes, "CONFIRMED")).toEqual(["MARK_PAID", "REMOVE"]);
-    expect(actions(going, "CONFIRMED")).toEqual(["REMOVE"]);
+    expect(actions(owes, "CONFIRMED")).toEqual(["MARK_PAID", "MARK_DROPPED_OUT"]);
+    expect(actions(going, "CONFIRMED")).toEqual(["MARK_DROPPED_OUT"]);
   });
 
   it("offers Mark paid first, then No-show, while the game is live — and never Remove", () => {
     expect(actions(cashDue, "LIVE")).toEqual(["MARK_PAID", "MARK_NO_SHOW"]);
     expect(actions(going, "LIVE")).toEqual(["MARK_NO_SHOW"]);
-    expect(actions(going, "LIVE")).not.toContain("REMOVE");
+    expect(actions(going, "LIVE")).not.toContain("MARK_DROPPED_OUT");
   });
 
   it("leads with Undo no-show on a no-show", () => {
@@ -121,20 +121,3 @@ describe("organizerRowActions", () => {
   });
 });
 
-describe("freedAWaitlistedSpot", () => {
-  it("is true when a full event loses a real player", () => {
-    expect(freedAWaitlistedSpot({ maxPlayers: 10 }, { userId: "u1" }, 10)).toBe(true);
-  });
-
-  it("is false when there was already room", () => {
-    expect(freedAWaitlistedSpot({ maxPlayers: 10 }, { userId: "u1" }, 9)).toBe(false);
-  });
-
-  it("is false when there's no max", () => {
-    expect(freedAWaitlistedSpot({ maxPlayers: null }, { userId: "u1" }, 50)).toBe(false);
-  });
-
-  it("is false for a walk-in, who never held a spot", () => {
-    expect(freedAWaitlistedSpot({ maxPlayers: 10 }, { userId: null }, 10)).toBe(false);
-  });
-});

@@ -1,24 +1,10 @@
 import type { EventModel, RsvpModel } from "@/generated/prisma/models";
 import type { EventPhase } from "@/server/domains/events";
-import { countsTowardMax, hasCapacity } from "@/server/domains/events/rules";
 
 /**
  * Business rules for RSVPs (spec §4, §6, §8). Pure functions only: no
  * Prisma calls, no Date.now(), no I/O.
  */
-
-/**
- * §9 "Spot open": whether someone leaving just freed a spot that the
- * waitlist was waiting on — the event was full before, and the leaver held
- * a real spot (walk-ins don't count against max, §8).
- */
-export function freedAWaitlistedSpot(
-  event: Pick<EventModel, "maxPlayers">,
-  leaver: Pick<RsvpModel, "userId">,
-  goingCountBefore: number,
-): boolean {
-  return countsTowardMax(leaver) && !hasCapacity(event, goingCountBefore);
-}
 
 /** §3, §4: joining is only possible while the event is still open for it. */
 export function isJoinableEventStatus(status: EventModel["status"]): boolean {
@@ -36,7 +22,7 @@ export function hasShownUp(rsvp: Pick<RsvpModel, "attended">): boolean {
 }
 
 /** Things the organizer can do to one person from the Manage screen. */
-export type OrganizerRowAction = "MARK_PAID" | "MARK_NO_SHOW" | "UNDO_NO_SHOW" | "SEND_PAY_LINK" | "REFUND" | "REMOVE";
+export type OrganizerRowAction = "MARK_PAID" | "MARK_NO_SHOW" | "UNDO_NO_SHOW" | "SEND_PAY_LINK" | "REFUND" | "MARK_DROPPED_OUT";
 
 /**
  * Which per-person actions exist right now (UI spec §10.5). The list is in
@@ -51,8 +37,8 @@ export type OrganizerRowAction = "MARK_PAID" | "MARK_NO_SHOW" | "UNDO_NO_SHOW" |
  *    paid out (`refundsOpen`, §5). It stays on someone who dropped out —
  *    that's where the organizer decides to refund them (§4) — and it
  *    leads for them, as their only action.
- *  - Remove: only before the game starts. Once it's running, someone who
- *    isn't there is a no-show, not a removal.
+ *  - Mark dropped out: only before the game starts. Once it's running,
+ *    someone who isn't there is a no-show.
  *  - No-show / undo: only once the game has started, and never on the
  *    organizer's own RSVP.
  */
@@ -94,7 +80,7 @@ export function organizerRowActions(input: {
   }
 
   if (isGoing && !isOrganizersOwnRsvp && (phase === "OPEN" || phase === "CONFIRMED")) {
-    actions.push("REMOVE");
+    actions.push("MARK_DROPPED_OUT");
   }
 
   return actions;

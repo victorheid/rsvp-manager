@@ -35,7 +35,6 @@ import { eventPhase } from "@/server/domains/events/rules";
 import { countsTowardMax, hasCapacity } from "@/server/domains/events/rules";
 import { IsItOnBanner, ViewerStatusBanner, expectedPriceCents } from "./_components/EventStatusBanners";
 import { RsvpSheet } from "./_components/RsvpSheet";
-import { WaitlistSheet } from "./_components/WaitlistSheet";
 
 const NAMES_SHOWN = 6;
 
@@ -56,7 +55,6 @@ export default function EventPage() {
   const { shareOpen, setShareOpen } = useOpenShareOnArrival();
 
   const [rsvpOpen, setRsvpOpen] = useState(false);
-  const [waitlistOpen, setWaitlistOpen] = useState(false);
   const [dropOpen, setDropOpen] = useState(false);
   const [showAllNames, setShowAllNames] = useState(false);
   const [showWaitlist, setShowWaitlist] = useState(false);
@@ -77,6 +75,13 @@ export default function EventPage() {
       toast({ message: "You’ve dropped out" });
       return refresh();
     },
+  });
+  const joinWaitlist = trpc.waitlist.join.useMutation({
+    onSuccess: () => {
+      toast({ message: "You’re on the waitlist" });
+      return refresh();
+    },
+    onError: (err) => failed(err.message),
   });
   const leaveWaitlist = trpc.waitlist.leave.useMutation({
     onSuccess: () => {
@@ -101,10 +106,9 @@ export default function EventPage() {
   const phase = eventPhase(event, now);
   const players = event.rsvps.filter(countsTowardMax);
   const isGoing = event.viewerRsvp?.status === "GOING";
-  const isWaitlisted = event.viewerWaitlistPosition !== null;
+  const isWaitlisted = event.viewerWaitlist !== null;
   const isFull = !hasCapacity(event, players.length);
   const isJoinable = phase === "OPEN" || phase === "CONFIRMED";
-  const viewerWaitlistMode = event.viewerWaitlistMode;
   const price = formatCents(expectedPriceCents(event));
   const startsAt = new Date(event.startsAt);
   const spotsLeft = event.maxPlayers === null ? null : Math.max(0, event.maxPlayers - players.length);
@@ -132,22 +136,17 @@ export default function EventPage() {
   } else if (isJoinable && !isGoing && !isWaitlisted && isFull) {
     actionBar = (
       <StickyActionBar context="Nothing charged now · you can claim a spot if one opens">
-        <Button size="lg" fullWidth onClick={() => requireAuth(() => setWaitlistOpen(true))}>
+        <Button size="lg" fullWidth loading={joinWaitlist.isPending} onClick={() => requireAuth(() => joinWaitlist.mutate({ eventId: event.id }))}>
           Join waitlist
         </Button>
       </StickyActionBar>
     );
   } else if (isJoinable && isWaitlisted) {
     actionBar = (
-      <StickyActionBar context={viewerWaitlistMode === "AUTO" ? "We’ll move you in and pay automatically if a spot opens" : "We’ll tell you if a spot opens"}>
-        <div className="flex gap-3">
-          <Button size="lg" variant="secondary" className="flex-1" onClick={() => setWaitlistOpen(true)}>
-            Change
-          </Button>
-          <Button size="lg" variant="secondary" className="flex-1" loading={leaveWaitlist.isPending} onClick={() => leaveWaitlist.mutate({ eventId: event.id })}>
-            Leave waitlist
-          </Button>
-        </div>
+      <StickyActionBar context="If a spot opens for you, it shows up here">
+        <Button size="lg" variant="secondary" fullWidth loading={leaveWaitlist.isPending} onClick={() => leaveWaitlist.mutate({ eventId: event.id })}>
+          Leave waitlist
+        </Button>
       </StickyActionBar>
     );
   } else if (isJoinable && isGoing) {
@@ -303,20 +302,6 @@ export default function EventPage() {
         pending={createRsvp.isPending}
         error={createRsvp.error?.message}
         onJoin={(join) => createRsvp.mutate({ eventId: event.id, ...join })}
-      />
-
-      <WaitlistSheet
-        open={waitlistOpen}
-        onClose={() => setWaitlistOpen(false)}
-        eventId={event.id}
-        onlineAllowed={event.onlineAllowed}
-        priceCents={expectedPriceCents(event)}
-        currentMode={isWaitlisted ? (viewerWaitlistMode ?? "MANUAL") : undefined}
-        onDone={(message) => {
-          setWaitlistOpen(false);
-          toast({ message });
-          return refresh();
-        }}
       />
 
       <ConfirmSheet

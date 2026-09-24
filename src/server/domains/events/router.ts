@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { PricingMode } from "@/generated/prisma/enums";
+import { PricingMode, WaitlistMode } from "@/generated/prisma/enums";
 import { protectedProcedure, publicProcedure, router } from "@/server/trpc";
 import { createEvent } from "@/server/domains/events/actions/createEvent";
 import { editEvent } from "@/server/domains/events/actions/editEvent";
@@ -10,6 +10,7 @@ import { cancelEvent } from "@/server/domains/events/actions/cancelEvent";
 import { getEventBySlug } from "@/server/domains/events/getters/getEventBySlug";
 import { getEventDefaults } from "@/server/domains/events/getters/getEventDefaults";
 import { costBreakdownSchema } from "@/server/domains/events/costBreakdown";
+import { WAITLIST_HOLD_MINUTES_OPTIONS } from "@/server/domains/events/rules";
 
 // Shared by create and edit — same shape both ways (§10.4: "same form").
 const eventFormSchema = z.object({
@@ -27,6 +28,12 @@ const eventFormSchema = z.object({
   cashAllowed: z.boolean().optional(),
   onlineAllowed: z.boolean().optional(),
   autoChargeAtCutoff: z.boolean().optional(),
+  waitlistMode: z.nativeEnum(WaitlistMode).optional(),
+  waitlistHoldMinutes: z
+    .number()
+    .int()
+    .refine((minutes) => WAITLIST_HOLD_MINUTES_OPTIONS.some((option) => option === minutes), "Pick one of the hold times offered.")
+    .optional(),
 });
 
 export const eventsRouter = router({
@@ -53,7 +60,7 @@ export const eventsRouter = router({
   getBySlug: publicProcedure
     .input(z.object({ slug: z.string() }))
     .query(async ({ ctx, input }) => {
-      const event = await getEventBySlug(ctx.db, input.slug, { viewerId: ctx.user?.id });
+      const event = await getEventBySlug(ctx.db, input.slug, { viewerId: ctx.user?.id, now: new Date() });
 
       if (!event) {
         throw new TRPCError({ code: "NOT_FOUND" });

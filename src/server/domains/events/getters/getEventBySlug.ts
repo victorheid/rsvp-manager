@@ -2,10 +2,10 @@ import type { Db } from "@/server/db";
 import { EventStatus, PricingMode } from "@/generated/prisma/enums";
 import type { EventModel } from "@/generated/prisma/models";
 // The rules file only: waitlist's index depends on events, so importing it here would be a cycle.
-import { sortWaitlist } from "@/server/domains/waitlist/rules";
+import { isHoldActive, sortWaitlist, spotsHeldForOthers } from "@/server/domains/waitlist/rules";
 import { feeRules, getFeeScheduleById } from "@/server/domains/fees";
 import { costBreakdownSchema } from "@/server/domains/events/costBreakdown";
-import { splitPriceRangeCents } from "@/server/domains/events/rules";
+import { countsTowardMax, hasCapacity, splitPriceRangeCents } from "@/server/domains/events/rules";
 
 export type PriceDisplay =
   | { mode: "fixed"; amountCents: number }
@@ -30,15 +30,18 @@ function priceDisplay(event: Pick<EventModel, "status" | "pricingMode" | "totalC
 }
 
 export interface GetEventBySlugOptions {
-  /** Signed-in viewer, if any — used to surface their own RSVP. */
+  /** Signed-in viewer, if any — used to surface their own RSVP and place on the waitlist. */
   viewerId?: string;
+  /** Holds are only shown while they're running (§6). */
+  now: Date;
 }
 
 /**
- * Public event view (§4): spots left, price/range, cut-off, who's in.
- * No account needed to call this.
+ * Public event view (§4): spots left, price/range, cut-off, and the list —
+ * who's in, the waitlist in order (with any spot held and until when), and
+ * who dropped out. No account needed to call this.
  */
-export async function getEventBySlug(db: Db, slug: string, options: GetEventBySlugOptions = {}) {
+export async function getEventBySlug(db: Db, slug: string, options: GetEventBySlugOptions) {
   const event = await db.event.findUnique({
     where: { slug },
     include: {
@@ -49,8 +52,6 @@ export async function getEventBySlug(db: Db, slug: string, options: GetEventBySl
         include: { user: { select: { firstName: true, lastInitial: true } } },
       },
       waitlistEntries: {
-        orderBy: { createdAt: "asc" },
-        omit: { stripePaymentMethodId: true, cardBrand: true, cardLast4: true },
         include: { user: { select: { firstName: true, lastInitial: true } } },
       },
       group: { select: { name: true, slug: true, organizerId: true } },
@@ -75,11 +76,36 @@ export async function getEventBySlug(db: Db, slug: string, options: GetEventBySl
 
   const isOrganizer = options.viewerId !== undefined && options.viewerId === event.group.organizerId;
 
-  // §6: auto-join entries come first, then notify-me, each by join time.
-  const waitlistEntries = sortWaitlist(event.waitlistEntries);
-  const viewerWaitlistPosition = options.viewerId
-    ? waitlistEntries.findIndex((entry) => entry.userId === options.viewerId)
-    : -1;
+  // §6: first come first served; a hold only shows while it's running.
+  const { now } = options;
+  const waitlistEntries = sortWaitlist(event.waitlistEntries).map((entry) => ({
+    id: entry.id,
+    userId: entry.userId,
+    user: entry.user,
+    heldUntil: isHoldActive(entry, now) ? entry.heldUntil : null,
+  }));
+  const viewerWaitlistIndex = waitlistEntries.findIndex((entry) => entry.userId === options.viewerId);
+  const viewerEntry = event.waitlistEntries.find((entry) => entry.userId === options.viewerId && entry.status === "WAITING");
+  const going = event.rsvps.filter(countsTowardMax).length;
+  const viewerWaitlist = viewerEntry
+    ? {
+        position: viewerWaitlistIndex + 1,
+        heldUntil: isHoldActive(viewerEntry, now) ? viewerEntry.heldUntil : null,
+        // A spot nobody holds (first to claim, or everyone had their turn): anyone waiting can take it.
+        spotOpen: hasCapacity(event, going + spotsHeldForOthers(event.waitlistEntries, viewerEntry.userId, now)),
+      }
+    : null;
+
+  // §4 "Dropped out": people who left the game or the waitlist (walk-ins aren't shown publicly).
+  const droppedRsvps = await db.rsvp.findMany({
+    where: { eventId: event.id, status: "CANCELLED", userId: { not: null } },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, user: { select: { firstName: true, lastInitial: true } } },
+  });
+  const droppedOut = [
+    ...droppedRsvps.flatMap((rsvp) => (rsvp.user ? [{ id: rsvp.id, user: rsvp.user }] : [])),
+    ...event.waitlistEntries.flatMap((entry) => (entry.status === "DROPPED_OUT" ? [{ id: entry.id, user: entry.user }] : [])),
+  ];
 
   // §5: the service fee a card payment adds, from the schedule pinned at creation — on the locked
   // price once there is one, else on the most it could be. Wallet and cash carry no fee.
@@ -92,11 +118,12 @@ export async function getEventBySlug(db: Db, slug: string, options: GetEventBySl
     ...event,
     cardFeeCents,
     waitlistEntries,
+    spotsHeld: waitlistEntries.filter((entry) => entry.heldUntil !== null).length,
+    droppedOut,
     costBreakdown,
     priceDisplay: priceDisplay(event),
     viewerRsvp,
     isOrganizer,
-    viewerWaitlistPosition: viewerWaitlistPosition === -1 ? null : viewerWaitlistPosition + 1,
-    viewerWaitlistMode: waitlistEntries[viewerWaitlistPosition]?.promotionMode ?? null,
+    viewerWaitlist,
   };
 }

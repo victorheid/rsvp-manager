@@ -2,17 +2,16 @@ import { describe, expect, it } from "vitest";
 import {
   cutoffReminderMessage,
   eventCancelledMessage,
-  autoJoinSkippedMessage,
   eventChangedMessage,
   eventConfirmedMessage,
   isMoneyRelated,
-  movedInMessage,
   newEventMessage,
   organizerCutoffAlertMessage,
   paymentFailedMessage,
   refundIssuedMessage,
-  removedMessage,
+  markedDroppedOutMessage,
   smsBody,
+  spotHeldMessage,
   spotOpenMessage,
 } from "@/server/domains/notifications/rules";
 
@@ -25,7 +24,7 @@ describe("notification messages", () => {
       eventConfirmedMessage({ ...event, lockedPriceCents: 800 }),
       eventChangedMessage(event),
       eventCancelledMessage(event),
-      removedMessage(event),
+      markedDroppedOutMessage(event),
       spotOpenMessage(event),
     ];
 
@@ -43,7 +42,7 @@ describe("notification messages", () => {
     expect(eventConfirmedMessage({ ...event, lockedPriceCents: 800 }).kind).toBe("EVENT_CONFIRMED");
     expect(eventChangedMessage(event).kind).toBe("EVENT_CHANGED");
     expect(eventCancelledMessage(event).kind).toBe("EVENT_CANCELLED");
-    expect(removedMessage(event).kind).toBe("REMOVED");
+    expect(markedDroppedOutMessage(event).kind).toBe("MARKED_DROPPED_OUT");
     expect(spotOpenMessage(event).kind).toBe("SPOT_OPEN");
   });
 
@@ -57,13 +56,12 @@ describe("isMoneyRelated", () => {
   it.each([
     ["EVENT_CONFIRMED", true],
     ["EVENT_CANCELLED", true],
-    ["MOVED_IN", true],
-    ["AUTO_JOIN_SKIPPED", false],
+    ["SPOT_HELD", true],
     ["PAYMENT_FAILED", true],
     ["REFUND_ISSUED", true],
     ["NEW_EVENT", false],
     ["EVENT_CHANGED", false],
-    ["REMOVED", false],
+    ["MARKED_DROPPED_OUT", false],
     ["SPOT_OPEN", false],
     ["TEST", false],
   ] as const)("%s → %s", (kind, expected) => {
@@ -115,8 +113,9 @@ describe("payment messages", () => {
 });
 
 describe("waitlist messages", () => {
-  it("tell a promoted person they're in, and a skipped one why", () => {
-    expect(movedInMessage(event)).toMatchObject({ kind: "MOVED_IN", url: "/e/friday-game-abc" });
-    expect(autoJoinSkippedMessage(event)).toMatchObject({ kind: "AUTO_JOIN_SKIPPED", url: "/e/friday-game-abc" });
+  it("tell the next person a spot is held for them, and until when", () => {
+    const message = spotHeldMessage(event, new Date("2026-10-01T20:00:00Z"));
+    expect(message).toMatchObject({ kind: "SPOT_HELD", url: "/e/friday-game-abc" });
+    expect(message.body).toContain("21:00"); // shown in the event's time zone (Irish summer time)
   });
 });

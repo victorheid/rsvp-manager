@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import type { Db } from "@/server/db";
-import { EventStatus, PricingMode, RsvpStatus } from "@/generated/prisma/enums";
+import { EventStatus, PricingMode, RsvpStatus, WaitlistEntryStatus, WaitlistMode } from "@/generated/prisma/enums";
 import type { CostBreakdownItem } from "@/server/domains/events/costBreakdown";
 import { notifyEventAudience } from "@/server/domains/events/actions/notifyEventAudience";
 import { notificationRules, notifyUsers } from "@/server/domains/notifications";
@@ -23,6 +23,8 @@ export interface EditEventInput {
   cashAllowed?: boolean;
   onlineAllowed?: boolean;
   autoChargeAtCutoff?: boolean;
+  waitlistMode?: WaitlistMode;
+  waitlistHoldMinutes?: number;
 }
 
 /**
@@ -123,6 +125,8 @@ export async function editEvent(db: Db, input: EditEventInput) {
         cashAllowed: input.cashAllowed ?? false,
         onlineAllowed: input.onlineAllowed ?? false,
         autoChargeAtCutoff: input.autoChargeAtCutoff ?? true,
+        waitlistMode: input.waitlistMode ?? WaitlistMode.IN_ORDER,
+        waitlistHoldMinutes: input.waitlistHoldMinutes ?? 60,
       },
     });
 
@@ -138,10 +142,14 @@ export async function editEvent(db: Db, input: EditEventInput) {
     });
   }
 
-  // §6: a raised max opens spots — tell the notify-me waitlist (auto-join entries are moved in by the worker).
+  // §6: a raised max opens spots. On a first-to-claim waitlist, everyone waiting hears about it;
+  // on an in-order one the worker holds the new spots for the next people and tells them.
   const raisedMax = before.maxPlayers !== null && (after.maxPlayers === null || after.maxPlayers > before.maxPlayers);
-  if (raisedMax) {
-    const waiting = await db.waitlistEntry.findMany({ where: { eventId: after.id, promotionMode: "MANUAL" }, select: { userId: true } });
+  if (raisedMax && after.waitlistMode === WaitlistMode.FIRST_TO_CLAIM) {
+    const waiting = await db.waitlistEntry.findMany({
+      where: { eventId: after.id, status: WaitlistEntryStatus.WAITING, heldUntil: null },
+      select: { userId: true },
+    });
     await notifyUsers(db, { userIds: waiting.map((entry) => entry.userId), message: notificationRules.spotOpenMessage(after) });
   }
 

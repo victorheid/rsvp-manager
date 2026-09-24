@@ -1,5 +1,5 @@
 import type { EventModel } from "@/generated/prisma/models";
-import { formatCents, formatDateTime } from "@/lib/format";
+import { formatCents, formatDateTime, formatTime } from "@/lib/format";
 import type { PushMessage } from "@/server/integrations/push";
 
 /**
@@ -13,12 +13,11 @@ export const NOTIFICATION_KINDS = [
   "EVENT_CONFIRMED",
   "EVENT_CHANGED",
   "EVENT_CANCELLED",
-  "REMOVED",
+  "MARKED_DROPPED_OUT",
   "SPOT_OPEN",
   "CUTOFF_REMINDER",
   "ORGANIZER_CUTOFF_ALERT",
-  "MOVED_IN",
-  "AUTO_JOIN_SKIPPED",
+  "SPOT_HELD",
   "PAYMENT_FAILED",
   "REFUND_ISSUED",
   "TEST",
@@ -27,13 +26,13 @@ export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
 /**
  * §9: SMS/WhatsApp is only for money-related messages, to keep costs down —
- * charged, payment failed, cancelled/refunded (and, once auto-join exists,
- * moved in from the waitlist). Everything else is web push only.
+ * charged, payment failed, cancelled/refunded, and a spot held for you
+ * (it runs out). Everything else is web push only.
  */
 const MONEY_RELATED_KINDS: readonly NotificationKind[] = [
   "EVENT_CONFIRMED",
   "EVENT_CANCELLED",
-  "MOVED_IN",
+  "SPOT_HELD",
   "PAYMENT_FAILED",
   "REFUND_ISSUED",
 ];
@@ -100,22 +99,22 @@ export function eventCancelledMessage(event: NotifiedEvent): NotificationMessage
   };
 }
 
-/** §9 trigger: "Removed by organizer" → that person. */
-export function removedMessage(event: NotifiedEvent): NotificationMessage {
+/** §9 trigger: "Marked as dropped out by organizer" → that person (in the game or on the waitlist, §8). */
+export function markedDroppedOutMessage(event: NotifiedEvent): NotificationMessage {
   return {
-    kind: "REMOVED",
-    title: "You were removed from a game",
-    body: `The organizer removed you from ${event.title}.`,
+    kind: "MARKED_DROPPED_OUT",
+    title: "You've been marked as dropped out",
+    body: `The organizer marked you as dropped out of ${event.title}.`,
     url: eventUrl(event),
   };
 }
 
-/** §9 trigger: "Spot open (notify-me waitlist)" → notify-me entries. */
+/** §9 trigger: "Spot open (first-to-claim waitlist)" → everyone on the waitlist without a held spot. */
 export function spotOpenMessage(event: NotifiedEvent): NotificationMessage {
   return {
     kind: "SPOT_OPEN",
     title: "A spot opened up",
-    body: `${event.title} has room now. First to claim it gets it.`,
+    body: `${event.title} has room now. First to take it gets it.`,
     url: eventUrl(event),
   };
 }
@@ -152,22 +151,12 @@ export function organizerCutoffAlertMessage(
   };
 }
 
-/** §9 trigger: "Moved in from waitlist" → the promoted person. */
-export function movedInMessage(event: NotifiedEvent): NotificationMessage {
+/** §9 trigger: "Spot held for you" (in-order waitlist, §6) → that person. */
+export function spotHeldMessage(event: NotifiedEvent, heldUntil: Date): NotificationMessage {
   return {
-    kind: "MOVED_IN",
-    title: "You're in!",
-    body: `A spot opened up and you're in ${event.title}. You can drop out any time before it starts.`,
-    url: eventUrl(event),
-  };
-}
-
-/** §6: an auto-join entry that couldn't be moved in (e.g. the wallet can't cover it) is told, and keeps its place. */
-export function autoJoinSkippedMessage(event: NotifiedEvent): NotificationMessage {
-  return {
-    kind: "AUTO_JOIN_SKIPPED",
-    title: "We couldn't move you in",
-    body: `A spot opened in ${event.title}, but your wallet couldn't cover it. Top up, or claim it yourself while it's free.`,
+    kind: "SPOT_HELD",
+    title: "A spot is yours",
+    body: `A spot opened in ${event.title}. It's held for you until ${formatTime(heldUntil)}.`,
     url: eventUrl(event),
   };
 }

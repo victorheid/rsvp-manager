@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import type { Db } from "@/server/db";
-import { PricingMode } from "@/generated/prisma/enums";
+import { PricingMode, WaitlistMode } from "@/generated/prisma/enums";
 import { getCurrentFeeSchedule } from "@/server/domains/fees";
 import { authRules } from "@/server/domains/auth";
 import { paymentOptionsProblem } from "@/server/domains/events/rules";
@@ -25,6 +25,8 @@ export interface CreateEventInput {
   cashAllowed?: boolean;
   onlineAllowed?: boolean;
   autoChargeAtCutoff?: boolean;
+  waitlistMode?: WaitlistMode;
+  waitlistHoldMinutes?: number;
 }
 
 /**
@@ -108,6 +110,8 @@ export async function createEvent(db: Db, input: CreateEventInput, now: Date = n
       cashAllowed: input.cashAllowed ?? false,
       onlineAllowed: input.onlineAllowed ?? false,
       autoChargeAtCutoff: input.autoChargeAtCutoff ?? true,
+      waitlistMode: input.waitlistMode ?? WaitlistMode.IN_ORDER,
+      waitlistHoldMinutes: input.waitlistHoldMinutes ?? 60,
     },
   });
 

@@ -33,9 +33,9 @@ export function ViewerStatusBanner({ event, now }: { event: Event; now: Date }) 
     );
   }
 
-  if (event.viewerWaitlistPosition !== null) {
+  if (event.viewerWaitlist !== null) {
     return (
-      <Banner tone="warning" title={`You’re on the waitlist · #${event.viewerWaitlistPosition}`}>
+      <Banner tone="warning" title={`You’re on the waitlist · #${event.viewerWaitlist.position}`}>
         If a spot opens up, you can claim it here.
       </Banner>
     );

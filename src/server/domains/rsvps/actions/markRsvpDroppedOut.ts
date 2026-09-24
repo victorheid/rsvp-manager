@@ -1,45 +1,50 @@
 import { TRPCError } from "@trpc/server";
 import type { Db } from "@/server/db";
 import { RsvpStatus } from "@/generated/prisma/enums";
-import type { PaymentGateway } from "@/server/integrations/stripe";
-import { countGoingTowardMax, promoteAfterSpotFreed } from "@/server/domains/rsvps/actions/notifyWaitlistOfOpenSpot";
+import { eventRules } from "@/server/domains/events";
 import { releaseHold } from "@/server/domains/wallet";
 import { notificationRules, notifyUsers } from "@/server/domains/notifications";
+import { advanceWaitlist } from "@/server/domains/waitlist";
 import { authorizeOrganizerRowAction, authorizeOrganizerRsvp } from "@/server/domains/rsvps/actions/authorizeOrganizerRsvp";
 
-export interface RemoveRsvpInput {
+export interface MarkRsvpDroppedOutInput {
   rsvpId: string;
   organizerId: string;
 }
 
 /**
- * Organizer removes a player (§8) — same effect as them dropping out
- * themselves: before confirmation the spot is simply freed; after
- * confirmation the payment stays and they show as dropped out,
- * refundable like anyone else (refunds need §5, not built yet).
+ * Organizer marks a player as dropped out (§8) — say they told the group
+ * chat they can't come. Same effect as them dropping out themselves:
+ * before confirmation the spot is simply freed; after confirmation the
+ * payment stays and they show as dropped out, refundable like anyone
+ * else. Their spot goes to the waitlist (§6). Waitlisters are marked
+ * dropped out by `markWaitlistDroppedOut` in the waitlist domain.
  */
-export async function removeRsvp(db: Db, gateway: PaymentGateway, input: RemoveRsvpInput, now: Date) {
+export async function markRsvpDroppedOut(db: Db, input: MarkRsvpDroppedOutInput, now: Date) {
   const rsvp = await authorizeOrganizerRsvp(db, input.rsvpId, input.organizerId);
 
   if (rsvp.status !== RsvpStatus.GOING) {
     throw new TRPCError({ code: "BAD_REQUEST", message: "Already dropped out." });
   }
 
-  await authorizeOrganizerRowAction(db, { ...input, action: "REMOVE" }, now);
+  await authorizeOrganizerRowAction(db, { ...input, action: "MARK_DROPPED_OUT" }, now);
 
-  const goingCountBefore = await countGoingTowardMax(db, rsvp.eventId);
-  const removed = await db.rsvp.update({
-    where: { id: input.rsvpId },
-    data: { status: RsvpStatus.CANCELLED },
+  const dropped = await db.$transaction(async (tx) => {
+    const updated = await tx.rsvp.update({
+      where: { id: input.rsvpId },
+      data: { status: RsvpStatus.CANCELLED },
+    });
+    await releaseHold(tx, { rsvpId: updated.id }, now);
+    return updated;
   });
 
-  await releaseHold(db, { rsvpId: removed.id }, now);
-
-  // §9: tell the person, and tell the waitlist if their spot just opened.
-  if (removed.userId !== null) {
-    await notifyUsers(db, { userIds: [removed.userId], message: notificationRules.removedMessage(rsvp.event) });
+  // §9: tell the person (after commit), then hand their spot to the waitlist.
+  if (dropped.userId !== null) {
+    await notifyUsers(db, { userIds: [dropped.userId], message: notificationRules.markedDroppedOutMessage(rsvp.event) });
   }
-  await promoteAfterSpotFreed(db, gateway, { eventId: rsvp.eventId, leaver: removed, goingCountBefore }, now);
+  if (eventRules.countsTowardMax(dropped)) {
+    await advanceWaitlist(db, { eventId: rsvp.eventId, spotFreed: true }, now);
+  }
 
-  return removed;
+  return dropped;
 }

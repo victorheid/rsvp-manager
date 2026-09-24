@@ -1,11 +1,12 @@
 import { TRPCError } from "@trpc/server";
 import type { Db } from "@/server/db";
 import type { EventModel } from "@/generated/prisma/models";
-import { PaymentMethod, PaymentStatus, RsvpStatus } from "@/generated/prisma/enums";
+import { PaymentMethod, PaymentStatus, RsvpStatus, WaitlistEntryStatus } from "@/generated/prisma/enums";
 import { eventRules } from "@/server/domains/events";
 import { joinGroupById } from "@/server/domains/groups";
 import { chargeCardRsvp } from "@/server/domains/payments";
 import { chargeWalletNow, placeHold } from "@/server/domains/wallet";
+import { advanceWaitlist, waitlistRules } from "@/server/domains/waitlist";
 import type { PaymentGateway } from "@/server/integrations/stripe";
 import { isJoinableEventStatus } from "@/server/domains/rsvps/rules";
 
@@ -15,8 +16,6 @@ export interface CreateRsvpInput {
   paymentMethod: PaymentMethod;
   /** Card RSVPs: the SetupIntent the browser confirmed with the card (see `beginCardSetup`). */
   setupIntentId?: string;
-  /** Or a card already saved (a waitlist entry's, when it's moved in automatically). */
-  savedCard?: { paymentMethodId: string; brand: string; last4: string };
 }
 
 /**
@@ -29,8 +28,12 @@ export interface CreateRsvpInput {
  *  - card: the saved card waits for confirmation — or, on an
  *    already-confirmed event, is charged right after the RSVP commits
  *    (never inside the transaction: it calls the provider).
+ *
+ * Spots held for people on the waitlist count as taken (§6), except for
+ * the person a spot is held for: taking it is this same RSVP. A hold that
+ * has run out is handed on first, so it's never taken (or charged) late.
  */
-export async function createRsvp(db: Db, gateway: PaymentGateway, input: CreateRsvpInput) {
+export async function createRsvp(db: Db, gateway: PaymentGateway, input: CreateRsvpInput, now: Date) {
   // Checked before asking the provider about the card, so a cash-only event says so
   // instead of complaining about a card nobody should have been asked for.
   const preview = await db.event.findUnique({ where: { id: input.eventId } });
@@ -38,15 +41,17 @@ export async function createRsvp(db: Db, gateway: PaymentGateway, input: CreateR
     assertPaymentMethodAllowed(preview, input.paymentMethod);
   }
 
-  const card =
-    input.paymentMethod !== PaymentMethod.CARD
-      ? null
-      : (input.savedCard ?? (await loadSavedCard(gateway, input.setupIntentId)));
+  const card = input.paymentMethod === PaymentMethod.CARD ? await loadSavedCard(gateway, input.setupIntentId) : null;
+
+  await advanceWaitlist(db, { eventId: input.eventId, spotFreed: false }, now);
 
   const { rsvp, event } = await db.$transaction(async (tx) => {
     const event = await tx.event.findUnique({
       where: { id: input.eventId },
-      include: { rsvps: { where: { status: RsvpStatus.GOING } } },
+      include: {
+        rsvps: { where: { status: RsvpStatus.GOING } },
+        waitlistEntries: { where: { status: WaitlistEntryStatus.WAITING } },
+      },
     });
 
     if (!event) {
@@ -70,7 +75,10 @@ export async function createRsvp(db: Db, gateway: PaymentGateway, input: CreateR
       throw new TRPCError({ code: "BAD_REQUEST", message: "You're already in." });
     }
 
-    if (!eventRules.hasCapacity(event, event.rsvps.filter(eventRules.countsTowardMax).length)) {
+    const going = event.rsvps.filter(eventRules.countsTowardMax).length;
+    const heldForOthers = waitlistRules.spotsHeldForOthers(event.waitlistEntries, input.userId, now);
+
+    if (!eventRules.hasCapacity(event, going + heldForOthers)) {
       throw new TRPCError({ code: "BAD_REQUEST", message: "This event is full — join the waitlist instead." });
     }
 
@@ -126,8 +134,8 @@ export async function createRsvp(db: Db, gateway: PaymentGateway, input: CreateR
 
     await joinGroupById(tx, { groupId: event.groupId, userId: input.userId });
 
-    // §6: "Claiming the spot is a normal RSVP" — clear any waitlist entry
-    // now that they're going, so they don't show up in both places.
+    // §6: taking a spot is a normal RSVP — clear their waitlist entry now
+    // that they're going, so they don't show up in both places.
     await tx.waitlistEntry.deleteMany({ where: { eventId: input.eventId, userId: input.userId } });
 
     return { rsvp, event };

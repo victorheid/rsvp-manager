@@ -90,7 +90,7 @@ export default function ManageEventPage() {
   const markAttendance = trpc.rsvps.markAttendance.useMutation({ onSuccess: refresh, onError: (err) => failed(err.message) });
   const markPaid = trpc.rsvps.markPaidOutsideApp.useMutation({ onSuccess: refresh, onError: (err) => failed(err.message) });
   const undoPaid = trpc.rsvps.undoMarkPaidOutsideApp.useMutation({ onSuccess: refresh, onError: (err) => failed(err.message) });
-  const removeRsvp = trpc.rsvps.remove.useMutation({
+  const markRsvpDroppedOut = trpc.rsvps.markDroppedOut.useMutation({
     onSuccess: () => {
       setRemoving(null);
       return refresh();
@@ -264,7 +264,7 @@ export default function ManageEventPage() {
             tone: "primary",
             onSelect: () => setRefunding(rsvp),
           };
-        case "REMOVE":
+        case "MARK_DROPPED_OUT":
           return {
             label: "Remove from game",
             description: "Their spot goes to the waitlist.",
@@ -274,12 +274,12 @@ export default function ManageEventPage() {
       }
     };
 
-    const items = rsvp.actions.filter((action) => action !== "REMOVE").map(itemFor);
+    const items = rsvp.actions.filter((action) => action !== "MARK_DROPPED_OUT").map(itemFor);
     const digits = rsvp.userId === organizerId ? undefined : rsvp.user?.phoneNumber.replace(/\D/g, "");
     if (digits) {
       items.push({ label: "Message player", href: `https://wa.me/${digits}`, external: true });
     }
-    if (rsvp.actions.includes("REMOVE")) items.push(itemFor("REMOVE"));
+    if (rsvp.actions.includes("MARK_DROPPED_OUT")) items.push(itemFor("MARK_DROPPED_OUT"));
     return items;
   }
 
@@ -582,9 +582,9 @@ export default function ManageEventPage() {
         }
         confirmLabel={removing ? `Remove ${personName(removing)}` : "Remove"}
         cancelLabel="Keep in game"
-        pending={removeRsvp.isPending}
-        error={removeRsvp.error?.message}
-        onConfirm={() => removing && removeRsvp.mutate({ rsvpId: removing.id })}
+        pending={markRsvpDroppedOut.isPending}
+        error={markRsvpDroppedOut.error?.message}
+        onConfirm={() => removing && markRsvpDroppedOut.mutate({ rsvpId: removing.id })}
       />
 
       <AddWalkInSheet

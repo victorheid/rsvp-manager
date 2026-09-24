@@ -109,10 +109,10 @@ describe.skipIf(!hasTestDb)("organizer event management", () => {
   it("lets the organizer remove a player, freeing their spot", async () => {
     const { organizerCaller, rsvp } = await setup();
 
-    const removed = await organizerCaller.rsvps.remove({ rsvpId: rsvp.id });
+    const removed = await organizerCaller.rsvps.markDroppedOut({ rsvpId: rsvp.id });
     expect(removed.status).toBe("CANCELLED");
 
-    await expect(organizerCaller.rsvps.remove({ rsvpId: rsvp.id })).rejects.toThrow("Already dropped out");
+    await expect(organizerCaller.rsvps.markDroppedOut({ rsvpId: rsvp.id })).rejects.toThrow("Already dropped out");
   });
 
   it("rejects attendance/payment/remove actions from a non-organizer", async () => {
@@ -124,7 +124,7 @@ describe.skipIf(!hasTestDb)("organizer event management", () => {
     await expect(playerCaller.rsvps.markPaidOutsideApp({ rsvpId: rsvp.id })).rejects.toThrow(
       "Only the group's organizer",
     );
-    await expect(playerCaller.rsvps.remove({ rsvpId: rsvp.id })).rejects.toThrow(
+    await expect(playerCaller.rsvps.markDroppedOut({ rsvpId: rsvp.id })).rejects.toThrow(
       "Only the group's organizer",
     );
   });
@@ -217,7 +217,7 @@ describe.skipIf(!hasTestDb)("organizer event management", () => {
     // The game is tomorrow and unconfirmed: nothing charged, nothing played.
     expect(view.eventActions.phase).toBe("OPEN");
     expect(view.eventActions.primary).toBe("SHARE");
-    expect(view.rsvps.find((r) => r.id === rsvp.id)?.actions).toEqual(["REMOVE"]);
+    expect(view.rsvps.find((r) => r.id === rsvp.id)?.actions).toEqual(["MARK_DROPPED_OUT"]);
   });
 
   it("stops offering Remove once the event is confirmed and offers Mark paid instead", async () => {
@@ -227,7 +227,7 @@ describe.skipIf(!hasTestDb)("organizer event management", () => {
     const view = await organizerCaller.rsvps.forOrganizer({ eventId: event.id });
 
     expect(view.eventActions.phase).toBe("CONFIRMED");
-    expect(view.rsvps.find((r) => r.id === rsvp.id)?.actions).toEqual(["MARK_PAID", "REMOVE"]);
+    expect(view.rsvps.find((r) => r.id === rsvp.id)?.actions).toEqual(["MARK_PAID", "MARK_DROPPED_OUT"]);
   });
 
   it("refuses attendance marks before the game starts", async () => {
@@ -251,7 +251,7 @@ describe.skipIf(!hasTestDb)("organizer event management", () => {
     await organizerCaller.events.confirm({ eventId: event.id });
     await startGame(event.id);
 
-    await expect(organizerCaller.rsvps.remove({ rsvpId: rsvp.id })).rejects.toThrow("isn't possible at this stage");
+    await expect(organizerCaller.rsvps.markDroppedOut({ rsvpId: rsvp.id })).rejects.toThrow("isn't possible at this stage");
   });
 
   it("refuses marking the organizer's own rsvp a no-show", async () => {

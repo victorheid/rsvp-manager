@@ -1,99 +1,28 @@
 import { TRPCError } from "@trpc/server";
 import type { Db } from "@/server/db";
-import { PaymentMethod, RsvpStatus, WaitlistPromotionMode } from "@/generated/prisma/enums";
+import { RsvpStatus, WaitlistEntryStatus } from "@/generated/prisma/enums";
 import { eventRules } from "@/server/domains/events";
-import { assertWalletEnabled } from "@/server/domains/wallet";
-import { isWaitlistOpen } from "@/server/domains/waitlist/rules";
-import type { PaymentGateway } from "@/server/integrations/stripe";
-
-export interface WaitlistPreference {
-  mode: WaitlistPromotionMode;
-  /** Auto-join only: what to pay with when moved in. Cash can't be taken automatically (§6). */
-  paymentMethod?: typeof PaymentMethod.WALLET | typeof PaymentMethod.CARD;
-  /** Auto-join with a card: the SetupIntent the browser confirmed (see `rsvps.beginCardSetup`). */
-  setupIntentId?: string;
-}
+import { isWaitlistOpen, spotsHeldForOthers } from "@/server/domains/waitlist/rules";
 
 export interface JoinWaitlistInput {
   eventId: string;
   userId: string;
-  /** Defaults to notify-me. */
-  preference?: WaitlistPreference;
 }
 
 /**
- * What an entry stores for a preference (§6): nothing for notify-me (no
- * payment method until they claim a spot), or the wallet / saved card for
- * auto-join. Checks the event takes online payments and, for a card, that
- * it was really saved. Calls the provider for the card, so run it outside
- * a transaction.
+ * Joins the waitlist (§6): one tap, no mode and no payment method — they
+ * pick how to pay when they take a spot. Only when the game is full (going
+ * plus spots held for others). Joining again while waiting keeps their
+ * place; someone who dropped out and comes back joins at the end.
  */
-export async function resolveWaitlistPreference(
-  db: Db,
-  gateway: PaymentGateway,
-  eventId: string,
-  preference: WaitlistPreference,
-) {
-  if (preference.mode === WaitlistPromotionMode.MANUAL) {
-    return {
-      promotionMode: WaitlistPromotionMode.MANUAL,
-      paymentMethod: null,
-      stripePaymentMethodId: null,
-      cardBrand: null,
-      cardLast4: null,
-    };
-  }
-
-  const event = await db.event.findUnique({ where: { id: eventId } });
-
-  if (!event?.onlineAllowed) {
-    throw new TRPCError({ code: "BAD_REQUEST", message: "Auto-join needs online payments — this event doesn't take them." });
-  }
-
-  if (preference.paymentMethod === PaymentMethod.WALLET) {
-    assertWalletEnabled();
-    return {
-      promotionMode: WaitlistPromotionMode.AUTO,
-      paymentMethod: PaymentMethod.WALLET,
-      stripePaymentMethodId: null,
-      cardBrand: null,
-      cardLast4: null,
-    };
-  }
-
-  if (preference.paymentMethod === PaymentMethod.CARD) {
-    const setup = preference.setupIntentId ? await gateway.retrieveSetupIntent(preference.setupIntentId) : null;
-
-    if (setup?.status !== "succeeded") {
-      throw new TRPCError({ code: "BAD_REQUEST", message: "Your card wasn't saved — try again." });
-    }
-
-    return {
-      promotionMode: WaitlistPromotionMode.AUTO,
-      paymentMethod: PaymentMethod.CARD,
-      stripePaymentMethodId: setup.card.paymentMethodId,
-      cardBrand: setup.card.brand,
-      cardLast4: setup.card.last4,
-    };
-  }
-
-  throw new TRPCError({ code: "BAD_REQUEST", message: "Choose wallet or card to be moved in automatically." });
-}
-
-/**
- * Joins the waitlist (§6), either in "Notify me" mode (no payment method;
- * claiming a spot later is a normal RSVP, cash allowed) or "Auto-join and
- * pay" (wallet, or a card saved now — nothing is held or charged until
- * they're moved in). Joining again is a no-op: it never moves anyone's
- * place or changes their choice — `setWaitlistMode` does that.
- */
-export async function joinWaitlist(db: Db, gateway: PaymentGateway, input: JoinWaitlistInput, now: Date) {
-  const preference = await resolveWaitlistPreference(db, gateway, input.eventId, input.preference ?? { mode: WaitlistPromotionMode.MANUAL });
-
+export async function joinWaitlist(db: Db, input: JoinWaitlistInput, now: Date) {
   return db.$transaction(async (tx) => {
     const event = await tx.event.findUnique({
       where: { id: input.eventId },
-      include: { rsvps: { where: { status: RsvpStatus.GOING } } },
+      include: {
+        rsvps: { where: { status: RsvpStatus.GOING } },
+        waitlistEntries: { where: { status: WaitlistEntryStatus.WAITING } },
+      },
     });
 
     if (!event) {
@@ -104,19 +33,26 @@ export async function joinWaitlist(db: Db, gateway: PaymentGateway, input: JoinW
       throw new TRPCError({ code: "BAD_REQUEST", message: "The waitlist is closed — the event has started." });
     }
 
-    if (eventRules.hasCapacity(event, event.rsvps.filter(eventRules.countsTowardMax).length)) {
+    const taken = event.rsvps.filter(eventRules.countsTowardMax).length + spotsHeldForOthers(event.waitlistEntries, input.userId, now);
+    if (eventRules.hasCapacity(event, taken)) {
       throw new TRPCError({ code: "BAD_REQUEST", message: "This event isn't full — just RSVP." });
     }
 
-    const existingRsvp = event.rsvps.find((rsvp) => rsvp.userId === input.userId);
-    if (existingRsvp) {
+    if (event.rsvps.some((rsvp) => rsvp.userId === input.userId)) {
       throw new TRPCError({ code: "BAD_REQUEST", message: "You're already in." });
     }
 
-    return tx.waitlistEntry.upsert({
+    const rejoin = { status: WaitlistEntryStatus.WAITING, queuedAt: now, heldUntil: null, missedHoldAt: null, droppedAt: null };
+    const existing = await tx.waitlistEntry.findUnique({
       where: { eventId_userId: { eventId: input.eventId, userId: input.userId } },
-      create: { eventId: input.eventId, userId: input.userId, ...preference },
-      update: {},
     });
+
+    if (existing?.status === WaitlistEntryStatus.WAITING) {
+      return existing;
+    }
+
+    return existing
+      ? tx.waitlistEntry.update({ where: { id: existing.id }, data: rejoin })
+      : tx.waitlistEntry.create({ data: { eventId: input.eventId, userId: input.userId, queuedAt: now } });
   });
 }

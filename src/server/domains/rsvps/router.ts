@@ -11,7 +11,7 @@ import { undoMarkPaidOutsideApp } from "@/server/domains/rsvps/actions/undoMarkP
 import { sendPayLink } from "@/server/domains/rsvps/actions/sendPayLink";
 import { refundAllOnline } from "@/server/domains/rsvps/actions/refundAllOnline";
 import { refundRsvp } from "@/server/domains/rsvps/actions/refundRsvp";
-import { removeRsvp } from "@/server/domains/rsvps/actions/removeRsvp";
+import { markRsvpDroppedOut } from "@/server/domains/rsvps/actions/markRsvpDroppedOut";
 import { addWalkIn } from "@/server/domains/rsvps/actions/addWalkIn";
 import { getUpcomingRsvpsForUser } from "@/server/domains/rsvps/getters/getUpcomingRsvpsForUser";
 import { getRsvpsForOrganizer } from "@/server/domains/rsvps/getters/getRsvpsForOrganizer";
@@ -31,7 +31,7 @@ export const rsvpsRouter = router({
         userId: ctx.user.id,
         paymentMethod: input.paymentMethod,
         setupIntentId: input.setupIntentId,
-      }),
+      }, new Date()),
     ),
 
   beginCardSetup: protectedProcedure
@@ -41,7 +41,7 @@ export const rsvpsRouter = router({
   drop: protectedProcedure
     .input(z.object({ eventId: z.string() }))
     .mutation(({ ctx, input }) =>
-      dropRsvp(ctx.db, getPaymentGateway(), { eventId: input.eventId, userId: ctx.user.id }, new Date()),
+      dropRsvp(ctx.db, { eventId: input.eventId, userId: ctx.user.id }, new Date()),
     ),
 
   myUpcoming: protectedProcedure.query(({ ctx }) =>
@@ -75,9 +75,9 @@ export const rsvpsRouter = router({
       undoMarkPaidOutsideApp(ctx.db, { ...input, organizerId: ctx.user.id }),
     ),
 
-  remove: protectedProcedure
+  markDroppedOut: protectedProcedure
     .input(z.object({ rsvpId: z.string() }))
-    .mutation(({ ctx, input }) => removeRsvp(ctx.db, getPaymentGateway(), { rsvpId: input.rsvpId, organizerId: ctx.user.id }, new Date())),
+    .mutation(({ ctx, input }) => markRsvpDroppedOut(ctx.db, { rsvpId: input.rsvpId, organizerId: ctx.user.id }, new Date())),
 
   sendPayLink: protectedProcedure
     .input(z.object({ rsvpId: z.string() }))

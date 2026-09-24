@@ -1,5 +1,5 @@
 import type { Db } from "@/server/db";
-import { RsvpStatus } from "@/generated/prisma/enums";
+import { RsvpStatus, WaitlistEntryStatus } from "@/generated/prisma/enums";
 
 /**
  * Who has a stake in an event, for notifications (§9): everyone going and
@@ -8,7 +8,7 @@ import { RsvpStatus } from "@/generated/prisma/enums";
 export async function getEventAudience(db: Db, eventId: string) {
   const [going, waitlist] = await Promise.all([
     db.rsvp.findMany({ where: { eventId, status: RsvpStatus.GOING, userId: { not: null } }, select: { userId: true } }),
-    db.waitlistEntry.findMany({ where: { eventId }, select: { userId: true } }),
+    db.waitlistEntry.findMany({ where: { eventId, status: WaitlistEntryStatus.WAITING }, select: { userId: true } }),
   ]);
 
   return {

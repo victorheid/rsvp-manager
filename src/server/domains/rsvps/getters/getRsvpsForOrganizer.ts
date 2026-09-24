@@ -3,6 +3,7 @@ import type { Db } from "@/server/db";
 import { eventRules } from "@/server/domains/events";
 import { paymentRules } from "@/server/domains/payments";
 import { organizerRowActions } from "@/server/domains/rsvps/rules";
+import { waitlistRules } from "@/server/domains/waitlist";
 
 export interface GetRsvpsForOrganizerInput {
   eventId: string;
@@ -11,7 +12,8 @@ export interface GetRsvpsForOrganizerInput {
 
 /**
  * Organizer event list (§8): every RSVP for the event — going and dropped
- * out alike — with each player's no-show count for this group.
+ * out alike — with each player's no-show count for this group, and the
+ * waitlist in order (with any spot held for someone, and until when).
  *
  * Also says what the organizer can do *right now*: the event's phase and
  * event-level actions, and each person's allowed actions. The screen
@@ -28,6 +30,9 @@ export async function getRsvpsForOrganizer(db: Db, input: GetRsvpsForOrganizerIn
         omit: { payToken: true, stripePaymentMethodId: true },
         include: { user: { select: { id: true, firstName: true, lastInitial: true, phoneNumber: true } } },
         orderBy: { createdAt: "asc" },
+      },
+      waitlistEntries: {
+        include: { user: { select: { id: true, firstName: true, lastInitial: true, phoneNumber: true } } },
       },
     },
   });
@@ -66,5 +71,15 @@ export async function getRsvpsForOrganizer(db: Db, input: GetRsvpsForOrganizerIn
         refundsOpen,
       }),
     })),
+    waitlist: waitlistRules.sortWaitlist(event.waitlistEntries).map((entry, index) => ({
+      id: entry.id,
+      user: entry.user,
+      position: index + 1,
+      heldUntil: waitlistRules.isHoldActive(entry, now) ? entry.heldUntil : null,
+      actions: waitlistRules.organizerWaitlistRowActions(entry, eventActions.phase),
+    })),
+    droppedFromWaitlist: event.waitlistEntries
+      .filter((entry) => entry.status === "DROPPED_OUT")
+      .map((entry) => ({ id: entry.id, user: entry.user, droppedAt: entry.droppedAt })),
   };
 }

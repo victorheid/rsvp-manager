@@ -59,7 +59,7 @@ describe.skipIf(!enabled)("app flows on the Stripe sandbox", () => {
     const { setupIntentId } = await gateway.createSetupIntent({ customerId });
     await stripe.setupIntents.confirm(setupIntentId, { payment_method: "pm_card_visa" });
 
-    const rsvp = await createRsvp(db, gateway, { eventId: event.id, userId: player.id, paymentMethod: "CARD", setupIntentId });
+    const rsvp = await createRsvp(db, gateway, { eventId: event.id, userId: player.id, paymentMethod: "CARD", setupIntentId }, new Date());
     expect(rsvp).toMatchObject({ paymentStatus: "PENDING", cardLast4: "4242" });
 
     await confirmEvent(db, gateway, { eventId: event.id, organizerId: organizer.id });
@@ -82,7 +82,7 @@ describe.skipIf(!enabled)("app flows on the Stripe sandbox", () => {
     const { setupIntentId } = await gateway.createSetupIntent({ customerId });
     await stripe.setupIntents.confirm(setupIntentId, { payment_method: "pm_card_chargeCustomerFail" });
 
-    const rsvp = await createRsvp(db, gateway, { eventId: event.id, userId: player.id, paymentMethod: "CARD", setupIntentId });
+    const rsvp = await createRsvp(db, gateway, { eventId: event.id, userId: player.id, paymentMethod: "CARD", setupIntentId }, new Date());
     await confirmEvent(db, gateway, { eventId: event.id, organizerId: organizer.id });
 
     expect(await db.rsvp.findUniqueOrThrow({ where: { id: rsvp.id } })).toMatchObject({ paymentStatus: "OWES" });

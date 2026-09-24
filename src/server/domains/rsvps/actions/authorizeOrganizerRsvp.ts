@@ -6,7 +6,7 @@ import { organizerRowActions, type OrganizerRowAction } from "@/server/domains/r
 
 /**
  * Shared by the organizer-only RSVP actions (markAttendance,
- * markPaidOutsideApp, removeRsvp): loads the RSVP and checks the caller
+ * markPaidOutsideApp, markRsvpDroppedOut): loads the RSVP and checks the caller
  * organizes its event's group. Not exported from the domain's index —
  * it's private plumbing for this domain's own actions.
  */

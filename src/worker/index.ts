@@ -1,5 +1,5 @@
 import { db } from "@/server/db";
-import { promoteWaitlists } from "@/server/domains/rsvps";
+import { advanceWaitlists } from "@/server/domains/waitlist";
 import { releaseDuePayouts } from "@/server/domains/payouts";
 import { retryCancelledEventRefunds } from "@/server/domains/payments";
 import { getPaymentGateway } from "@/server/integrations/stripe";
@@ -8,7 +8,7 @@ import { alertOrganizersOfUnconfirmedEvents, autoConfirmDueEvents, expireOverdue
 /**
  * Background worker for time-based jobs (specs/tasks.md §0, §3, §7):
  * cut-off reminders, cut-off auto-confirm, organizer alerts, refund retries,
- * payout release and event expiry. Run with `pnpm worker` — a single always-on process is
+ * waitlist holds, payout release and event expiry. Run with `pnpm worker` — a single always-on process is
  * enough at this scale; move to a real scheduler (Vercel Cron, a queue)
  * before running more than one instance.
  */
@@ -37,7 +37,8 @@ async function tick() {
     console.log(`[worker] retried ${retriedRefunds} refund(s) for cancelled events`);
   }
 
-  await promoteWaitlists(db, getPaymentGateway(), now);
+  // §6: hand on holds that ran out, and fill room the organizer added.
+  await advanceWaitlists(db, now);
 
   const payouts = await releaseDuePayouts(db, getPaymentGateway(), now);
   for (const payout of payouts) {

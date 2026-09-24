@@ -272,6 +272,8 @@ describe("suggestEventDefaults", () => {
     cashAllowed: true,
     onlineAllowed: false,
     autoChargeAtCutoff: true,
+    waitlistMode: "FIRST_TO_CLAIM" as const,
+    waitlistHoldMinutes: 120,
   };
   const nextStart = new Date("2026-09-24T18:00:00Z");
 
@@ -289,6 +291,8 @@ describe("suggestEventDefaults", () => {
       maxPlayers: 12,
       pricingMode: PricingMode.SPLIT_EVENLY,
       totalCostCents: 8000,
+      waitlistMode: "FIRST_TO_CLAIM",
+      waitlistHoldMinutes: 120,
       basedOnTitle: "Thursday 5-a-side",
     });
   });
@@ -298,6 +302,7 @@ describe("suggestEventDefaults", () => {
     expect(defaults.endsAt).toEqual(new Date("2026-09-24T19:30:00Z"));
     expect(defaults.cutoffAt).toEqual(new Date("2026-09-23T18:00:00Z"));
     expect(defaults.basedOnTitle).toBeNull();
+    expect(defaults).toMatchObject({ waitlistMode: "IN_ORDER", waitlistHoldMinutes: 60 }); // §6 defaults
     expect(defaults.location).toBe("");
   });
 });

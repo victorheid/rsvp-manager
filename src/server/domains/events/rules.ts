@@ -230,6 +230,8 @@ type LastEvent = Pick<
   | "cashAllowed"
   | "onlineAllowed"
   | "autoChargeAtCutoff"
+  | "waitlistMode"
+  | "waitlistHoldMinutes"
 >;
 
 export interface SuggestedEventDefaults {
@@ -244,9 +246,15 @@ export interface SuggestedEventDefaults {
   cashAllowed: boolean;
   onlineAllowed: boolean;
   autoChargeAtCutoff: boolean;
+  waitlistMode: EventModel["waitlistMode"];
+  waitlistHoldMinutes: number;
   /** Title of the game the rest was copied from; null for a group's first game. */
   basedOnTitle: string | null;
 }
+
+/** §6: how long a spot is held for the next person on an in-order waitlist. The organizer picks one per event. */
+export const WAITLIST_HOLD_MINUTES_OPTIONS = [30, 60, 120, 240, 720] as const;
+export const DEFAULT_WAITLIST_HOLD_MINUTES = 60;
 
 /**
  * UI spec §10.3: once the organizer picks a date, everything else defaults
@@ -274,6 +282,8 @@ export function suggestEventDefaults(
     cashAllowed: lastEvent?.cashAllowed ?? true,
     onlineAllowed: lastEvent?.onlineAllowed ?? false,
     autoChargeAtCutoff: lastEvent?.autoChargeAtCutoff ?? true,
+    waitlistMode: lastEvent?.waitlistMode ?? "IN_ORDER",
+    waitlistHoldMinutes: lastEvent?.waitlistHoldMinutes ?? DEFAULT_WAITLIST_HOLD_MINUTES,
     basedOnTitle: lastEvent?.title ?? null,
   };
 }
