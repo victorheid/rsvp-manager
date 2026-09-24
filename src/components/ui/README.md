@@ -78,7 +78,7 @@ Cards are `rounded-lg`, inputs `rounded-md`, buttons and chips `rounded-full`, s
 | `EventCard` | A game in a list; the whole card links to it. |
 | `HeadcountBar` | "Is it on?": count, minimum marker, spots left. |
 | `KeyFact`, `PriceBlock`, `SectionHeader` | Event-page building blocks. |
-| `PersonRow` | A person in a public list. |
+| `PersonRow` | A person in a public list; `highlighted` for the viewer's own row, `muted` for people who dropped out. |
 | `PersonManageRow` | A person in the organizer's list: informational row, actions in its ••• menu. |
 | `Avatar`, `FilterChip`, `EmptyState`, `Skeleton`, `SectionSkeleton` | Initials, filter pills with counts, "nothing here yet", loading placeholders (one block / a section's rows). |
 
@@ -87,7 +87,7 @@ Cards are `rounded-lg`, inputs `rounded-md`, buttons and chips `rounded-full`, s
 |---|---|
 | `Screen` | The page shell: `TopBar` + content + optional `StickyActionBar`. Every page uses it. |
 | `TopBar` | `brand` for top-level screens, `backHref` + `title` below them. `actions` takes icon buttons or a menu. |
-| `StickyActionBar` | The one primary action, plus one line of context. |
+| `StickyActionBar` | The one primary action, plus one line of context. On the event page it also carries the viewer's `status` (title + detail) and at most one `secondaryAction`. |
 | `TabBar` | Bottom nav (Games / Wallet / Me). **Built but not mounted** until Wallet and `/me` exist. |
 | `ActionMenu` | A ••• menu. Verbs, optional second line for anything with side effects, most likely action first (`tone: "primary"`), destructive last (`tone: "danger"`). |
 

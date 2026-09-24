@@ -13,7 +13,6 @@ import {
   ICON_BUTTON_CLASS,
   Icon,
   PersonManageRow,
-  PersonRow,
   Screen,
   ScreenSkeleton,
   SectionHeader,
@@ -25,7 +24,7 @@ import {
   useToast,
 } from "@/components/ui";
 import { trpc } from "@/lib/trpc/client";
-import { formatCents, formatDateTime, formatPlayerName } from "@/lib/format";
+import { formatCents, formatDateTime, formatPlayerName, formatTime } from "@/lib/format";
 import { phaseChip } from "@/app/_components/eventPhase";
 import { headcountText } from "@/app/_components/eventPrice";
 import { useNow } from "@/app/_components/useNow";
@@ -41,6 +40,7 @@ import {
   personName,
   type ManageFilter,
   type OrganizerRsvp,
+  type OrganizerWaitlistEntry,
 } from "./_components/managePresentation";
 
 /**
@@ -68,7 +68,7 @@ export default function ManageEventPage() {
   const [refunding, setRefunding] = useState<OrganizerRsvp | null>(null);
   const [refundAllOpen, setRefundAllOpen] = useState(false);
   const [showDropped, setShowDropped] = useState<boolean | null>(null);
-  const [showWaitlist, setShowWaitlist] = useState(false);
+  const [droppingEntry, setDroppingEntry] = useState<OrganizerWaitlistEntry | null>(null);
 
   const refresh = () => Promise.all([utils.rsvps.forOrganizer.invalidate(), utils.events.getBySlug.invalidate({ slug })]);
   const failed = (message: string) => toast({ message, tone: "error" });
@@ -93,6 +93,12 @@ export default function ManageEventPage() {
   const markRsvpDroppedOut = trpc.rsvps.markDroppedOut.useMutation({
     onSuccess: () => {
       setRemoving(null);
+      return refresh();
+    },
+  });
+  const markWaitlistDroppedOut = trpc.waitlist.markDroppedOut.useMutation({
+    onSuccess: () => {
+      setDroppingEntry(null);
       return refresh();
     },
   });
@@ -161,6 +167,7 @@ export default function ManageEventPage() {
 
   const going = view.rsvps.filter((rsvp) => rsvp.status === "GOING");
   const dropped = view.rsvps.filter((rsvp) => rsvp.status === "CANCELLED");
+  const { waitlist, droppedFromWaitlist } = view;
   const players = going.filter(countsTowardMax);
   const noShows = going.filter((rsvp) => !hasShownUp(rsvp));
   // The server counts walk-ins toward the minimum and the price split, but not toward the max.
@@ -266,8 +273,8 @@ export default function ManageEventPage() {
           };
         case "MARK_DROPPED_OUT":
           return {
-            label: "Remove from game",
-            description: "Their spot goes to the waitlist.",
+            label: "Mark as dropped out",
+            description: "Said they can’t come? Their spot goes to the waitlist.",
             tone: "danger",
             onSelect: () => setRemoving(rsvp),
           };
@@ -291,6 +298,22 @@ export default function ManageEventPage() {
       amountCents,
     });
     return <PersonManageRow key={rsvp.id} name={personName(rsvp)} detail={text} tone={tone} items={menuFor(rsvp)} />;
+  }
+
+  function waitlistRow(entry: OrganizerWaitlistEntry) {
+    const items: ActionMenuItem[] = [];
+    const digits = entry.user.phoneNumber.replace(/\D/g, "");
+    if (digits) items.push({ label: "Message player", href: `https://wa.me/${digits}`, external: true });
+    if (entry.actions.includes("MARK_DROPPED_OUT")) {
+      items.push({
+        label: "Mark as dropped out",
+        description: "Said they can’t come? They leave the waitlist and move to Dropped out.",
+        tone: "danger",
+        onSelect: () => setDroppingEntry(entry),
+      });
+    }
+    const detail = entry.heldUntil ? `Spot held until ${formatTime(new Date(entry.heldUntil))}` : `#${entry.position} · waiting`;
+    return <PersonManageRow key={entry.id} name={formatPlayerName(entry.user)} detail={detail} tone="neutral" items={items} />;
   }
 
   // ---- Event-level actions, from the rules: a primary, an optional secondary, and the ••• menu.
@@ -464,26 +487,29 @@ export default function ManageEventPage() {
         )}
       </section>
 
-      {event.waitlistEntries.length > 0 && (
-        <section className="flex flex-col gap-1">
+      {waitlist.length > 0 && (
+        <section className="flex flex-col gap-3">
           <SectionHeader
-            title={`Waitlist · ${event.waitlistEntries.length}`}
-            action={{ label: showWaitlist ? "Hide" : "Show", onClick: () => setShowWaitlist((current) => !current) }}
+            title={`Waitlist · ${event.waitlistMode === "IN_ORDER" ? "in order" : "first to claim"} · ${waitlist.length}`}
           />
-          {showWaitlist &&
-            event.waitlistEntries.map((entry, index) => (
-              <PersonRow key={entry.id} name={formatPlayerName(entry.user)} trailing={`#${index + 1}`} />
-            ))}
+          <div className="rounded-lg border border-border-default bg-bg-surface">{waitlist.map(waitlistRow)}</div>
         </section>
       )}
 
-      {dropped.length > 0 && (
+      {dropped.length + droppedFromWaitlist.length > 0 && (
         <section className="flex flex-col gap-3">
           <SectionHeader
-            title={`Dropped out · ${dropped.length}`}
+            title={`Dropped out · ${dropped.length + droppedFromWaitlist.length}`}
             action={{ label: dropdownDroppedOpen ? "Hide" : "Show", onClick: () => setShowDropped(!dropdownDroppedOpen) }}
           />
-          {dropdownDroppedOpen && <div className="rounded-lg border border-border-default bg-bg-surface">{dropped.map(row)}</div>}
+          {dropdownDroppedOpen && (
+            <div className="rounded-lg border border-border-default bg-bg-surface">
+              {dropped.map(row)}
+              {droppedFromWaitlist.map((entry) => (
+                <PersonManageRow key={entry.id} name={formatPlayerName(entry.user)} detail="Left the waitlist" tone="neutral" items={[]} />
+              ))}
+            </div>
+          )}
         </section>
       )}
 
@@ -566,7 +592,7 @@ export default function ManageEventPage() {
       <ConfirmSheet
         open={removing !== null}
         onClose={() => setRemoving(null)}
-        title={removing ? `Remove ${personName(removing)} from the game?` : "Remove from the game?"}
+        title={removing ? `Mark ${personName(removing)} as dropped out?` : "Mark as dropped out?"}
         tone="destructive"
         banner={
           removing
@@ -580,11 +606,30 @@ export default function ManageEventPage() {
               }
             : undefined
         }
-        confirmLabel={removing ? `Remove ${personName(removing)}` : "Remove"}
+        confirmLabel="Mark as dropped out"
         cancelLabel="Keep in game"
         pending={markRsvpDroppedOut.isPending}
         error={markRsvpDroppedOut.error?.message}
         onConfirm={() => removing && markRsvpDroppedOut.mutate({ rsvpId: removing.id })}
+      />
+
+      <ConfirmSheet
+        open={droppingEntry !== null}
+        onClose={() => setDroppingEntry(null)}
+        title={droppingEntry ? `Mark ${formatPlayerName(droppingEntry.user)} as dropped out?` : "Mark as dropped out?"}
+        tone="destructive"
+        banner={{
+          tone: "info",
+          title: "They leave the waitlist",
+          body: droppingEntry?.heldUntil
+            ? "The spot held for them goes to the next person. They’ll be told."
+            : "Nothing was charged. They’ll be told.",
+        }}
+        confirmLabel="Mark as dropped out"
+        cancelLabel="Keep on waitlist"
+        pending={markWaitlistDroppedOut.isPending}
+        error={markWaitlistDroppedOut.error?.message}
+        onConfirm={() => droppingEntry && markWaitlistDroppedOut.mutate({ entryId: droppingEntry.id })}
       />
 
       <AddWalkInSheet

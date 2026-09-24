@@ -84,12 +84,14 @@ export async function getEventBySlug(db: Db, slug: string, options: GetEventBySl
     user: entry.user,
     heldUntil: isHoldActive(entry, now) ? entry.heldUntil : null,
   }));
-  const viewerWaitlistIndex = waitlistEntries.findIndex((entry) => entry.userId === options.viewerId);
+  // Place in line counts only people still waiting: a held spot shows under "In" (UI spec §4.1).
+  const inLine = waitlistEntries.filter((entry) => entry.heldUntil === null);
+  const viewerLineIndex = inLine.findIndex((entry) => entry.userId === options.viewerId);
   const viewerEntry = event.waitlistEntries.find((entry) => entry.userId === options.viewerId && entry.status === "WAITING");
   const going = event.rsvps.filter(countsTowardMax).length;
   const viewerWaitlist = viewerEntry
     ? {
-        position: viewerWaitlistIndex + 1,
+        position: viewerLineIndex === -1 ? null : viewerLineIndex + 1,
         heldUntil: isHoldActive(viewerEntry, now) ? viewerEntry.heldUntil : null,
         // A spot nobody holds (first to claim, or everyone had their turn): anyone waiting can take it.
         spotOpen: hasCapacity(event, going + spotsHeldForOthers(event.waitlistEntries, viewerEntry.userId, now)),
@@ -123,6 +125,8 @@ export async function getEventBySlug(db: Db, slug: string, options: GetEventBySl
     costBreakdown,
     priceDisplay: priceDisplay(event),
     viewerRsvp,
+    /** So the page can highlight the viewer's own row in the list. */
+    viewerId: options.viewerId ?? null,
     isOrganizer,
     viewerWaitlist,
   };

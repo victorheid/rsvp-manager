@@ -322,6 +322,8 @@ export function DesignGallery() {
             <PersonRow name="Conor B." trailing={<StatusChip tone="accent">Organizer</StatusChip>} />
             <PersonRow name="Aoife M." />
             <PersonRow name="Seán O." trailing="#2" />
+            <PersonRow name="Niamh K." trailing="Held until 21:00" highlighted />
+            <PersonRow name="Dara L." muted />
             <div className="flex gap-3 py-2">
               <Avatar name="Westside 5-a-side" />
               <Avatar name="Padel" size="lg" />
@@ -379,6 +381,18 @@ export function DesignGallery() {
               <StickyActionBar context="Nothing charged now · drop out free until it’s confirmed">
                 <Button size="lg" fullWidth>
                   I’m in
+                </Button>
+              </StickyActionBar>
+            </div>
+          </Specimen>
+          <Specimen label="StickyActionBar with the viewer's status (event page)">
+            <div className="overflow-hidden rounded-lg border border-border-default">
+              <StickyActionBar
+                status={{ title: "A spot is yours, Niamh", detail: "Held for you until 21:00, then it goes to the next person. Nothing charged now." }}
+                secondaryAction={<button type="button">Leave waitlist</button>}
+              >
+                <Button size="lg" fullWidth>
+                  Take the spot
                 </Button>
               </StickyActionBar>
             </div>

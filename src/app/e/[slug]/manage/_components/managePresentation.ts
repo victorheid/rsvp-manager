@@ -4,6 +4,7 @@ import type { RouterOutputs } from "@/lib/trpc/types";
 import type { EventPhase } from "@/server/domains/events";
 
 export type OrganizerRsvp = RouterOutputs["rsvps"]["forOrganizer"]["rsvps"][number];
+export type OrganizerWaitlistEntry = RouterOutputs["rsvps"]["forOrganizer"]["waitlist"][number];
 
 /** Who this row is: a player's "First L.", or a walk-in's typed name. */
 export function personName(rsvp: Pick<OrganizerRsvp, "user" | "walkInName">): string {

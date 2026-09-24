@@ -18,12 +18,11 @@ import {
   SharePreview,
   ShareSheet,
   StatusChip,
-  StickyActionBar,
   TopBar,
   useToast,
 } from "@/components/ui";
 import { trpc } from "@/lib/trpc/client";
-import { formatCents, formatDateTime, formatPlayerName, formatRelativeDay, formatTimeRange } from "@/lib/format";
+import { formatCents, formatDateTime, formatPlayerName, formatRelativeDay, formatTime, formatTimeRange } from "@/lib/format";
 import { eventChip } from "@/app/_components/eventPhase";
 import { headcountText } from "@/app/_components/eventPrice";
 import { SignInSheet } from "@/app/_components/SignInSheet";
@@ -31,17 +30,19 @@ import { useNow } from "@/app/_components/useNow";
 import { useOpenShareOnArrival } from "@/app/_components/useOpenShareOnArrival";
 import { useOrigin } from "@/app/_components/useOrigin";
 import { useRequireAuth } from "@/app/_components/useRequireAuth";
-import { eventPhase } from "@/server/domains/events/rules";
-import { countsTowardMax, hasCapacity } from "@/server/domains/events/rules";
-import { IsItOnBanner, ViewerStatusBanner, expectedPriceCents } from "./_components/EventStatusBanners";
+import { countsTowardMax, eventPhase } from "@/server/domains/events/rules";
+import { IsItOnBanner, expectedPriceCents } from "./_components/EventStatusBanners";
 import { RsvpSheet } from "./_components/RsvpSheet";
+import { ViewerActionBar } from "./_components/ViewerActionBar";
 
 const NAMES_SHOWN = 6;
 
 /**
  * UI spec §4: the event page — where almost everyone lands, usually from a
- * link in a group chat with no account. It answers, in this order:
- * what/when/where → is it on → how much → who's in → what do I do.
+ * link in a group chat with no account, and where they come back to check.
+ * The list leads (who's in, the waitlist in order, who dropped out); then
+ * when/where, is it on, how much. Everything about the viewer — their
+ * status and what they can do — lives in the bottom bar.
  */
 export default function EventPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -57,7 +58,7 @@ export default function EventPage() {
   const [rsvpOpen, setRsvpOpen] = useState(false);
   const [dropOpen, setDropOpen] = useState(false);
   const [showAllNames, setShowAllNames] = useState(false);
-  const [showWaitlist, setShowWaitlist] = useState(false);
+  const [showDropped, setShowDropped] = useState(false);
 
   const refresh = () => utils.events.getBySlug.invalidate({ slug });
   const failed = (message: string) => toast({ message, tone: "error" });
@@ -105,59 +106,27 @@ export default function EventPage() {
 
   const phase = eventPhase(event, now);
   const players = event.rsvps.filter(countsTowardMax);
-  const isGoing = event.viewerRsvp?.status === "GOING";
-  const isWaitlisted = event.viewerWaitlist !== null;
-  const isFull = !hasCapacity(event, players.length);
-  const isJoinable = phase === "OPEN" || phase === "CONFIRMED";
   const price = formatCents(expectedPriceCents(event));
   const startsAt = new Date(event.startsAt);
-  const spotsLeft = event.maxPlayers === null ? null : Math.max(0, event.maxPlayers - players.length);
+  const held = event.waitlistEntries.filter((entry) => entry.heldUntil !== null);
+  const inLine = event.waitlistEntries.filter((entry) => entry.heldUntil === null);
+  const spotsLeft = event.maxPlayers === null ? null : Math.max(0, event.maxPlayers - players.length - held.length);
   const shareUrl = `${origin}/e/${slug}`;
   const chip = eventChip(event, now);
+  const isViewer = (userId: string | null) => userId !== null && userId === event.viewerId;
 
-  // ---- The sticky bar: one primary action for this viewer in this state (UI spec §4.2).
-  let actionBar = null;
-  if (isJoinable && !isGoing && !isWaitlisted && !isFull && (event.cashAllowed || event.onlineAllowed)) {
-    actionBar = (
-      <StickyActionBar
-        context={
-          phase === "OPEN"
-            ? "Nothing charged now · drop out free until it’s confirmed"
-            : event.onlineAllowed
-              ? `Pay ${price} when you join`
-              : `Pay ${price} in cash on the day`
-        }
-      >
-        <Button size="lg" fullWidth onClick={() => requireAuth(() => setRsvpOpen(true))}>
-          I’m in
-        </Button>
-      </StickyActionBar>
-    );
-  } else if (isJoinable && !isGoing && !isWaitlisted && isFull) {
-    actionBar = (
-      <StickyActionBar context="Nothing charged now · you can claim a spot if one opens">
-        <Button size="lg" fullWidth loading={joinWaitlist.isPending} onClick={() => requireAuth(() => joinWaitlist.mutate({ eventId: event.id }))}>
-          Join waitlist
-        </Button>
-      </StickyActionBar>
-    );
-  } else if (isJoinable && isWaitlisted) {
-    actionBar = (
-      <StickyActionBar context="If a spot opens for you, it shows up here">
-        <Button size="lg" variant="secondary" fullWidth loading={leaveWaitlist.isPending} onClick={() => leaveWaitlist.mutate({ eventId: event.id })}>
-          Leave waitlist
-        </Button>
-      </StickyActionBar>
-    );
-  } else if (isJoinable && isGoing) {
-    actionBar = (
-      <StickyActionBar context={phase === "OPEN" ? "Free to drop out until the game is confirmed" : "No automatic refund if you drop out"}>
-        <Button size="lg" fullWidth variant="secondary" onClick={() => setDropOpen(true)}>
-          Can’t make it
-        </Button>
-      </StickyActionBar>
-    );
-  }
+  const actionBar = (
+    <ViewerActionBar
+      event={event}
+      now={now}
+      onJoin={() => requireAuth(() => setRsvpOpen(true))}
+      onJoinWaitlist={() => requireAuth(() => joinWaitlist.mutate({ eventId: event.id }))}
+      onLeaveWaitlist={() => leaveWaitlist.mutate({ eventId: event.id })}
+      onDropOut={() => setDropOpen(true)}
+      joiningWaitlist={joinWaitlist.isPending}
+      leavingWaitlist={leaveWaitlist.isPending}
+    />
+  );
 
   const visiblePlayers = showAllNames ? players : players.slice(0, NAMES_SHOWN);
   const priceNote =
@@ -194,7 +163,70 @@ export default function EventPage() {
         </Button>
       )}
 
-      <ViewerStatusBanner event={event} now={now} />
+      <HeadcountBar
+        count={event.rsvps.length}
+        min={event.minPlayers}
+        max={event.maxPlayers}
+        note={
+          spotsLeft === null
+            ? undefined
+            : held.length > 0 && spotsLeft === 0
+              ? `${held.length} held`
+              : spotsLeft === 0
+                ? "Full"
+                : `${spotsLeft} ${spotsLeft === 1 ? "spot" : "spots"} left`
+        }
+      />
+
+      <section className="flex flex-col gap-1">
+        <SectionHeader
+          title={event.maxPlayers === null ? `In · ${players.length}` : `In · ${players.length} of ${event.maxPlayers}`}
+          action={
+            players.length > NAMES_SHOWN
+              ? { label: showAllNames ? "Show fewer" : `Show all ${players.length}`, onClick: () => setShowAllNames((current) => !current) }
+              : undefined
+          }
+        />
+        {/* §4: walk-ins aren't shown publicly — they're organizer records (manage screen). */}
+        {visiblePlayers.map((rsvp) =>
+          rsvp.user ? (
+            <PersonRow
+              key={rsvp.id}
+              name={formatPlayerName(rsvp.user)}
+              highlighted={isViewer(rsvp.userId)}
+              trailing={rsvp.userId === event.group.organizerId ? <StatusChip tone="accent">Organizer</StatusChip> : undefined}
+            />
+          ) : null,
+        )}
+        {held.map((entry) => (
+          <PersonRow
+            key={entry.id}
+            name={formatPlayerName(entry.user)}
+            highlighted={isViewer(entry.userId)}
+            trailing={entry.heldUntil ? `Held until ${formatTime(new Date(entry.heldUntil))}` : undefined}
+          />
+        ))}
+        {players.length === 0 && held.length === 0 && <p className="text-small text-text-secondary">No one yet — be the first.</p>}
+      </section>
+
+      {inLine.length > 0 && (
+        <section className="flex flex-col gap-1">
+          <SectionHeader title={event.waitlistMode === "IN_ORDER" ? "Waitlist · in order" : "Waitlist · first to claim"} />
+          {inLine.map((entry, index) => (
+            <PersonRow key={entry.id} name={formatPlayerName(entry.user)} highlighted={isViewer(entry.userId)} trailing={`#${index + 1}`} />
+          ))}
+        </section>
+      )}
+
+      {event.droppedOut.length > 0 && (
+        <section className="flex flex-col gap-1">
+          <SectionHeader
+            title={`Dropped out · ${event.droppedOut.length}`}
+            action={{ label: showDropped ? "Hide" : "Show", onClick: () => setShowDropped((current) => !current) }}
+          />
+          {showDropped && event.droppedOut.map((person) => <PersonRow key={person.id} name={formatPlayerName(person.user)} muted />)}
+        </section>
+      )}
 
       <div className="flex flex-col gap-3">
         <KeyFact
@@ -211,13 +243,6 @@ export default function EventPage() {
       </div>
 
       <IsItOnBanner event={event} now={now} />
-
-      <HeadcountBar
-        count={event.rsvps.length}
-        min={event.minPlayers}
-        max={event.maxPlayers}
-        note={spotsLeft === null ? undefined : `${spotsLeft} ${spotsLeft === 1 ? "spot" : "spots"} left`}
-      />
 
       <PriceBlock
         amount={
@@ -247,41 +272,6 @@ export default function EventPage() {
             : "Pay the organizer in cash on the day · no fee"
         }
       />
-
-      <section className="flex flex-col gap-1">
-        <SectionHeader
-          title={`Who’s in · ${players.length}`}
-          action={
-            players.length > NAMES_SHOWN
-              ? { label: showAllNames ? "Show fewer" : `Show all ${players.length}`, onClick: () => setShowAllNames((current) => !current) }
-              : undefined
-          }
-        />
-        {/* §4: walk-ins aren't shown publicly — they're organizer records (manage screen). */}
-        {visiblePlayers.map((rsvp) =>
-          rsvp.user ? (
-            <PersonRow
-              key={rsvp.id}
-              name={formatPlayerName(rsvp.user)}
-              trailing={rsvp.userId === event.group.organizerId ? <StatusChip tone="accent">Organizer</StatusChip> : undefined}
-            />
-          ) : null,
-        )}
-        {players.length === 0 && <p className="text-small text-text-secondary">No one yet — be the first.</p>}
-      </section>
-
-      {event.waitlistEntries.length > 0 && (
-        <section className="flex flex-col gap-1">
-          <SectionHeader
-            title={`Waitlist · ${event.waitlistEntries.length}`}
-            action={{ label: showWaitlist ? "Hide" : "Show", onClick: () => setShowWaitlist((current) => !current) }}
-          />
-          {showWaitlist &&
-            event.waitlistEntries.map((entry, index) => (
-              <PersonRow key={entry.id} name={formatPlayerName(entry.user)} trailing={`#${index + 1}`} />
-            ))}
-        </section>
-      )}
 
       {event.description && (
         <section className="flex flex-col gap-1">

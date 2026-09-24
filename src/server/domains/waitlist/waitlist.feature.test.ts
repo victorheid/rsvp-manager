@@ -136,7 +136,7 @@ describe.skipIf(!hasTestDb)("waitlist", () => {
 
       const held = await entryOf(event.id, jay.user.id);
       expect(held.heldUntil?.getTime()).toBeGreaterThanOrEqual(before + 60 * 60_000);
-      expect((await jay.caller.events.getBySlug({ slug: event.slug })).viewerWaitlist).toMatchObject({ position: 1, heldUntil: held.heldUntil });
+      expect((await jay.caller.events.getBySlug({ slug: event.slug })).viewerWaitlist).toMatchObject({ position: null, heldUntil: held.heldUntil });
       await expect(kim.caller.rsvps.create({ eventId: event.id, paymentMethod: "CASH" })).rejects.toThrow("full");
       await expect(kim.caller.waitlist.join({ eventId: event.id })).resolves.toBeTruthy(); // still full for her
 
