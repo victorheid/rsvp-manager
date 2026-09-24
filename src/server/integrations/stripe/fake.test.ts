@@ -41,7 +41,7 @@ describe("FakePaymentGateway scenarios", () => {
 
   it("refuses a payout to an account that hasn't finished onboarding", async () => {
     fakePaymentGateway.onboardingCompletesImmediately = false;
-    const account = await fakePaymentGateway.ensureConnectedAccount({ userId: "org", name: "Org" });
+    const account = await fakePaymentGateway.ensureConnectedAccount({ userId: "org", name: "Org", email: null, phoneNumber: "+353830000001" });
     await fakePaymentGateway.createOnboardingLink({ accountId: account.accountId, returnUrl: "https://app.example" });
 
     await expect(

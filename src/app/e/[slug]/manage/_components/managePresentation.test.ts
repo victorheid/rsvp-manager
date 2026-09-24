@@ -70,8 +70,8 @@ describe("personDetail", () => {
 });
 
 describe("personName", () => {
-  it("uses first name and last initial for players, and the typed name for walk-ins", () => {
-    expect(personName({ user: { id: "u", firstName: "Aoife", lastInitial: "M", phoneNumber: "+353" }, walkInName: null })).toBe("Aoife M.");
+  it("uses the player's name, and the typed name for walk-ins", () => {
+    expect(personName({ user: { id: "u", name: "Aoife", phoneNumber: "+353" }, walkInName: null })).toBe("Aoife");
     expect(personName({ user: null, walkInName: "Dana" })).toBe("Dana");
   });
 });

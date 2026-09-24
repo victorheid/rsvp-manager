@@ -34,6 +34,7 @@ const eventFormSchema = z.object({
     .int()
     .refine((minutes) => WAITLIST_HOLD_MINUTES_OPTIONS.some((option) => option === minutes), "Pick one of the hold times offered.")
     .optional(),
+  openToNonMembers: z.boolean().optional(),
 });
 
 export const eventsRouter = router({

@@ -57,7 +57,3 @@ function startOfDay(date: Date): number {
   return new Date(`${parts}T00:00:00Z`).getTime();
 }
 
-/** `Aoife M.` — the only form of a player's name other players ever see (§4). */
-export function formatPlayerName(user: { firstName: string; lastInitial: string }): string {
-  return `${user.firstName} ${user.lastInitial}.`;
-}

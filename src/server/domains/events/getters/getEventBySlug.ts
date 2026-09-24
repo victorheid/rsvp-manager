@@ -5,7 +5,7 @@ import type { EventModel } from "@/generated/prisma/models";
 import { isHoldActive, sortWaitlist, spotsHeldForOthers } from "@/server/domains/waitlist/rules";
 import { feeRules, getFeeScheduleById } from "@/server/domains/fees";
 import { costBreakdownSchema } from "@/server/domains/events/costBreakdown";
-import { countsTowardMax, hasCapacity, splitPriceRangeCents } from "@/server/domains/events/rules";
+import { countsTowardMax, hasCapacity, joinProblem, splitPriceRangeCents } from "@/server/domains/events/rules";
 
 export type PriceDisplay =
   | { mode: "fixed"; amountCents: number }
@@ -49,10 +49,10 @@ export async function getEventBySlug(db: Db, slug: string, options: GetEventBySl
         where: { status: "GOING" },
         // Public: nothing about how anyone pays — no saved card, no pay-link secret.
         omit: { payToken: true, stripePaymentMethodId: true, cardBrand: true, cardLast4: true },
-        include: { user: { select: { firstName: true, lastInitial: true } } },
+        include: { user: { select: { name: true } } },
       },
       waitlistEntries: {
-        include: { user: { select: { firstName: true, lastInitial: true } } },
+        include: { user: { select: { name: true } } },
       },
       group: { select: { name: true, slug: true, organizerId: true } },
     },
@@ -75,6 +75,13 @@ export async function getEventBySlug(db: Db, slug: string, options: GetEventBySl
     : null;
 
   const isOrganizer = options.viewerId !== undefined && options.viewerId === event.group.organizerId;
+  // §1: members-only games say so up front. Unknown for someone signed out — the action checks again after sign-in.
+  const viewerIsMember = options.viewerId
+    ? (await db.groupMembership.findUnique({
+        where: { groupId_userId: { groupId: event.groupId, userId: options.viewerId } },
+        select: { id: true },
+      })) !== null
+    : null;
 
   // §6: first come first served; a hold only shows while it's running.
   const { now } = options;
@@ -102,7 +109,7 @@ export async function getEventBySlug(db: Db, slug: string, options: GetEventBySl
   const droppedRsvps = await db.rsvp.findMany({
     where: { eventId: event.id, status: "CANCELLED", userId: { not: null } },
     orderBy: { createdAt: "asc" },
-    select: { id: true, user: { select: { firstName: true, lastInitial: true } } },
+    select: { id: true, user: { select: { name: true } } },
   });
   const droppedOut = [
     ...droppedRsvps.flatMap((rsvp) => (rsvp.user ? [{ id: rsvp.id, user: rsvp.user }] : [])),
@@ -129,5 +136,7 @@ export async function getEventBySlug(db: Db, slug: string, options: GetEventBySl
     viewerId: options.viewerId ?? null,
     isOrganizer,
     viewerWaitlist,
+    /** Why the viewer can't join this game (members only), or null. */
+    viewerJoinProblem: viewerIsMember === null ? null : joinProblem(event, viewerIsMember),
   };
 }

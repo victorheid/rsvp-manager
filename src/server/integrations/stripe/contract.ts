@@ -158,7 +158,7 @@ export function describeGatewayContract(
     it.skipIf(!options.canPayOut)("pays out once per idempotency key to an onboarded account", async () => {
       const id = randomUUID(); // idempotency keys are remembered by Stripe: never reuse one across tests or runs
       const { gateway } = create();
-      const account = await gateway.ensureConnectedAccount({ userId: "org", name: "Org O" });
+      const account = await gateway.ensureConnectedAccount({ userId: "org", name: "Org O", email: "org@example.test", phoneNumber: "+353830000001" });
       const link = await gateway.createOnboardingLink({ accountId: account.accountId, returnUrl: "https://app.example/back" });
       expect(link.url).toContain("https://");
 

@@ -62,6 +62,18 @@ export type GatewayEvent =
   | { type: "payment_updated"; paymentIntentId: string }
   | { type: "account_updated"; accountId: string };
 
+/**
+ * What we already know about an organizer, prefilled on their connected
+ * account so Stripe's onboarding doesn't ask for it again.
+ */
+export interface ConnectedAccountInput {
+  userId: string;
+  name: string;
+  email: string | null;
+  /** E.164, as stored on the user. */
+  phoneNumber: string;
+}
+
 export interface PaymentGateway {
   /**
    * Checks a webhook's signature and turns it into a `GatewayEvent`, or null
@@ -99,7 +111,7 @@ export interface PaymentGateway {
   refund(input: { chargeId: string; amountCents: number; idempotencyKey: string }): Promise<{ refundId: string }>;
 
   /** §5 organizer payouts: Stripe Connect. */
-  ensureConnectedAccount(input: { userId: string; name: string }): Promise<ConnectedAccountState>;
+  ensureConnectedAccount(input: ConnectedAccountInput): Promise<ConnectedAccountState>;
   createOnboardingLink(input: { accountId: string; returnUrl: string }): Promise<{ url: string }>;
   getConnectedAccount(accountId: string): Promise<ConnectedAccountState>;
   /** Moves money from the platform to an organizer's connected account. */

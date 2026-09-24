@@ -4,6 +4,8 @@ import type { Db } from "@/server/db";
 export async function getGroupsForUser(db: Db, userId: string) {
   return db.group.findMany({
     where: { memberships: { some: { userId } } },
+    // The invite link is the organizer's to share, from the group page.
+    omit: { inviteToken: true, inviteExpiresAt: true },
     orderBy: { name: "asc" },
   });
 }

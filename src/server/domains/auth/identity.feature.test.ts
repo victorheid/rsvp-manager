@@ -31,8 +31,7 @@ describe.skipIf(!hasTestDb)("organizer email and changing phone number", () => {
     const user = await db.user.create({
       data: {
         phoneNumber,
-        firstName: "Ann",
-        lastInitial: "B",
+        name: "Ann",
         ...(extra.email ? { email: extra.email, emailVerifiedAt: new Date() } : {}),
       },
     });
@@ -141,7 +140,7 @@ describe.skipIf(!hasTestDb)("organizer email and changing phone number", () => {
       const group = await organizer.caller.groups.create({ name: "Futsal" });
       const player = await makeUser("+353830000002");
 
-      await expect(player.caller.groups.join({ slug: group.slug })).resolves.toBeTruthy();
+      await expect(player.caller.groups.join({ slug: group.slug, token: group.inviteToken ?? "" })).resolves.toBeTruthy();
     });
   });
 
@@ -150,7 +149,7 @@ describe.skipIf(!hasTestDb)("organizer email and changing phone number", () => {
       const organizer = await makeUser("+353830000001", { email: "org@example.com" });
       const group = await organizer.caller.groups.create({ name: "Futsal" });
       const { user, caller } = await makeUser("+353830000002");
-      await caller.groups.join({ slug: group.slug });
+      await caller.groups.join({ slug: group.slug, token: group.inviteToken ?? "" });
 
       expect(await caller.auth.requestPhoneChange({ newPhoneNumber: "+353830000009" })).toEqual({ needsEmailCode: false });
       const smsCode = codeIn(fakeSmsSender.lastMessageTo("+353830000009")?.body);

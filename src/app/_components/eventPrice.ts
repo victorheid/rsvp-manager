@@ -3,7 +3,7 @@ import { splitPriceRangeCents } from "@/server/domains/events/rules";
 import type { RouterOutputs } from "@/lib/trpc/types";
 
 type PricedEvent = Pick<
-  RouterOutputs["groups"]["getBySlug"]["events"][number],
+  Extract<RouterOutputs["groups"]["getBySlug"], { access: "MEMBER" }>["events"][number],
   "status" | "pricingMode" | "totalCostCents" | "minPlayers" | "maxPlayers" | "lockedPriceCents"
 >;
 

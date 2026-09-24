@@ -30,12 +30,12 @@ describe.skipIf(!hasTestDb)("payout release (§5)", () => {
   const DAY = 86_400_000;
 
   async function makePlayer(name: string, phone: string) {
-    const user = await db.user.create({ data: { phoneNumber: phone, firstName: name, lastInitial: "P" } });
+    const user = await db.user.create({ data: { phoneNumber: phone, name: name } });
     return { user, caller: callerAs(user.id, phone) };
   }
 
   async function confirmedEventWithPayments(options: { onboard?: boolean } = {}) {
-    const organizer = await db.user.create({ data: { phoneNumber: "+353830000001", firstName: "Org", email: "+353830000001@example.test", emailVerifiedAt: new Date(), lastInitial: "O" } });
+    const organizer = await db.user.create({ data: { phoneNumber: "+353830000001", name: "Org", email: "+353830000001@example.test", emailVerifiedAt: new Date() } });
     const organizerCaller = callerAs(organizer.id, organizer.phoneNumber);
     if (options.onboard !== false) {
       await organizerCaller.payouts.startOnboarding({ returnPath: "/" });
@@ -46,7 +46,7 @@ describe.skipIf(!hasTestDb)("payout release (§5)", () => {
     // Not onboarded → cash only.
     const event = await organizerCaller.events.create({
       groupId: group.id, title: "Game", startsAt, endsAt: new Date(startsAt.getTime() + 3_600_000), location: "A",
-      cutoffAt: new Date(Date.now() + 3_600_000), totalCostCents: 800, pricingMode: PricingMode.FIXED_PER_HEAD,
+      cutoffAt: new Date(Date.now() + 3_600_000), totalCostCents: 800, pricingMode: PricingMode.FIXED_PER_HEAD, openToNonMembers: true,
       cashAllowed: true, onlineAllowed: options.onboard !== false,
     });
 

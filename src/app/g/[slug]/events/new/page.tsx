@@ -50,12 +50,12 @@ export default function CreateEventPage() {
   const { requireEmail, verifyEmailSheetProps } = useRequireVerifiedEmail();
   const [edits, setEdits] = useState<EventFormEdits>(NO_EDITS);
 
-  const isOrganizer = !!group && me?.id === group.organizerId;
+  const isOrganizer = group?.access === "MEMBER" && group.isOrganizer;
 
   // Layer 1: a group that already has games opens on the next likely date and time.
   const startDefaults: EventFormValues = useMemo(() => {
     if (sourceEvent) return eventFormValuesFromEvent(sourceEvent, WEEK_MS);
-    const lastStart = group?.events
+    const lastStart = (group?.access === "MEMBER" ? group.events : [])
       .map((event) => new Date(event.startsAt))
       .sort((a, b) => b.getTime() - a.getTime())[0];
     if (!lastStart) return EMPTY_EVENT_FORM_VALUES;
@@ -94,7 +94,7 @@ export default function CreateEventPage() {
     );
   }
 
-  if (me && group.organizerId !== me.id) {
+  if (me && !isOrganizer) {
     return (
       <Screen topBar={<TopBar backHref={`/g/${slug}`} title="New game" />}>
         <EmptyState icon="lock" title="Only the organizer can post games" description={`${group.name}’s organizer creates games here.`} />

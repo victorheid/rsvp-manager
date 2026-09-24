@@ -10,8 +10,7 @@ export interface VerifyCodeInput {
   phoneNumber: string;
   code: string;
   /** Only required the first time this phone number signs in. */
-  firstName?: string;
-  lastInitial?: string;
+  name?: string;
 }
 
 export type VerifyCodeResult =
@@ -71,9 +70,9 @@ export async function verifyCode(db: Db, input: VerifyCodeInput, now: Date): Pro
 
     // A brand-new phone number without a name yet doesn't consume the code:
     // the client resubmits the same phone + code together with the name.
-    const { firstName, lastInitial } = input;
+    const { name } = input;
 
-    if (!firstName || !lastInitial) {
+    if (!name) {
       return { status: "needs_name" };
     }
 
@@ -83,7 +82,7 @@ export async function verifyCode(db: Db, input: VerifyCodeInput, now: Date): Pro
     });
 
     const user = await tx.user.create({
-      data: { phoneNumber: input.phoneNumber, firstName, lastInitial },
+      data: { phoneNumber: input.phoneNumber, name },
     });
 
     return { status: "verified", userId: user.id };

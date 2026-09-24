@@ -12,7 +12,7 @@ export async function getOrCreateCustomerId(db: Db, gateway: PaymentGateway, use
     return user.stripeCustomerId;
   }
 
-  const { customerId } = await gateway.ensureCustomer({ userId, name: `${user.firstName} ${user.lastInitial}` });
+  const { customerId } = await gateway.ensureCustomer({ userId, name: user.name });
   await db.user.update({ where: { id: userId }, data: { stripeCustomerId: customerId } });
 
   return customerId;

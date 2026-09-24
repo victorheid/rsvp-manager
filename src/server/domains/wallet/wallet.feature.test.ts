@@ -27,7 +27,7 @@ describe.skipIf(!hasTestDb)("wallet", () => {
   });
 
   async function makeUser(phoneNumber = "+353830000001") {
-    const user = await db.user.create({ data: { phoneNumber, firstName: "Ann", lastInitial: "B" } });
+    const user = await db.user.create({ data: { phoneNumber, name: "Ann" } });
     return { user, caller: callerAs(user.id, phoneNumber) };
   }
 
@@ -176,7 +176,7 @@ describe.skipIf(!hasTestDb)("wallet", () => {
     async function makeRsvp(userId: string, n: number) {
       const organizer = await db.user.upsert({
         where: { phoneNumber: "+353830009999" },
-        create: { phoneNumber: "+353830009999", firstName: "Org", email: "+353830009999@example.test", emailVerifiedAt: new Date(), lastInitial: "O" },
+        create: { phoneNumber: "+353830009999", name: "Org", email: "+353830009999@example.test", emailVerifiedAt: new Date() },
         update: {},
       });
       const group = await db.group.upsert({

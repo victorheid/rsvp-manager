@@ -24,7 +24,7 @@ import {
   useToast,
 } from "@/components/ui";
 import { trpc } from "@/lib/trpc/client";
-import { formatCents, formatDateTime, formatPlayerName, formatTime } from "@/lib/format";
+import { formatCents, formatDateTime, formatTime } from "@/lib/format";
 import { phaseChip } from "@/app/_components/eventPhase";
 import { headcountText } from "@/app/_components/eventPrice";
 import { useNow } from "@/app/_components/useNow";
@@ -313,7 +313,7 @@ export default function ManageEventPage() {
       });
     }
     const detail = entry.heldUntil ? `Spot held until ${formatTime(new Date(entry.heldUntil))}` : `#${entry.position} · waiting`;
-    return <PersonManageRow key={entry.id} name={formatPlayerName(entry.user)} detail={detail} tone="neutral" items={items} />;
+    return <PersonManageRow key={entry.id} name={entry.user.name} detail={detail} tone="neutral" items={items} />;
   }
 
   // ---- Event-level actions, from the rules: a primary, an optional secondary, and the ••• menu.
@@ -506,7 +506,7 @@ export default function ManageEventPage() {
             <div className="rounded-lg border border-border-default bg-bg-surface">
               {dropped.map(row)}
               {droppedFromWaitlist.map((entry) => (
-                <PersonManageRow key={entry.id} name={formatPlayerName(entry.user)} detail="Left the waitlist" tone="neutral" items={[]} />
+                <PersonManageRow key={entry.id} name={entry.user.name} detail="Left the waitlist" tone="neutral" items={[]} />
               ))}
             </div>
           )}
@@ -616,7 +616,7 @@ export default function ManageEventPage() {
       <ConfirmSheet
         open={droppingEntry !== null}
         onClose={() => setDroppingEntry(null)}
-        title={droppingEntry ? `Mark ${formatPlayerName(droppingEntry.user)} as dropped out?` : "Mark as dropped out?"}
+        title={droppingEntry ? `Mark ${droppingEntry.user.name} as dropped out?` : "Mark as dropped out?"}
         tone="destructive"
         banner={{
           tone: "info",

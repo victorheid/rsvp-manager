@@ -3,7 +3,7 @@ import type { Db } from "@/server/db";
 import type { EventModel } from "@/generated/prisma/models";
 import { PaymentMethod, PaymentStatus, RsvpStatus, WaitlistEntryStatus } from "@/generated/prisma/enums";
 import { eventRules } from "@/server/domains/events";
-import { joinGroupById } from "@/server/domains/groups";
+import { isGroupMember } from "@/server/domains/groups";
 import { chargeCardRsvp } from "@/server/domains/payments";
 import { chargeWalletNow, placeHold } from "@/server/domains/wallet";
 import { advanceWaitlist, waitlistRules } from "@/server/domains/waitlist";
@@ -19,8 +19,8 @@ export interface CreateRsvpInput {
 }
 
 /**
- * Joins an event (§4), auto-joining its group (§1), with the payment
- * choice the event allows (§5). Nobody is charged just for RSVPing:
+ * Joins an event (§4) — members only, unless the organizer opened it to
+ * non-members (§1) — with the payment choice the event allows (§5). Nobody is charged just for RSVPing:
  *  - cash: nothing happens until the organizer collects it;
  *  - wallet: a hold reserves the price (for split pricing, the upper
  *    bound) — or, on an already-confirmed event, the locked price is
@@ -63,6 +63,12 @@ export async function createRsvp(db: Db, gateway: PaymentGateway, input: CreateR
         code: "BAD_REQUEST",
         message: `This event is ${event.status.toLowerCase()}.`,
       });
+    }
+
+    const joinProblem = eventRules.joinProblem(event, await isGroupMember(tx, { groupId: event.groupId, userId: input.userId }));
+
+    if (joinProblem) {
+      throw new TRPCError({ code: "FORBIDDEN", message: joinProblem });
     }
 
     assertPaymentMethodAllowed(event, input.paymentMethod);
@@ -131,8 +137,6 @@ export async function createRsvp(db: Db, gateway: PaymentGateway, input: CreateR
         await tx.rsvp.update({ where: { id: rsvp.id }, data: { paymentStatus: PaymentStatus.CHARGED } });
       }
     }
-
-    await joinGroupById(tx, { groupId: event.groupId, userId: input.userId });
 
     // §6: taking a spot is a normal RSVP — clear their waitlist entry now
     // that they're going, so they don't show up in both places.

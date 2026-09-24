@@ -23,7 +23,7 @@ describe.skipIf(!hasTestDb)("background jobs", () => {
 
   async function createGroupAndOrganizer() {
     const organizer = await db.user.create({
-      data: { phoneNumber: "+353820000001", firstName: "Org", email: "+353820000001@example.test", emailVerifiedAt: new Date(), lastInitial: "O" },
+      data: { phoneNumber: "+353820000001", name: "Org", email: "+353820000001@example.test", emailVerifiedAt: new Date() },
     });
     const group = await db.group.create({
       data: { slug: "job-test-group", name: "Job Test Group", organizerId: organizer.id },
@@ -35,7 +35,7 @@ describe.skipIf(!hasTestDb)("background jobs", () => {
     it("confirms an open event past cut-off with the minimum met", async () => {
       const { group } = await createGroupAndOrganizer();
       const player = await db.user.create({
-        data: { phoneNumber: "+353820000002", firstName: "Ana", lastInitial: "K" },
+        data: { phoneNumber: "+353820000002", name: "Ana" },
       });
       const now = new Date("2026-01-10T18:00:01Z");
       const event = await db.event.create({
@@ -150,7 +150,7 @@ describe.skipIf(!hasTestDb)("background jobs", () => {
     async function openEventWithPlayer(cutoffAt: Date) {
       const { group } = await createGroupAndOrganizer();
       const player = await db.user.create({
-        data: { phoneNumber: "+353820000002", firstName: "Ana", lastInitial: "K" },
+        data: { phoneNumber: "+353820000002", name: "Ana" },
       });
       await db.pushSubscription.create({
         data: { userId: player.id, endpoint: "https://push.example/ana", p256dh: "k", auth: "a" },
@@ -230,7 +230,7 @@ describe.skipIf(!hasTestDb)("background jobs", () => {
     it("stays quiet for a game that auto-confirms", async () => {
       const event = await pastCutoffEvent({ minPlayers: 1 });
       const player = await db.user.create({
-        data: { phoneNumber: "+353820000002", firstName: "Ana", lastInitial: "K" },
+        data: { phoneNumber: "+353820000002", name: "Ana" },
       });
       await db.rsvp.create({ data: { eventId: event.id, userId: player.id, paymentMethod: "CASH" } });
 

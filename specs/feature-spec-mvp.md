@@ -5,12 +5,15 @@ Status: aligned, with open questions listed at the end. Guiding principle: **sim
 ## 1. Groups
 
 - A group is the top-level container (e.g. "Thursday Basketball Galway"). Every event belongs to exactly one group.
-- Organizer creates a group and gets a shareable link: `app.com/g/{group-slug}`.
-- People join via the group link, or automatically by RSVPing to any of the group's events. No approval flow.
-- Group has: name, description, list of events.
-- Membership gives you: the group's event list, and a notification when a new event is posted.
+- Organizer creates a group. Its page `app.com/g/{group-slug}` is **members only**: anyone else sees just the group's name and whom to ask for an invite.
+- People join only through the organizer's **invite link** `app.com/g/{group-slug}/join/{secret}`. No approval flow: the link is the permission.
+  - The organizer picks how long it works: never expires (default), 24 hours, 7 days or 30 days, and can change that without changing the link.
+  - **New link** replaces it (the old one stops working, e.g. when it leaked); **Stop invites** turns joining off until they make a new one.
+- Joining a game never makes someone a member. Each game is members-only unless the organizer switches on **Open to non-members** for it (§2).
+- Group has: name, description, list of events, members.
+- Membership gives you: the group's event list, the members list, and a notification when a new event is posted.
+- **Members list**: everyone sees who's in; the organizer also sees phone numbers and can **remove** people. Members can **leave**. Removing or leaving keeps any RSVPs already made (the organizer handles those per game, §8); getting back in needs a working invite link.
 - **Organizers are group admins**, and events inherit them from their group. One admin per group for MVP; the data model allows several (future co-organizers).
-- The join link doesn't expire and can't be revoked in MVP, and organizers can't remove members. Both are post-MVP.
 
 ## 2. Events
 
@@ -23,6 +26,7 @@ Status: aligned, with open questions listed at the end. Guiding principle: **sim
 - **Price lock**: the per-head price is fixed the moment the event is confirmed and never recalculated after that. Later joiners pay the locked price. Headcount changes after that (no-shows, walk-ins) are handled with manual refunds (§8), never with automatic re-charges.
 - **Payment options**: **Cash only**, **Online only** (wallet/card), or **Cash + online**. Online options are available only once the organizer has finished Stripe onboarding (§5); until then only Cash only can be picked. Cash RSVPs count toward min/max like any other.
 - Toggle **Auto-charge at cut-off** (default on): see §3.
+- Toggle **Open to non-members** (default off, copied from the last game): anyone with the event link can join this game (and its waitlist) without joining the group. Off, only group members can.
 - Shareable link per event: `app.com/e/{event-slug}`, readable and easy to drop in WhatsApp.
 - Organizer can create a new event pre-filled from a previous one (recurring games).
 - Currency: EUR only.
@@ -47,9 +51,9 @@ The cut-off is the auto-confirm moment, not an RSVP deadline.
 
 ## 4. RSVP flow
 
-- **No account needed to view.** From the event link anyone sees: spots left, price (or range), cut-off, and who's in (first name + last initial).
-- Tapping RSVP asks for phone number + SMS code (first time only), then a payment choice: wallet, one-off card, or cash on the day (if allowed).
-- RSVPing automatically joins the group.
+- **No account needed to view.** From the event link anyone sees: spots left, price (or range), cut-off, and who's in (by the name they signed up with).
+- Tapping RSVP asks for phone number + SMS code, and a name the first time (one field: a full name or a nickname), then a payment choice: wallet, one-off card, or cash on the day (if allowed).
+- Only group members can RSVP, unless the game is open to non-members (§2). RSVPing doesn't join the group (§1).
 - If the event is full, the RSVP goes to the waitlist (§6).
 - Self-cancel (drop out) is allowed any time up to the event start. Before confirmation it's free; after confirmation the refund is the organizer's call (§3).
 
@@ -159,7 +163,7 @@ Triggers:
 
 ## Out of scope for MVP
 
-Multi-sport categorization, UK/US payment support, co-organizers (data model ready, no UI), cross-waitlist conflict checking, self-reported no-shows, automated reliability-based sorting, revocable group links, removing members, wallet-to-wallet transfers.
+Multi-sport categorization, UK/US payment support, co-organizers (data model ready, no UI), cross-waitlist conflict checking, self-reported no-shows, automated reliability-based sorting, wallet-to-wallet transfers.
 
 ---
 
@@ -187,6 +191,8 @@ Kept here so the "why" doesn't get lost.
 18. **Payment options per event: cash only / online only / both.** Online needs finished Stripe onboarding, so a new organizer can run cash games from day one.
 19. **When a game doesn't reach its minimum by cut-off, the organizer is alerted** to confirm anyway or cancel. If they do neither, it expires 48h after start (§7).
 20. **The event page leads with the list.** Most visits are someone checking "am I in, where am I in the queue", so In / Waitlist / Dropped out sit right under the title, with the viewer's own row highlighted. Everything about the viewer (their status, a held spot and until when, money owed, and the action for it) sits in the bottom action bar, so the page body stays about the game. The organizer can mark anyone dropped out, including waitlisters, so the list matches what was said in the chat. (2026-09-24)
+21. **Groups are invite-only; games are members-only unless opened up.** The invite link is separate from the group's URL, can expire, and can be replaced or turned off, so a link that travels too far can be killed. The group page shows outsiders nothing but the name. RSVPing no longer joins the group (it made every event link a back-door invite); a per-game **Open to non-members** switch keeps drop-in games as easy as before. Organizers can remove members and members can leave. Replaces "the join link can't be revoked / no removing members" (post-MVP before). (2026-09-24)
+22. **One free-text name instead of first name + last initial.** People use nicknames or full names; the app shows whatever they typed. (2026-09-24)
 
 ## Wallet limits — research notes
 

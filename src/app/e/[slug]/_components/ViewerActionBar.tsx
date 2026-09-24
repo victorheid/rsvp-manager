@@ -64,6 +64,18 @@ export function ViewerActionBar(props: ViewerActionBarProps) {
     );
   }
 
+  // §1: a members-only game, and the viewer isn't in the group. Nothing to tap: the way in is the group's invite link.
+  if (event.viewerJoinProblem) {
+    return (
+      <StickyActionBar
+        status={{ title: "Group members only", detail: event.viewerJoinProblem }}
+        secondaryAction={waitlist ? leaveLink : undefined}
+      >
+        {null}
+      </StickyActionBar>
+    );
+  }
+
   if (waitlist?.heldUntil) {
     return (
       <StickyActionBar

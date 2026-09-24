@@ -6,7 +6,7 @@ export async function getAccount(db: Db, userId: string) {
 
   return {
     phoneNumber: user.phoneNumber,
-    firstName: user.firstName,
+    name: user.name,
     email: user.email,
     emailVerified: user.emailVerifiedAt !== null,
   };

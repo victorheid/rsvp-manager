@@ -164,6 +164,10 @@ export function EventForm({ formId, values, onChange, onSubmit, error, lastGame,
                 }
               />
             )}
+            <KeyFact
+              icon="users"
+              primary={values.openToNonMembers ? "Open to anyone with the link" : "Group members only"}
+            />
             <Button variant="secondary" fullWidth onClick={() => setDetailsExpanded(true)}>
               Change details
             </Button>
@@ -194,6 +198,16 @@ export function EventForm({ formId, values, onChange, onSubmit, error, lastGame,
                 onChange={(n) => set("maxPlayers", n)}
               />
             )}
+            <ToggleRow
+              label="Open to non-members"
+              description={
+                values.openToNonMembers
+                  ? "Anyone with the game link can join this game. It doesn’t make them group members."
+                  : "Only group members can join."
+              }
+              checked={values.openToNonMembers}
+              onChange={(checked) => set("openToNonMembers", checked)}
+            />
           </Section>
 
           {!values.noMax && (

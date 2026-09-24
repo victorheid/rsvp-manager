@@ -15,8 +15,8 @@ datasource db {
 model User {
   id               String    @id @default(cuid())
   phoneNumber      String    @unique
-  firstName        String
-  lastInitial      String
+  // One free-text name (full name or nickname): what others in their groups see.
+  name             String
   createdAt        DateTime  @default(now())
   // The payment provider's customer for this user, created on first payment (§5).
   stripeCustomerId String?   @unique
@@ -39,12 +39,17 @@ model User {
 }
 
 model Group {
-  id          String   @id @default(cuid())
-  slug        String   @unique
-  name        String
-  description String?
-  organizerId String
-  createdAt   DateTime @default(now())
+  id              String    @id @default(cuid())
+  slug            String    @unique
+  name            String
+  description     String?
+  organizerId     String
+  // §1: the secret in the invite link (/g/{slug}/join/{token}), the only way to join.
+  // Null when the organizer stopped invites; resetting it kills the old link.
+  inviteToken     String?   @unique
+  // Null means the link never expires.
+  inviteExpiresAt DateTime?
+  createdAt       DateTime  @default(now())
 
   organizer   User              @relation("GroupOrganizer", fields: [organizerId], references: [id])
   memberships GroupMembership[]
@@ -111,6 +116,8 @@ model Event {
   // §6: in order (a spot is held for the next person) or first to claim.
   waitlistMode         WaitlistMode @default(IN_ORDER)
   waitlistHoldMinutes  Int          @default(60)
+  // §1: anyone with the event link can join this game without being a group member.
+  openToNonMembers     Boolean      @default(false)
   status               EventStatus  @default(OPEN)
   confirmedAt          DateTime?
   lockedPriceCents     Int?

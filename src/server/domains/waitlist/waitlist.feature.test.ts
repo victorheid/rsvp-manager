@@ -27,7 +27,7 @@ describe.skipIf(!hasTestDb)("waitlist", () => {
 
   async function setup(maxPlayers = 1, waitlistMode: "IN_ORDER" | "FIRST_TO_CLAIM" = "IN_ORDER") {
     const organizer = await db.user.create({
-      data: { phoneNumber: "+353800100001", firstName: "Org", email: "+353800100001@example.test", emailVerifiedAt: new Date(), lastInitial: "O" },
+      data: { phoneNumber: "+353800100001", name: "Org", email: "+353800100001@example.test", emailVerifiedAt: new Date() },
     });
     const organizerCaller = callerAs(organizer.id, organizer.phoneNumber);
     const group = await organizerCaller.groups.create({ name: "Full Group" });
@@ -42,7 +42,7 @@ describe.skipIf(!hasTestDb)("waitlist", () => {
       cutoffAt: new Date(Date.now() + 3_600_000),
       maxPlayers,
       totalCostCents: 500,
-      pricingMode: PricingMode.FIXED_PER_HEAD,
+      pricingMode: PricingMode.FIXED_PER_HEAD, openToNonMembers: true,
       cashAllowed: true,
       waitlistMode,
     });
@@ -54,9 +54,20 @@ describe.skipIf(!hasTestDb)("waitlist", () => {
   async function player(name: string) {
     phoneSeq += 1;
     const phoneNumber = `+353800100${phoneSeq}`;
-    const user = await db.user.create({ data: { phoneNumber, firstName: name, lastInitial: "X" } });
+    const user = await db.user.create({ data: { phoneNumber, name: name } });
     return { user, caller: callerAs(user.id, phoneNumber) };
   }
+
+  it("keeps a members-only game's waitlist to group members", async () => {
+    const game = await setup(1);
+    await db.event.update({ where: { id: game.event.id }, data: { openToNonMembers: false } });
+    const member = await player("Member");
+    const outsider = await player("Outsider");
+    await db.groupMembership.create({ data: { groupId: game.group.id, userId: member.user.id } });
+    await member.caller.rsvps.create({ eventId: game.event.id, paymentMethod: "CASH" });
+
+    await expect(outsider.caller.waitlist.join({ eventId: game.event.id })).rejects.toThrow("for group members");
+  });
 
   /** A full one-spot game with `names` on the waitlist, in that order. */
   async function fullGame(names: string[], waitlistMode: "IN_ORDER" | "FIRST_TO_CLAIM" = "IN_ORDER") {
@@ -117,7 +128,7 @@ describe.skipIf(!hasTestDb)("waitlist", () => {
 
     const view = await ivy.caller.events.getBySlug({ slug: event.slug });
     expect(view.waitlistEntries.map((e) => e.userId)).toEqual([ivy.user.id]);
-    expect(view.droppedOut.map((d) => d.user.firstName)).toEqual(["Hal"]);
+    expect(view.droppedOut.map((d) => d.user.name)).toEqual(["Hal"]);
     await expect(hal.caller.waitlist.leave({ eventId: event.id })).rejects.toThrow("not on the waitlist");
 
     await hal.caller.waitlist.join({ eventId: event.id });
@@ -192,7 +203,7 @@ describe.skipIf(!hasTestDb)("waitlist", () => {
       const current = await db.event.findUniqueOrThrow({ where: { id: event.id } });
       await organizerCaller.events.edit({
         eventId: event.id, title: current.title, startsAt: current.startsAt, endsAt: current.endsAt, location: current.location,
-        cutoffAt: current.cutoffAt, totalCostCents: current.totalCostCents, pricingMode: current.pricingMode, cashAllowed: true, maxPlayers: 2,
+        cutoffAt: current.cutoffAt, totalCostCents: current.totalCostCents, pricingMode: current.pricingMode, openToNonMembers: true, cashAllowed: true, maxPlayers: 2,
       });
 
       await advanceWaitlists(db, new Date());
@@ -231,8 +242,8 @@ describe.skipIf(!hasTestDb)("waitlist", () => {
       expect(await entryOf(event.id, uma.user.id)).toMatchObject({ status: "DROPPED_OUT", heldUntil: null });
       expect((await entryOf(event.id, vic.user.id)).heldUntil).not.toBeNull();
       const manage = await organizerCaller.rsvps.forOrganizer({ eventId: event.id });
-      expect(manage.waitlist.map((w) => w.user.firstName)).toEqual(["Vic"]);
-      expect(manage.droppedFromWaitlist.map((w) => w.user.firstName)).toEqual(["Uma"]);
+      expect(manage.waitlist.map((w) => w.user.name)).toEqual(["Vic"]);
+      expect(manage.droppedFromWaitlist.map((w) => w.user.name)).toEqual(["Uma"]);
     });
 
     it("is organizer only, and offered on every waiting row before the start", async () => {
@@ -251,13 +262,13 @@ describe.skipIf(!hasTestDb)("waitlist", () => {
       data: {
         slug: "already-started", groupId: group.id, feeScheduleId: FEE_SCHEDULE_V1_ID, title: "Started", startsAt: new Date(Date.now() - 1000),
         endsAt: new Date(Date.now() + 3_600_000), location: "A", cutoffAt: new Date(Date.now() - 10_000),
-        maxPlayers: 1, totalCostCents: 500, pricingMode: PricingMode.FIXED_PER_HEAD, cashAllowed: true,
+        maxPlayers: 1, totalCostCents: 500, pricingMode: PricingMode.FIXED_PER_HEAD, openToNonMembers: true, cashAllowed: true,
       },
     });
     await db.rsvp.create({ data: { eventId: startedEvent.id, userId: organizer.id, paymentMethod: "CASH" } });
 
     const player = await db.user.create({
-      data: { phoneNumber: "+353800100013", firstName: "Leo", lastInitial: "W" },
+      data: { phoneNumber: "+353800100013", name: "Leo" },
     });
 
     await expect(

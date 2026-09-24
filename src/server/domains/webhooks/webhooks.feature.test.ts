@@ -39,7 +39,7 @@ describe.skipIf(!hasTestDb)("provider webhooks (§5)", () => {
   }
 
   async function makePlayer(phone = "+353830000002") {
-    const user = await db.user.create({ data: { phoneNumber: phone, firstName: "Ann", lastInitial: "B" } });
+    const user = await db.user.create({ data: { phoneNumber: phone, name: "Ann" } });
     return { user, caller: callerAs(user.id, phone) };
   }
 
@@ -69,7 +69,7 @@ describe.skipIf(!hasTestDb)("provider webhooks (§5)", () => {
 
   it("records a pay-link payment when the browser never came back", async () => {
     const organizer = await db.user.create({
-      data: { phoneNumber: "+353830000001", firstName: "Org", lastInitial: "O", email: "org@example.test", emailVerifiedAt: new Date() },
+      data: { phoneNumber: "+353830000001", name: "Org", email: "org@example.test", emailVerifiedAt: new Date() },
     });
     const organizerCaller = callerAs(organizer.id, organizer.phoneNumber);
     await organizerCaller.payouts.startOnboarding({ returnPath: "/" });
@@ -78,7 +78,7 @@ describe.skipIf(!hasTestDb)("provider webhooks (§5)", () => {
     const startsAt = new Date(Date.now() + 86_400_000);
     const event = await organizerCaller.events.create({
       groupId: group.id, title: "Game", startsAt, endsAt: new Date(startsAt.getTime() + 3_600_000), location: "A",
-      cutoffAt: new Date(Date.now() + 3_600_000), totalCostCents: 800, pricingMode: PricingMode.FIXED_PER_HEAD, onlineAllowed: true,
+      cutoffAt: new Date(Date.now() + 3_600_000), totalCostCents: 800, pricingMode: PricingMode.FIXED_PER_HEAD, openToNonMembers: true, onlineAllowed: true,
     });
     const { caller } = await makePlayer();
     const { setupIntentId } = await caller.rsvps.beginCardSetup({ eventId: event.id });
@@ -101,7 +101,7 @@ describe.skipIf(!hasTestDb)("provider webhooks (§5)", () => {
   it("refreshes an organizer's payout status when their account changes", async () => {
     fakePaymentGateway.onboardingCompletesImmediately = false;
     const organizer = await db.user.create({
-      data: { phoneNumber: "+353830000001", firstName: "Org", lastInitial: "O", email: "org@example.test", emailVerifiedAt: new Date() },
+      data: { phoneNumber: "+353830000001", name: "Org", email: "org@example.test", emailVerifiedAt: new Date() },
     });
     const caller = callerAs(organizer.id, organizer.phoneNumber);
     await caller.payouts.startOnboarding({ returnPath: "/" });

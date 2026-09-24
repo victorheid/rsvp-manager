@@ -31,7 +31,7 @@ describe.skipIf(!hasTestDb)("notification triggers (§9)", () => {
   /** A user with one subscribed device whose endpoint is `https://push.example/<name>`. */
   async function makeUser(name: string, phoneNumber: string) {
     const user = await db.user.create({
-      data: { phoneNumber, firstName: name, lastInitial: "X", email: `${phoneNumber}@example.test`, emailVerifiedAt: new Date() },
+      data: { phoneNumber, name: name, email: `${phoneNumber}@example.test`, emailVerifiedAt: new Date() },
     });
     await db.pushSubscription.create({
       data: { userId: user.id, endpoint: `https://push.example/${name}`, p256dh: "k", auth: "a" },
@@ -45,7 +45,7 @@ describe.skipIf(!hasTestDb)("notification triggers (§9)", () => {
     const organizer = await makeUser("org", "+353830000001");
     const group = await organizer.caller.groups.create({ name: "Friday Futsal" });
     const member = await makeUser("member", "+353830000002");
-    await member.caller.groups.join({ slug: group.slug });
+    await member.caller.groups.join({ slug: group.slug, token: group.inviteToken ?? "" });
     fakePushSender.reset();
 
     const startsAt = new Date(Date.now() + 86_400_000);
@@ -58,7 +58,7 @@ describe.skipIf(!hasTestDb)("notification triggers (§9)", () => {
       cutoffAt: new Date(Date.now() + 3_600_000),
       maxPlayers,
       totalCostCents: 800,
-      pricingMode: PricingMode.FIXED_PER_HEAD,
+      pricingMode: PricingMode.FIXED_PER_HEAD, openToNonMembers: true,
       cashAllowed: true,
       waitlistMode,
     };
@@ -180,7 +180,7 @@ describe.skipIf(!hasTestDb)("notification triggers (§9)", () => {
   describe("SMS fallback", () => {
     it("texts money-related messages (confirmed, cancelled), even to people without push", async () => {
       const { organizer, event } = await setup();
-      const noPush = await db.user.create({ data: { phoneNumber: "+353830000009", firstName: "Nop", lastInitial: "U" } });
+      const noPush = await db.user.create({ data: { phoneNumber: "+353830000009", name: "Nop" } });
       await callerAs(noPush.id, noPush.phoneNumber).rsvps.create({ eventId: event.id, paymentMethod: "CASH" });
       fakeSmsSender.reset();
 

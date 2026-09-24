@@ -23,6 +23,8 @@ import type {
 const CURRENCY = "eur";
 /** §5: single region for the MVP. */
 const CONNECT_COUNTRY = "IE";
+/** Merchant category 7997: membership clubs (sports, recreation). */
+const SPORTS_CLUB_MCC = "7997";
 
 function toBrand(brand: string | undefined): CardBrand {
   return brand === "visa" || brand === "mastercard" || brand === "amex" ? brand : "unknown";
@@ -189,7 +191,17 @@ export function createStripeGateway(secretKey: string, webhookSecret?: string): 
           type: "express",
           country: CONNECT_COUNTRY,
           capabilities: { transfers: { requested: true } },
-          business_profile: { name: input.name },
+          // Prefilled so onboarding skips "what does your business do": organizers are people
+          // collecting the cost of a game, not businesses. ID and bank details are still asked
+          // for — Stripe must verify whoever receives payouts.
+          business_type: "individual",
+          business_profile: {
+            name: input.name,
+            mcc: SPORTS_CLUB_MCC,
+            product_description: "Collects players' shares of pitch and court costs for pickup sports games.",
+          },
+          ...(input.email ? { email: input.email } : {}),
+          individual: { phone: input.phoneNumber, ...(input.email ? { email: input.email } : {}) },
           metadata: { userId: input.userId },
         },
         { idempotencyKey: `account:${input.userId}` },
@@ -204,6 +216,8 @@ export function createStripeGateway(secretKey: string, webhookSecret?: string): 
         type: "account_onboarding",
         refresh_url: input.returnUrl,
         return_url: input.returnUrl,
+        // Only what's needed to receive payouts now, not everything Stripe might want one day.
+        collection_options: { fields: "currently_due" },
       });
 
       return { url: link.url };

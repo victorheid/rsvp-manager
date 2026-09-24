@@ -42,6 +42,7 @@ Decision: keep phone as the player identity; SMS is the default code channel, Wh
 
 ## 0b. Identity: players vs organizers
 Decision: players sign in with a phone number alone; anyone who organizes needs a verified email too (a recovery and confirmation channel for lost, changed or recycled numbers).
+- [x] One name field (full name or nickname) instead of first name + last initial — `User.name`
 - [x] Verified email for organizers — required to create a group or game and to set up payouts; verify with a code (`VerifyEmailSheet`); replacing it alerts the old address and the phone
 - [x] Change phone number in place (same account, so groups, wallet and cards follow) — SMS code to the new number, plus an email code for accounts with a verified email; the old number and email are told. `/me` has Phone and Email sections
 - [x] Fix: wrong sign-in codes were never counted (the increment rolled back with the transaction), so the 5-attempt limit didn't bite
@@ -52,8 +53,16 @@ Decision: players sign in with a phone number alone; anyone who organizes needs 
 
 ## 1. Groups
 - [x] Create group (name, description) → shareable `/g/{slug}` link
-- [x] Join via group link, and auto-join on RSVP
-- [x] Group page: list of events (`/g/{slug}` — upcoming/past, join CTA, organizer's "New game" link; no edit-group UI yet)
+- [x] ~~Join via group link, and auto-join on RSVP~~ replaced by invite links (below)
+- [x] Group page: list of events (`/g/{slug}` — upcoming/past, organizer's "New game" link)
+
+### Invite links, members, members-only games (2026-09-24)
+Decision: groups are invite-only (feature spec §1, decision 21). RSVPing no longer joins the group; each game has an "Open to non-members" switch.
+- [x] Invite link separate from the group URL: `/g/{slug}/join/{token}`, expiry never / 24h / 7d / 30d, new link, stop invites — `Group.inviteToken` / `inviteExpiresAt`, `updateInviteLink`, `stopInviteLink`, rules `inviteLinkStatus` / `inviteState`
+- [x] Members-only group page (outsiders see the name and whom to ask), invite page with Join
+- [x] Members page `/g/{slug}/members`: list, phone numbers for the organizer, remove member, leave group — `getGroupMembers`, `removeMember`, `leaveGroup`, rules `memberRowActions` / `canLeaveGroup`
+- [x] Per-game "Open to non-members" (default off, copied from the last game); RSVP and waitlist check `joinProblem`; the event page's bar says "Group members only"
+- [ ] Hide members-only games' details from outsiders? The event page is still public (link previews in WhatsApp); only joining is gated
 - [ ] Group admins model (one for MVP, many-ready) — schema only models one (`organizerId`); co-organizers not designed yet
 
 ## 2. Events
@@ -72,7 +81,7 @@ Decision: players sign in with a phone number alone; anyone who organizes needs 
 - [x] Post-confirmation joins: immediate charge at locked price (drop-out allowed, no auto-refund) — cash only for now; wallet/card charging blocked on §5
 
 ## 4. RSVP flow
-- [x] Public event page: spots left, price/range, cut-off, who's in (first name + last initial)
+- [x] Public event page: spots left, price/range, cut-off, who's in (by name)
 - [x] RSVP: phone + SMS code (first time) → cash (wallet/card blocked on §5)
 - [x] Drop out: free before confirmation; after confirmation no auto-refund, organizer may refund (self-cancel only; organizer refund actions are §8)
 
@@ -87,6 +96,7 @@ Decision: players sign in with a phone number alone; anyone who organizes needs 
 - [x] Price + service fee display, and "save by topping up" prompt on card RSVP — event page fee line, RSVP sheet totals (`event.cardFeeCents`), and a "pay from your wallet to skip it" hint
 - [ ] Wallet refund on request at full value; ID check for refunds over €50 (pending legal)
 - [x] Stripe Connect onboarding for organizers (only for events accepting online payment) — `payouts` domain: start / refresh / status, against the fake gateway. UI for it comes with the create-event form
+- [x] Lighter onboarding: the connected account is created as an individual with the industry (MCC 7997), a product description, email and phone prefilled, and the link asks only for `currently_due` fields, so Stripe skips "what does your business do". ID, address and bank details are still asked (legally required). Check by hand in the sandbox (item in Pending from Tech Lead)
 - [x] Payout release after event (+2 days) — `releaseDuePayouts`, run by `pnpm worker`: full price of online payments less refunds, once per event, waits for onboarding. Against the fake gateway
 
 ## 6. Waitlist

@@ -36,8 +36,7 @@ function SignInSteps({ onSuccess }: { onSuccess: () => void }) {
   const [step, setStep] = useState<Step>("phone");
   const [phoneNumber, setPhoneNumber] = useState("+353");
   const [code, setCode] = useState("");
-  const [firstName, setFirstName] = useState("");
-  const [lastInitial, setLastInitial] = useState("");
+  const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [secondsUntilResend, setSecondsUntilResend] = useState(RESEND_AFTER_SECONDS);
 
@@ -62,7 +61,7 @@ function SignInSteps({ onSuccess }: { onSuccess: () => void }) {
     }
   }
 
-  async function verify(enteredCode: string, nameFields?: { firstName: string; lastInitial: string }) {
+  async function verify(enteredCode: string, nameFields?: { name: string }) {
     setError(null);
     try {
       const result = await verifyCode.mutateAsync({ phoneNumber, code: enteredCode, ...nameFields });
@@ -167,17 +166,18 @@ function SignInSteps({ onSuccess }: { onSuccess: () => void }) {
       className="flex flex-col gap-4"
       onSubmit={(event) => {
         event.preventDefault();
-        void verify(code, { firstName, lastInitial });
+        void verify(code, { name: name.trim() });
       }}
     >
-      <TextField label="First name" required value={firstName} onChange={(event) => setFirstName(event.target.value)} />
       <TextField
-        label="Last initial"
+        label="Your name"
         required
-        maxLength={1}
-        value={lastInitial}
-        onChange={(event) => setLastInitial(event.target.value.slice(0, 1).toUpperCase())}
-        helper={`Others will see you as “${firstName || "Aoife"} ${lastInitial || "M"}.”`}
+        autoFocus
+        autoComplete="name"
+        maxLength={40}
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+        helper="Your name or a nickname. It’s what others in your groups see."
       />
       {errorBanner}
       <Button
@@ -185,7 +185,7 @@ function SignInSteps({ onSuccess }: { onSuccess: () => void }) {
         size="lg"
         fullWidth
         loading={verifyCode.isPending}
-        disabled={!firstName || !lastInitial}
+        disabled={!name.trim()}
       >
         Continue
       </Button>

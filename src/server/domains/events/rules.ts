@@ -232,6 +232,7 @@ type LastEvent = Pick<
   | "autoChargeAtCutoff"
   | "waitlistMode"
   | "waitlistHoldMinutes"
+  | "openToNonMembers"
 >;
 
 export interface SuggestedEventDefaults {
@@ -248,6 +249,7 @@ export interface SuggestedEventDefaults {
   autoChargeAtCutoff: boolean;
   waitlistMode: EventModel["waitlistMode"];
   waitlistHoldMinutes: number;
+  openToNonMembers: boolean;
   /** Title of the game the rest was copied from; null for a group's first game. */
   basedOnTitle: string | null;
 }
@@ -284,6 +286,7 @@ export function suggestEventDefaults(
     autoChargeAtCutoff: lastEvent?.autoChargeAtCutoff ?? true,
     waitlistMode: lastEvent?.waitlistMode ?? "IN_ORDER",
     waitlistHoldMinutes: lastEvent?.waitlistHoldMinutes ?? DEFAULT_WAITLIST_HOLD_MINUTES,
+    openToNonMembers: lastEvent?.openToNonMembers ?? false,
     basedOnTitle: lastEvent?.title ?? null,
   };
 }
@@ -379,4 +382,14 @@ export function countsTowardMax(rsvp: Pick<RsvpModel, "userId">): boolean {
 /** §6: once an event is at capacity, new RSVPs go to the waitlist instead. */
 export function hasCapacity(event: Pick<EventModel, "maxPlayers">, goingCount: number): boolean {
   return event.maxPlayers === null || goingCount < event.maxPlayers;
+}
+
+/**
+ * §1: who may join a game (RSVP or waitlist). Group members always;
+ * anyone else only when the organizer opened the game to non-members.
+ * Joining a game never makes someone a member — only the invite link does.
+ */
+export function joinProblem(event: Pick<EventModel, "openToNonMembers">, isMember: boolean): string | null {
+  if (isMember || event.openToNonMembers) return null;
+  return "This game is for group members. Ask the organizer for the group’s invite link.";
 }

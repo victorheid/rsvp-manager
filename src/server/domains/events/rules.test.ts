@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { PricingMode, EventStatus } from "@/generated/prisma/enums";
 import {
   canSelfCancel,
+  joinProblem,
   eventDetailsChanged,
   hasCapacity,
   eventPhase,
@@ -274,6 +275,7 @@ describe("suggestEventDefaults", () => {
     autoChargeAtCutoff: true,
     waitlistMode: "FIRST_TO_CLAIM" as const,
     waitlistHoldMinutes: 120,
+    openToNonMembers: true,
   };
   const nextStart = new Date("2026-09-24T18:00:00Z");
 
@@ -450,5 +452,16 @@ describe("hasCapacity", () => {
 
   it("is full at the max", () => {
     expect(hasCapacity({ maxPlayers: 10 }, 10)).toBe(false);
+  });
+});
+
+describe("joinProblem", () => {
+  it.each([
+    { openToNonMembers: false, isMember: true, allowed: true },
+    { openToNonMembers: true, isMember: true, allowed: true },
+    { openToNonMembers: true, isMember: false, allowed: true },
+    { openToNonMembers: false, isMember: false, allowed: false },
+  ])("open $openToNonMembers, member $isMember → allowed $allowed", ({ openToNonMembers, isMember, allowed }) => {
+    expect(joinProblem({ openToNonMembers }, isMember) === null).toBe(allowed);
   });
 });

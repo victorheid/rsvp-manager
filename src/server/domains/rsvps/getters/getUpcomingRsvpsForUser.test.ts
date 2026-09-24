@@ -17,10 +17,10 @@ describe.skipIf(!hasTestDb)("getUpcomingRsvpsForUser", () => {
 
   it("returns only upcoming GOING rsvps, soonest first", async () => {
     const organizer = await db.user.create({
-      data: { phoneNumber: "+353840000001", firstName: "Org", email: "+353840000001@example.test", emailVerifiedAt: new Date(), lastInitial: "O" },
+      data: { phoneNumber: "+353840000001", name: "Org", email: "+353840000001@example.test", emailVerifiedAt: new Date() },
     });
     const player = await db.user.create({
-      data: { phoneNumber: "+353840000002", firstName: "Zoe", lastInitial: "T" },
+      data: { phoneNumber: "+353840000002", name: "Zoe" },
     });
     const group = await db.group.create({
       data: { slug: "test-group", name: "Test Group", organizerId: organizer.id },

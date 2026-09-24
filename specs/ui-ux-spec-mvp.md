@@ -93,7 +93,7 @@ Only triggered by an action that needs identity: RSVP, join waitlist, join group
 - Wrong code: inline error, field cleared, keeps focus.
 
 **Step 3 — Name (first time only)**
-- First name, last name. Helper: "Others will see you as **Aoife M.**" with live preview (first name + last initial, §4).
+- One field, **Your name** (max 40). Helper: "Your name or a nickname. It's what others in your groups see."
 - CTA: **Continue**.
 
 Then the original action resumes (e.g. the RSVP sheet opens on the payment step).
@@ -190,11 +190,13 @@ Notes
 
 ## 5. Group page `/g/{slug}`
 
-Purpose: the permanent link for a recurring game. Players bookmark it or pin it in the WhatsApp group description.
+Purpose: the permanent home of a recurring game, for members. Members bookmark it; the organizer shares the **invite link** (below), not this URL.
 
-Sections
-1. **Header**: group name, description (collapsible), member count ("24 members"), organizer name, **Share group link**.
-2. **Membership CTA** (signed out or not a member): **Join group** · "Get notified when new games are posted." → sign-in if needed → joined toast + push prompt (§9.2). Members see a quiet "You're a member" label instead. (Leaving a group isn't in the feature spec; see open questions.)
+Not a member (or signed out): the group's name and an empty state "Members only · Ask {organizer} for the group's invite link to join", plus **Already a member? Sign in** when signed out. Nothing else.
+
+Sections (members)
+1. **Header**: group name, description (collapsible), member count ("24 members"), "You organize this group" / "You're a member". The organizer gets a Share icon for the invite link.
+2. **Members** (secondary button) → members page. The organizer's is **Members & invites**.
 3. **Upcoming games**: cards sorted by start time. Each card: date/time, title, status chip, "8/12 in", price (or range), and the viewer's own status chip if involved (Going / Waitlist #2 / Owes). Tap → event page.
 4. **Past games**: collapsed list, last 10, same card in compact form.
 
@@ -379,6 +381,14 @@ Every notification deep-links to a screen already in the right state. No in-app 
 ### 10.2 Edit group `/g/{slug}/edit`
 Name and description. Slug doesn't change (links already shared).
 
+### 10.2a Members and invite link `/g/{slug}/members`
+- **Invite link** (organizer only). Open: "Anyone with this link can join. It doesn't expire / It stops working {date}", the link with **Copy**, then **Share**, **Change expiry**, **New link**, **Stop invites**. Expiry choices: Never · 24 hours · 7 days · 30 days. **New link** and **Stop invites** go through a confirm sheet ("The current link stops working"). Expired: warning banner + **Open it again** / **New link**. Stopped: "Invites are off. Nobody new can join." + **Turn invites on**.
+- **Members · N**: organizer first. The organizer sees each person's phone number and a ••• menu with **Remove from group** (confirm sheet: they stop seeing the group; games they're in don't change; make a new link to stop them rejoining). Members see names only.
+- **Leave group** (members, not the organizer) → confirm sheet → Home.
+
+### 10.2b Invite page `/g/{slug}/join/{secret}`
+"{Organizer} invited you to join", group name, description, member count; sticky **Join group** · "See the group's games and hear when new ones are posted" → sign-in if needed → group page with a "You joined" toast. Already a member → straight to the group page. Expired or replaced link → "This invite link has expired / no longer works · Ask {organizer} for a new one".
+
 ### 10.3 Create event `/g/{slug}/events/new`
 
 One scrolling form with sections (short enough on mobile; no multi-page wizard). Sticky bar: **Publish**.
@@ -443,7 +453,7 @@ While Open, **Confirm now** leads instead of Share once the cut-off has passed o
 
 **Person row — informational, no buttons.** One line under the name says where they stand, and how loudly:
 - **red**: owes money, or was a no-show · **amber**: cash still to collect (once the game has started) · **grey**: everything fine (paid, held, cash on the day).
-- Tags: *Dropped out*, *Walk-in*, *Organizer*, and "N past no-shows" for this group. Organizers see "First L." like everyone else *(full names: open question 4)*.
+- Tags: *Dropped out*, *Walk-in*, *Organizer*, and "N past no-shows" for this group. Everyone is shown by the name they signed up with.
 - Rows that need attention sort first; the list doesn't reorder otherwise.
 - **Every change happens in the ••• menu, which opens from anywhere on the row.** The menu leads with the action that row most likely needs (bold), has a second line explaining anything with side effects, and puts destructive actions last. Which actions exist comes from `organizerRowActions`:
   - **Mark as paid** (owes or cash due; only once confirmed — before that nothing has been charged, and cash is collected on the day). Toast with Undo.
@@ -603,8 +613,8 @@ Still open:
 1. **Reason when the organizer marks someone dropped out.** Marking anyone dropped out, including waitlisters, is in MVP (feature spec §8, §10.5). Still open: should the organizer be able to add an optional reason that the player sees?
 2. **Changing payment method** before confirmation (§7.5) — allowed?
 3. **Pricing mode changes after first RSVP** — assumed blocked; confirm.
-4. **Privacy of names and phone numbers.** Players see "First L."; do organizers see full names and phone numbers of group members? (The manage screen proposes yes, for chasing payments.)
-5. **Leaving a group / muting notifications** per group. Not in MVP spec; players will ask for it once "new event posted" pushes start.
+4. **Privacy of phone numbers.** Names are free text now (one field). Organizers see members' phone numbers on the members page and Manage, for chasing payments; confirm players are told this at sign-in.
+5. **Muting notifications** per group. Leaving a group is in MVP now (§10.2a); muting without leaving isn't.
 6. **Saved cards management** in `/me` — needed for trust and for card removal requests.
 7. **Partial refunds.** §8 says refund the price in full; organizers will want partial (e.g. game cut short). MVP = full only?
 8. **Default cut-off.** Proposed 24h before start; the §9 cut-off reminder then fires ~48h before start. Confirm both.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCents, formatDateTime, formatPlayerName, formatRelativeDay, formatTimeRange } from "./format";
+import { formatCents, formatDateTime, formatRelativeDay, formatTimeRange } from "./format";
 
 describe("formatCents", () => {
   it("always shows cents", () => {
@@ -38,11 +38,5 @@ describe("formatRelativeDay", () => {
 
   it("counts days further out", () => {
     expect(formatRelativeDay(new Date("2026-09-25T18:00:00Z"), now)).toBe("in 2 days");
-  });
-});
-
-describe("formatPlayerName", () => {
-  it("shows first name and last initial", () => {
-    expect(formatPlayerName({ firstName: "Aoife", lastInitial: "M" })).toBe("Aoife M.");
   });
 });

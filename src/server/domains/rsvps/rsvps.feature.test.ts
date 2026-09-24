@@ -24,9 +24,9 @@ describe.skipIf(!hasTestDb)("rsvps", () => {
     await db.$disconnect();
   });
 
-  async function createCashEvent(overrides: { maxPlayers?: number } = {}) {
+  async function createCashEvent(overrides: { maxPlayers?: number; openToNonMembers?: boolean } = {}) {
     const organizer = await db.user.create({
-      data: { phoneNumber: "+353860000001", firstName: "Org", email: "+353860000001@example.test", emailVerifiedAt: new Date(), lastInitial: "O" },
+      data: { phoneNumber: "+353860000001", name: "Org", email: "+353860000001@example.test", emailVerifiedAt: new Date() },
     });
     const group = await db.group.create({
       data: { slug: "test-group", name: "Test Group", organizerId: organizer.id },
@@ -45,15 +45,17 @@ describe.skipIf(!hasTestDb)("rsvps", () => {
         totalCostCents: 1000,
         pricingMode: PricingMode.SPLIT_EVENLY,
         cashAllowed: true,
+        // Most tests here are about RSVPs, not membership (that's covered below).
+        openToNonMembers: overrides.openToNonMembers ?? true,
       },
     });
     return { organizer, group, event };
   }
 
-  it("joins a cash-allowed event and auto-joins the group", async () => {
+  it("joins a cash-allowed event without joining the group", async () => {
     const { event, group } = await createCashEvent();
     const player = await db.user.create({
-      data: { phoneNumber: "+353860000002", firstName: "Ben", lastInitial: "L" },
+      data: { phoneNumber: "+353860000002", name: "Ben" },
     });
     const caller = callerAs(player.id, player.phoneNumber);
 
@@ -62,16 +64,35 @@ describe.skipIf(!hasTestDb)("rsvps", () => {
     expect(rsvp.status).toBe("GOING");
     expect(rsvp.paymentMethod).toBe("CASH");
 
+    // §1: only the invite link makes someone a member.
     const membership = await db.groupMembership.findUnique({
       where: { groupId_userId: { groupId: group.id, userId: player.id } },
     });
-    expect(membership).not.toBeNull();
+    expect(membership).toBeNull();
+  });
+
+  it("keeps a members-only game to group members", async () => {
+    const { event, group } = await createCashEvent({ openToNonMembers: false });
+    const outsider = await db.user.create({ data: { phoneNumber: "+353860000011", name: "Kai" } });
+    const member = await db.user.create({ data: { phoneNumber: "+353860000012", name: "Lou" } });
+    await db.groupMembership.create({ data: { groupId: group.id, userId: member.id } });
+
+    await expect(
+      callerAs(outsider.id, outsider.phoneNumber).rsvps.create({ eventId: event.id, paymentMethod: PaymentMethod.CASH }),
+    ).rejects.toThrow("for group members");
+    const view = await callerAs(outsider.id, outsider.phoneNumber).events.getBySlug({ slug: event.slug });
+    expect(view.viewerJoinProblem).toContain("for group members");
+
+    const rsvp = await callerAs(member.id, member.phoneNumber).rsvps.create({ eventId: event.id, paymentMethod: PaymentMethod.CASH });
+    expect(rsvp.status).toBe("GOING");
+    const memberView = await callerAs(member.id, member.phoneNumber).events.getBySlug({ slug: event.slug });
+    expect(memberView.viewerJoinProblem).toBeNull();
   });
 
   it("rejects wallet/card RSVPs on a cash-only event", async () => {
     const { event } = await createCashEvent();
     const player = await db.user.create({
-      data: { phoneNumber: "+353860000003", firstName: "Cy", lastInitial: "K" },
+      data: { phoneNumber: "+353860000003", name: "Cy" },
     });
     const caller = callerAs(player.id, player.phoneNumber);
 
@@ -86,7 +107,7 @@ describe.skipIf(!hasTestDb)("rsvps", () => {
   it("rejects a second RSVP while already going", async () => {
     const { event } = await createCashEvent();
     const player = await db.user.create({
-      data: { phoneNumber: "+353860000004", firstName: "Dee", lastInitial: "P" },
+      data: { phoneNumber: "+353860000004", name: "Dee" },
     });
     const caller = callerAs(player.id, player.phoneNumber);
 
@@ -100,10 +121,10 @@ describe.skipIf(!hasTestDb)("rsvps", () => {
   it("rejects joining once the event is full", async () => {
     const { event } = await createCashEvent({ maxPlayers: 1 });
     const first = await db.user.create({
-      data: { phoneNumber: "+353860000005", firstName: "Eve", lastInitial: "Q" },
+      data: { phoneNumber: "+353860000005", name: "Eve" },
     });
     const second = await db.user.create({
-      data: { phoneNumber: "+353860000006", firstName: "Fay", lastInitial: "R" },
+      data: { phoneNumber: "+353860000006", name: "Fay" },
     });
 
     await callerAs(first.id, first.phoneNumber).rsvps.create({
@@ -122,7 +143,7 @@ describe.skipIf(!hasTestDb)("rsvps", () => {
   it("lets a player drop out and rejoin", async () => {
     const { event } = await createCashEvent();
     const player = await db.user.create({
-      data: { phoneNumber: "+353860000007", firstName: "Gia", lastInitial: "S" },
+      data: { phoneNumber: "+353860000007", name: "Gia" },
     });
     const caller = callerAs(player.id, player.phoneNumber);
 
@@ -137,10 +158,10 @@ describe.skipIf(!hasTestDb)("rsvps", () => {
   it("frees a spot for someone else once a player drops out of a full event", async () => {
     const { event } = await createCashEvent({ maxPlayers: 1 });
     const first = await db.user.create({
-      data: { phoneNumber: "+353860000008", firstName: "Hal", lastInitial: "T" },
+      data: { phoneNumber: "+353860000008", name: "Hal" },
     });
     const second = await db.user.create({
-      data: { phoneNumber: "+353860000009", firstName: "Ivy", lastInitial: "U" },
+      data: { phoneNumber: "+353860000009", name: "Ivy" },
     });
 
     const firstCaller = callerAs(first.id, first.phoneNumber);
@@ -157,7 +178,7 @@ describe.skipIf(!hasTestDb)("rsvps", () => {
   it("rejects dropping out when not in the event", async () => {
     const { event } = await createCashEvent();
     const stranger = await db.user.create({
-      data: { phoneNumber: "+353860000010", firstName: "Jay", lastInitial: "V" },
+      data: { phoneNumber: "+353860000010", name: "Jay" },
     });
 
     await expect(

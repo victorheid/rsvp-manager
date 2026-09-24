@@ -30,6 +30,7 @@ export interface EventFormValues {
   autoChargeAtCutoff: boolean;
   waitlistMode: NonNullable<CreateEventInput["waitlistMode"]>;
   waitlistHoldMinutes: number;
+  openToNonMembers: boolean;
 }
 
 export const EMPTY_EVENT_FORM_VALUES: EventFormValues = {
@@ -50,6 +51,7 @@ export const EMPTY_EVENT_FORM_VALUES: EventFormValues = {
   autoChargeAtCutoff: true,
   waitlistMode: "IN_ORDER",
   waitlistHoldMinutes: 60,
+  openToNonMembers: false,
 };
 
 const pad = (n: number) => n.toString().padStart(2, "0");
@@ -86,6 +88,7 @@ type SourceEvent = Pick<
   | "autoChargeAtCutoff"
   | "waitlistMode"
   | "waitlistHoldMinutes"
+  | "openToNonMembers"
 >;
 
 /** Form values from an existing event, optionally moved later by `shiftMs` ("Repeat this game" uses +7 days). */
@@ -112,6 +115,7 @@ export function eventFormValuesFromEvent(event: SourceEvent, shiftMs = 0): Event
     autoChargeAtCutoff: event.autoChargeAtCutoff,
     waitlistMode: event.waitlistMode,
     waitlistHoldMinutes: event.waitlistHoldMinutes,
+    openToNonMembers: event.openToNonMembers,
   };
 }
 
@@ -144,6 +148,7 @@ export function eventFormToInput(values: EventFormValues): Omit<CreateEventInput
     autoChargeAtCutoff: values.autoChargeAtCutoff,
     waitlistMode: values.waitlistMode,
     waitlistHoldMinutes: values.waitlistHoldMinutes,
+    openToNonMembers: values.openToNonMembers,
   };
 }
 
@@ -204,6 +209,7 @@ export function applyEdits(base: EventFormValues, edits: EventFormEdits): EventF
     autoChargeAtCutoff: pick("autoChargeAtCutoff"),
     waitlistMode: pick("waitlistMode"),
     waitlistHoldMinutes: pick("waitlistHoldMinutes"),
+    openToNonMembers: pick("openToNonMembers"),
   };
 }
 
@@ -229,5 +235,6 @@ export function eventFormValuesFromSuggestion(
     autoChargeAtCutoff: suggestion.autoChargeAtCutoff,
     waitlistMode: suggestion.waitlistMode,
     waitlistHoldMinutes: suggestion.waitlistHoldMinutes,
+    openToNonMembers: suggestion.openToNonMembers,
   };
 }

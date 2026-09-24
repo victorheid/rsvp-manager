@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import type { Db } from "@/server/db";
 import { authRules } from "@/server/domains/auth";
 import { isValidSlug, slugify } from "@/server/domains/groups/rules";
+import { newInviteToken } from "@/server/domains/groups/actions/updateInviteLink";
 
 export interface CreateGroupInput {
   organizerId: string;
@@ -34,8 +35,8 @@ async function nextAvailableSlug(db: Db, baseSlug: string): Promise<string> {
 }
 
 /**
- * Creates a group with a shareable slug and makes the organizer its first
- * member (§1). The organizer must have a verified email. One business operation, one transaction.
+ * Creates a group with a shareable slug and an open invite link, and makes
+ * the organizer its first member (§1). The organizer must have a verified email. One business operation, one transaction.
  */
 export async function createGroup(db: Db, input: CreateGroupInput) {
   // Organizers need a verified email (recovery channel); players never do.
@@ -64,6 +65,8 @@ export async function createGroup(db: Db, input: CreateGroupInput) {
         name: input.name,
         description: input.description,
         organizerId: input.organizerId,
+        // Open from the start and never expiring: sharing the link is the first thing organizers do.
+        inviteToken: newInviteToken(),
       },
     });
 

@@ -3,6 +3,7 @@
 export { groupsRouter } from "./router";
 export { createGroup } from "./actions/createGroup";
 export { editGroup } from "./actions/editGroup";
-export { joinGroup, joinGroupById } from "./actions/joinGroup";
+export { joinGroup } from "./actions/joinGroup";
 export { getGroupBySlug } from "./getters/getGroupBySlug";
 export { getGroupsForUser } from "./getters/getGroupsForUser";
+export { isGroupMember } from "./getters/isGroupMember";

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type {
+  ConnectedAccountInput,
   ConnectedAccountState,
   GatewayEvent,
   DeclineReason,
@@ -69,6 +70,8 @@ class FakePaymentGateway implements PaymentGateway {
   /** When true, requesting an onboarding link finishes onboarding instantly. Tests set it false. */
   onboardingCompletesImmediately = true;
 
+  /** What each connected account was prefilled with. */
+  accountsCreated: ConnectedAccountInput[] = [];
   chargesMade: { chargeId: string; customerId: string; amountCents: number; description: string }[] = [];
   refundsMade: { refundId: string; chargeId: string; amountCents: number }[] = [];
   payoutsMade: { transferId: string; accountId: string; amountCents: number }[] = [];
@@ -84,6 +87,7 @@ class FakePaymentGateway implements PaymentGateway {
     this.refundResults = new Map();
     this.payoutResults = new Map();
     this.onboardingCompletesImmediately = true;
+    this.accountsCreated = [];
     this.chargesMade = [];
     this.refundsMade = [];
     this.payoutsMade = [];
@@ -220,11 +224,12 @@ class FakePaymentGateway implements PaymentGateway {
     });
   }
 
-  async ensureConnectedAccount(input: { userId: string; name: string }): Promise<ConnectedAccountState> {
+  async ensureConnectedAccount(input: ConnectedAccountInput): Promise<ConnectedAccountState> {
     const accountId = `acct_fake_${input.userId}`;
     const existing = this.accounts.get(accountId);
     if (existing) return existing;
 
+    this.accountsCreated.push(input);
     const created = { accountId, payoutsEnabled: false };
     this.accounts.set(accountId, created);
     return created;

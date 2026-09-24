@@ -61,22 +61,20 @@ describe.skipIf(!hasTestDb)("auth: phone + SMS code", () => {
     const withName = await caller.auth.verifyCode({
       phoneNumber,
       code,
-      firstName: "Ana",
-      lastInitial: "O",
+      name: "Ana",
     });
 
     expect(withName.status).toBe("verified");
     expect(cookie).toContain("signed-in-as-");
 
     const user = await db.user.findUniqueOrThrow({ where: { phoneNumber } });
-    expect(user.firstName).toBe("Ana");
-    expect(user.lastInitial).toBe("O");
+    expect(user.name).toBe("Ana");
   });
 
   it("signs a returning user in without asking for a name again", async () => {
     const phoneNumber = "+353873334444";
     const existing = await db.user.create({
-      data: { phoneNumber, firstName: "Ben", lastInitial: "L" },
+      data: { phoneNumber, name: "Ben" },
     });
 
     await caller.auth.requestCode({ phoneNumber });
@@ -106,14 +104,13 @@ describe.skipIf(!hasTestDb)("auth: phone + SMS code", () => {
     expect(secondCode).not.toBe(firstCode);
 
     await expect(
-      caller.auth.verifyCode({ phoneNumber, code: firstCode, firstName: "Cy", lastInitial: "K" }),
+      caller.auth.verifyCode({ phoneNumber, code: firstCode, name: "Cy" }),
     ).rejects.toThrow();
 
     const result = await caller.auth.verifyCode({
       phoneNumber,
       code: secondCode,
-      firstName: "Cy",
-      lastInitial: "K",
+      name: "Cy",
     });
     expect(result.status).toBe("verified");
   });

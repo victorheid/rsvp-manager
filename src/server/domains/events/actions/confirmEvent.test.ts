@@ -30,11 +30,11 @@ describe.skipIf(!hasTestDb)("confirmEvent", () => {
 
   it("locks the per-head price at the current headcount and flips to confirmed", async () => {
     const organizer = await db.user.create({
-      data: { id: "organizer-1", phoneNumber: "+353000", email: "org@example.test", emailVerifiedAt: new Date(), firstName: "Ana", lastInitial: "O" },
+      data: { id: "organizer-1", phoneNumber: "+353000", email: "org@example.test", emailVerifiedAt: new Date(), name: "Ana" },
     });
     const group = await caller.groups.create({ name: "Thursday Basketball" });
     const player = await db.user.create({
-      data: { phoneNumber: "+353111", firstName: "Ben", lastInitial: "L" },
+      data: { phoneNumber: "+353111", name: "Ben" },
     });
 
     const event = await db.event.create({

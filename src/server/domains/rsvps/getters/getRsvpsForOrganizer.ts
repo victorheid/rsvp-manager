@@ -28,11 +28,11 @@ export async function getRsvpsForOrganizer(db: Db, input: GetRsvpsForOrganizerIn
       rsvps: {
         // The pay-link secret and saved card belong to the player, not the organizer's list.
         omit: { payToken: true, stripePaymentMethodId: true },
-        include: { user: { select: { id: true, firstName: true, lastInitial: true, phoneNumber: true } } },
+        include: { user: { select: { id: true, name: true, phoneNumber: true } } },
         orderBy: { createdAt: "asc" },
       },
       waitlistEntries: {
-        include: { user: { select: { id: true, firstName: true, lastInitial: true, phoneNumber: true } } },
+        include: { user: { select: { id: true, name: true, phoneNumber: true } } },
       },
     },
   });

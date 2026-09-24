@@ -26,7 +26,7 @@ describe.skipIf(!hasTestDb)("events", () => {
 
   async function createOrganizerAndGroup() {
     const organizer = await db.user.create({
-      data: { phoneNumber: "+353850000001", firstName: "Org", email: "+353850000001@example.test", emailVerifiedAt: new Date(), lastInitial: "O" },
+      data: { phoneNumber: "+353850000001", name: "Org", email: "+353850000001@example.test", emailVerifiedAt: new Date() },
     });
     const caller = callerAs(organizer.id, organizer.phoneNumber);
     const group = await caller.groups.create({ name: "Wednesday Volleyball" });
@@ -73,13 +73,14 @@ describe.skipIf(!hasTestDb)("events", () => {
       totalCostCents: 1000,
       pricingMode: PricingMode.FIXED_PER_HEAD,
       cashAllowed: true,
+      openToNonMembers: true,
     });
 
     const beforeConfirm = await caller.events.getBySlug({ slug: created.slug });
     expect(beforeConfirm.priceDisplay).toEqual({ mode: "fixed", amountCents: 1000 });
 
     const player = await db.user.create({
-      data: { phoneNumber: "+353850000099", firstName: "Kim", lastInitial: "Z" },
+      data: { phoneNumber: "+353850000099", name: "Kim" },
     });
     await callerAs(player.id, player.phoneNumber).rsvps.create({
       eventId: created.id,
@@ -134,7 +135,7 @@ describe.skipIf(!hasTestDb)("events", () => {
   it("rejects creating an event in someone else's group", async () => {
     const { group } = await createOrganizerAndGroup();
     const impostor = await db.user.create({
-      data: { phoneNumber: "+353850000002", firstName: "Im", lastInitial: "P" },
+      data: { phoneNumber: "+353850000002", name: "Im" },
     });
     const startsAt = new Date(Date.now() + 86_400_000);
 
@@ -170,7 +171,7 @@ describe.skipIf(!hasTestDb)("events", () => {
     });
 
     const impostor = await db.user.create({
-      data: { phoneNumber: "+353850000003", firstName: "Im", lastInitial: "P" },
+      data: { phoneNumber: "+353850000003", name: "Im" },
     });
 
     await expect(
@@ -217,7 +218,7 @@ describe.skipIf(!hasTestDb)("events", () => {
     });
 
     const impostor = await db.user.create({
-      data: { phoneNumber: "+353850000004", firstName: "Im", lastInitial: "P" },
+      data: { phoneNumber: "+353850000004", name: "Im" },
     });
 
     await expect(
@@ -274,7 +275,7 @@ describe.skipIf(!hasTestDb)("events", () => {
     it("rejects someone who doesn't organize the group", async () => {
       const { group } = await createOrganizerAndGroup();
       const stranger = await db.user.create({
-        data: { phoneNumber: "+353850000002", firstName: "Sam", lastInitial: "S" },
+        data: { phoneNumber: "+353850000002", name: "Sam" },
       });
 
       await expect(

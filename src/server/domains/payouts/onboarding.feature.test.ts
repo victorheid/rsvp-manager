@@ -27,7 +27,7 @@ describe.skipIf(!hasTestDb)("organizer onboarding and payment options", () => {
   });
 
   async function setup() {
-    const organizer = await db.user.create({ data: { phoneNumber: "+353830000001", firstName: "Org", email: "+353830000001@example.test", emailVerifiedAt: new Date(), lastInitial: "O" } });
+    const organizer = await db.user.create({ data: { phoneNumber: "+353830000001", name: "Org", email: "+353830000001@example.test", emailVerifiedAt: new Date() } });
     const caller = callerAs(organizer.id, organizer.phoneNumber);
     const group = await caller.groups.create({ name: "Futsal" });
     const startsAt = new Date(Date.now() + 86_400_000);
@@ -62,6 +62,10 @@ describe.skipIf(!hasTestDb)("organizer onboarding and payment options", () => {
 
     const { url } = await caller.payouts.startOnboarding({ returnPath: "/g/futsal" });
     expect(url).toBe("http://localhost:3000/g/futsal");
+    // Prefilled, so Stripe's onboarding doesn't ask again.
+    expect(fakePaymentGateway.accountsCreated).toEqual([
+      expect.objectContaining({ name: "Org", email: "+353830000001@example.test", phoneNumber: "+353830000001" }),
+    ]);
     expect(await caller.payouts.refreshOnboarding()).toEqual({ payoutsEnabled: true });
     expect(await caller.payouts.onboardingStatus()).toEqual({ started: true, payoutsEnabled: true });
 

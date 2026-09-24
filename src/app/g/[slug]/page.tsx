@@ -25,9 +25,13 @@ import { useOpenShareOnArrival } from "@/app/_components/useOpenShareOnArrival";
 import { useOrigin } from "@/app/_components/useOrigin";
 import { useRequireAuth } from "@/app/_components/useRequireAuth";
 
-type GroupEvent = RouterOutputs["groups"]["getBySlug"]["events"][number];
+type GroupEvent = Extract<RouterOutputs["groups"]["getBySlug"], { access: "MEMBER" }>["events"][number];
 
-/** UI spec §5: the group's permanent link — upcoming games first, past ones tucked away. */
+/**
+ * UI spec §5: the group's permanent link — upcoming games first, past ones
+ * tucked away. Members only (§1): anyone else is told to ask the organizer
+ * for the invite link, which is the only way in.
+ */
 export default function GroupPage() {
   const { slug } = useParams<{ slug: string }>();
   const utils = trpc.useUtils();
@@ -37,10 +41,6 @@ export default function GroupPage() {
   const { shareOpen, setShareOpen } = useOpenShareOnArrival();
   const [showPast, setShowPast] = useState(false);
   const [now] = useState(() => new Date());
-
-  const join = trpc.groups.join.useMutation({
-    onSuccess: () => utils.groups.getBySlug.invalidate({ slug }),
-  });
 
   if (isLoading) {
     return <ScreenSkeleton backHref="/" />;
@@ -54,7 +54,29 @@ export default function GroupPage() {
     );
   }
 
-  const isOrganizer = me?.id === group.organizerId;
+  if (group.access === "OUTSIDER") {
+    return (
+      <Screen topBar={<TopBar backHref="/" title="Group" />}>
+        <h2 className="text-display text-text-primary">{group.name}</h2>
+        <EmptyState
+          icon="lock"
+          title="Members only"
+          description={`Ask ${group.organizerName} for the group’s invite link to join.`}
+          action={
+            me ? undefined : (
+              <Button variant="secondary" onClick={() => requireAuth(() => void utils.groups.getBySlug.invalidate({ slug }))}>
+                Already a member? Sign in
+              </Button>
+            )
+          }
+        />
+        <SignInSheet {...signInSheetProps} />
+      </Screen>
+    );
+  }
+
+  const { isOrganizer, invite } = group;
+  const inviteUrl = invite?.state === "OPEN" && invite.token ? `${origin}/g/${slug}/join/${invite.token}` : null;
   const upcoming = group.events.filter((event) => new Date(event.startsAt) >= now);
   const past = group.events.filter((event) => new Date(event.startsAt) < now).reverse();
 
@@ -74,15 +96,20 @@ export default function GroupPage() {
 
   return (
     <Screen
-      topBar={<TopBar backHref="/" title="Group" actions={<IconButton icon="share" label="Share group" onClick={() => setShareOpen(true)} />} />}
+      topBar={
+        <TopBar
+          backHref="/"
+          title="Group"
+          actions={inviteUrl ? <IconButton icon="share" label="Share invite link" onClick={() => setShareOpen(true)} /> : undefined}
+        />
+      }
     >
       <div className="flex flex-col gap-2">
         <h2 className="text-display text-text-primary">{group.name}</h2>
         {group.description && <p className="text-body text-text-secondary">{group.description}</p>}
         <div className="flex flex-wrap items-center gap-2">
           <StatusChip>{group.memberCount} {group.memberCount === 1 ? "member" : "members"}</StatusChip>
-          {isOrganizer && <StatusChip tone="accent">You organize this group</StatusChip>}
-          {group.isMember && !isOrganizer && <StatusChip tone="success">You’re a member</StatusChip>}
+          {isOrganizer ? <StatusChip tone="accent">You organize this group</StatusChip> : <StatusChip tone="success">You’re a member</StatusChip>}
         </div>
       </div>
 
@@ -91,22 +118,19 @@ export default function GroupPage() {
           <Button href={`/g/${slug}/events/new`} leadingIcon="plus">
             New game
           </Button>
+          <Button href={`/g/${slug}/members`} variant="secondary">
+            Members & invites
+          </Button>
           <Button href={`/g/${slug}/edit`} variant="secondary">
             Edit group
           </Button>
-          <Button variant="secondary" onClick={() => setShareOpen(true)}>
-            Share link
-          </Button>
         </div>
       ) : (
-        !group.isMember && (
-          <div className="flex flex-col gap-2">
-            <Button size="lg" fullWidth loading={join.isPending} onClick={() => requireAuth(() => join.mutate({ slug }))}>
-              Join group
-            </Button>
-            {join.error && <p role="alert" className="text-small text-danger-fg">{join.error.message}</p>}
-          </div>
-        )
+        <div className="flex flex-wrap gap-3">
+          <Button href={`/g/${slug}/members`} variant="secondary">
+            Members
+          </Button>
+        </div>
       )}
 
       <section className="flex flex-col gap-3">
@@ -145,14 +169,16 @@ export default function GroupPage() {
         </section>
       )}
 
-      <ShareSheet
-        open={shareOpen}
-        onClose={() => setShareOpen(false)}
-        title="Share this group"
-        url={`${origin}/g/${slug}`}
-        message={`Join ${group.name} to see and RSVP for games.`}
-        preview={<SharePreview title={group.name} details="Join to see and RSVP for games." />}
-      />
+      {inviteUrl && (
+        <ShareSheet
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          title="Invite people"
+          url={inviteUrl}
+          message={`Join ${group.name} to see and RSVP for games.`}
+          preview={<SharePreview title={group.name} details="Join to see and RSVP for games." />}
+        />
+      )}
       <SignInSheet {...signInSheetProps} />
     </Screen>
   );

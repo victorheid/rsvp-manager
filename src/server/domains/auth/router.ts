@@ -20,8 +20,7 @@ export const authRouter = router({
       z.object({
         phoneNumber: z.string(),
         code: z.string().length(6),
-        firstName: z.string().min(1).max(60).optional(),
-        lastInitial: z.string().length(1).optional(),
+        name: z.string().trim().min(1).max(40).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {

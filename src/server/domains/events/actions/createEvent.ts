@@ -27,6 +27,7 @@ export interface CreateEventInput {
   autoChargeAtCutoff?: boolean;
   waitlistMode?: WaitlistMode;
   waitlistHoldMinutes?: number;
+  openToNonMembers?: boolean;
 }
 
 /**
@@ -112,6 +113,7 @@ export async function createEvent(db: Db, input: CreateEventInput, now: Date = n
       autoChargeAtCutoff: input.autoChargeAtCutoff ?? true,
       waitlistMode: input.waitlistMode ?? WaitlistMode.IN_ORDER,
       waitlistHoldMinutes: input.waitlistHoldMinutes ?? 60,
+      openToNonMembers: input.openToNonMembers ?? false,
     },
   });
 

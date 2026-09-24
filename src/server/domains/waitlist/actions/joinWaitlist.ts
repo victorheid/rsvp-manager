@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import type { Db } from "@/server/db";
 import { RsvpStatus, WaitlistEntryStatus } from "@/generated/prisma/enums";
 import { eventRules } from "@/server/domains/events";
+import { isGroupMember } from "@/server/domains/groups";
 import { isWaitlistOpen, spotsHeldForOthers } from "@/server/domains/waitlist/rules";
 
 export interface JoinWaitlistInput {
@@ -27,6 +28,12 @@ export async function joinWaitlist(db: Db, input: JoinWaitlistInput, now: Date) 
 
     if (!event) {
       throw new TRPCError({ code: "NOT_FOUND", message: "Event not found." });
+    }
+
+    const joinProblem = eventRules.joinProblem(event, await isGroupMember(tx, { groupId: event.groupId, userId: input.userId }));
+
+    if (joinProblem) {
+      throw new TRPCError({ code: "FORBIDDEN", message: joinProblem });
     }
 
     if (!isWaitlistOpen(event, now)) {

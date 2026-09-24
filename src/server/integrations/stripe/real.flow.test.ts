@@ -36,10 +36,10 @@ describe.skipIf(!enabled)("app flows on the Stripe sandbox", () => {
   async function setup() {
     const run = randomUUID().slice(0, 8);
     const organizer = await db.user.create({
-      data: { phoneNumber: `+35383${Math.floor(Math.random() * 9_000_000 + 1_000_000)}`, firstName: "Org", lastInitial: "O", email: `${run}@example.test`, emailVerifiedAt: new Date() },
+      data: { phoneNumber: `+35383${Math.floor(Math.random() * 9_000_000 + 1_000_000)}`, name: "Org", email: `${run}@example.test`, emailVerifiedAt: new Date() },
     });
     const player = await db.user.create({
-      data: { id: `p-${run}`, phoneNumber: `+35384${Math.floor(Math.random() * 9_000_000 + 1_000_000)}`, firstName: "Ann", lastInitial: "B" },
+      data: { id: `p-${run}`, phoneNumber: `+35384${Math.floor(Math.random() * 9_000_000 + 1_000_000)}`, name: "Ann" },
     });
     const group = await db.group.create({ data: { slug: `g-${run}`, name: "G", organizerId: organizer.id } });
     const event = await db.event.create({

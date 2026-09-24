@@ -26,7 +26,7 @@ describe.skipIf(!hasTestDb)("organizer event management", () => {
 
   async function setup() {
     const organizer = await db.user.create({
-      data: { phoneNumber: "+353830000001", firstName: "Org", email: "+353830000001@example.test", emailVerifiedAt: new Date(), lastInitial: "O" },
+      data: { phoneNumber: "+353830000001", name: "Org", email: "+353830000001@example.test", emailVerifiedAt: new Date() },
     });
     const organizerCaller = callerAs(organizer.id, organizer.phoneNumber);
     const group = await organizerCaller.groups.create({ name: "Friday Futsal" });
@@ -39,12 +39,12 @@ describe.skipIf(!hasTestDb)("organizer event management", () => {
       location: "Court 1",
       cutoffAt: new Date(Date.now() + 3_600_000),
       totalCostCents: 800,
-      pricingMode: PricingMode.FIXED_PER_HEAD,
+      pricingMode: PricingMode.FIXED_PER_HEAD, openToNonMembers: true,
       cashAllowed: true,
     });
 
     const player = await db.user.create({
-      data: { phoneNumber: "+353830000002", firstName: "Zia", lastInitial: "N" },
+      data: { phoneNumber: "+353830000002", name: "Zia" },
     });
     const playerCaller = callerAs(player.id, player.phoneNumber);
     const rsvp = await playerCaller.rsvps.create({ eventId: event.id, paymentMethod: "CASH" });
@@ -164,13 +164,13 @@ describe.skipIf(!hasTestDb)("organizer event management", () => {
       cutoffAt: new Date(Date.now() + 3_600_000),
       maxPlayers: 1,
       totalCostCents: 500,
-      pricingMode: "FIXED_PER_HEAD",
+      pricingMode: "FIXED_PER_HEAD", openToNonMembers: true,
       cashAllowed: true,
     });
 
     // Fill the one real spot.
     const player = await db.user.create({
-      data: { phoneNumber: "+353830000099", firstName: "Milo", lastInitial: "Z" },
+      data: { phoneNumber: "+353830000099", name: "Milo" },
     });
     await callerAs(player.id, player.phoneNumber).rsvps.create({ eventId: event.id, paymentMethod: "CASH" });
 

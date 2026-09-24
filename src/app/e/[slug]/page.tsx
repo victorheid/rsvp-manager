@@ -22,7 +22,7 @@ import {
   useToast,
 } from "@/components/ui";
 import { trpc } from "@/lib/trpc/client";
-import { formatCents, formatDateTime, formatPlayerName, formatRelativeDay, formatTime, formatTimeRange } from "@/lib/format";
+import { formatCents, formatDateTime, formatRelativeDay, formatTime, formatTimeRange } from "@/lib/format";
 import { eventChip } from "@/app/_components/eventPhase";
 import { headcountText } from "@/app/_components/eventPrice";
 import { SignInSheet } from "@/app/_components/SignInSheet";
@@ -192,7 +192,7 @@ export default function EventPage() {
           rsvp.user ? (
             <PersonRow
               key={rsvp.id}
-              name={formatPlayerName(rsvp.user)}
+              name={rsvp.user.name}
               highlighted={isViewer(rsvp.userId)}
               trailing={rsvp.userId === event.group.organizerId ? <StatusChip tone="accent">Organizer</StatusChip> : undefined}
             />
@@ -201,7 +201,7 @@ export default function EventPage() {
         {held.map((entry) => (
           <PersonRow
             key={entry.id}
-            name={formatPlayerName(entry.user)}
+            name={entry.user.name}
             highlighted={isViewer(entry.userId)}
             trailing={entry.heldUntil ? `Held until ${formatTime(new Date(entry.heldUntil))}` : undefined}
           />
@@ -213,7 +213,7 @@ export default function EventPage() {
         <section className="flex flex-col gap-1">
           <SectionHeader title={event.waitlistMode === "IN_ORDER" ? "Waitlist · in order" : "Waitlist · first to claim"} />
           {inLine.map((entry, index) => (
-            <PersonRow key={entry.id} name={formatPlayerName(entry.user)} highlighted={isViewer(entry.userId)} trailing={`#${index + 1}`} />
+            <PersonRow key={entry.id} name={entry.user.name} highlighted={isViewer(entry.userId)} trailing={`#${index + 1}`} />
           ))}
         </section>
       )}
@@ -224,7 +224,7 @@ export default function EventPage() {
             title={`Dropped out · ${event.droppedOut.length}`}
             action={{ label: showDropped ? "Hide" : "Show", onClick: () => setShowDropped((current) => !current) }}
           />
-          {showDropped && event.droppedOut.map((person) => <PersonRow key={person.id} name={formatPlayerName(person.user)} muted />)}
+          {showDropped && event.droppedOut.map((person) => <PersonRow key={person.id} name={person.user.name} muted />)}
         </section>
       )}
 

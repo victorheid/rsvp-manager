@@ -5,7 +5,7 @@ import { Avatar } from "./Avatar";
 /**
  * A person in a public list ("In", "Waitlist", "Dropped out"): avatar,
  * name, and an optional tag or position ("Organizer", "#2", "Held until
- * 21:00"). Players only ever see "First L." (§4). The viewer's own row is
+ * 21:00"). Players are shown by the name they signed up with (§4). The viewer's own row is
  * `highlighted`; people who dropped out are `muted`. For the organizer's
  * working list use `PersonManageRow` instead.
  */

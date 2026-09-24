@@ -16,10 +16,10 @@ describe.skipIf(!hasTestDb)("getGroupsForUser", () => {
 
   it("returns only the groups the user is a member of", async () => {
     const user = await db.user.create({
-      data: { phoneNumber: "+353840000010", firstName: "Ana", lastInitial: "K" },
+      data: { phoneNumber: "+353840000010", name: "Ana" },
     });
     const stranger = await db.user.create({
-      data: { phoneNumber: "+353840000011", firstName: "Bo", lastInitial: "L" },
+      data: { phoneNumber: "+353840000011", name: "Bo" },
     });
 
     const memberGroup = await db.group.create({

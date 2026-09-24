@@ -31,7 +31,7 @@ describe.skipIf(!hasTestDb)("push notifications", () => {
   });
 
   async function makeUser(phoneNumber: string) {
-    const user = await db.user.create({ data: { phoneNumber, firstName: "Ann", lastInitial: "B" } });
+    const user = await db.user.create({ data: { phoneNumber, name: "Ann" } });
     return { user, caller: callerAs(user.id, user.phoneNumber) };
   }
 

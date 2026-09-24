@@ -12,14 +12,13 @@ export default function EditGroupPage() {
   const { slug } = useParams<{ slug: string }>();
   const router = useRouter();
   const { data: group, isLoading } = trpc.groups.getBySlug.useQuery({ slug });
-  const { data: me } = trpc.auth.me.useQuery();
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
 
   const loaded = useRef(false);
   useEffect(() => {
-    if (!group || loaded.current) return;
+    if (group?.access !== "MEMBER" || loaded.current) return;
     loaded.current = true;
     setName(group.name);
     setDescription(group.description ?? "");
@@ -43,7 +42,7 @@ export default function EditGroupPage() {
     );
   }
 
-  if (me && group.organizerId !== me.id) {
+  if (group.access !== "MEMBER" || !group.isOrganizer) {
     return (
       <Screen topBar={topBar}>
         <EmptyState icon="lock" title="Only the organizer can edit this group" />

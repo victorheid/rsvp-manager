@@ -33,7 +33,7 @@ describe.skipIf(!hasTestDb)("online payments (wallet and card)", () => {
   type Caller = ReturnType<typeof callerAs>;
 
   async function makeOrganizerAndEvent(overrides: { pricingMode?: PricingMode; totalCostCents?: number; minPlayers?: number } = {}) {
-    const organizer = await db.user.create({ data: { phoneNumber: "+353830000001", firstName: "Org", email: "+353830000001@example.test", emailVerifiedAt: new Date(), lastInitial: "O" } });
+    const organizer = await db.user.create({ data: { phoneNumber: "+353830000001", name: "Org", email: "+353830000001@example.test", emailVerifiedAt: new Date() } });
     const caller = callerAs(organizer.id, organizer.phoneNumber);
     await caller.payouts.startOnboarding({ returnPath: "/" });
     await caller.payouts.refreshOnboarding();
@@ -47,7 +47,7 @@ describe.skipIf(!hasTestDb)("online payments (wallet and card)", () => {
       location: "Court 1",
       cutoffAt: new Date(Date.now() + 3_600_000),
       totalCostCents: overrides.totalCostCents ?? 800,
-      pricingMode: overrides.pricingMode ?? PricingMode.FIXED_PER_HEAD,
+      pricingMode: overrides.pricingMode ?? PricingMode.FIXED_PER_HEAD, openToNonMembers: true,
       minPlayers: overrides.minPlayers,
       cashAllowed: true,
       onlineAllowed: true,
@@ -56,7 +56,7 @@ describe.skipIf(!hasTestDb)("online payments (wallet and card)", () => {
   }
 
   async function makePlayer(name: string, phone: string) {
-    const user = await db.user.create({ data: { phoneNumber: phone, firstName: name, lastInitial: "P" } });
+    const user = await db.user.create({ data: { phoneNumber: phone, name: name } });
     return { user, caller: callerAs(user.id, phone) };
   }
 
@@ -423,7 +423,7 @@ describe.skipIf(!hasTestDb)("online payments (wallet and card)", () => {
       const cashOnly = await organizerCaller.events.create({
         groupId: group.id, title: "Cash", startsAt, endsAt: new Date(startsAt.getTime() + 3_600_000),
         location: "A", cutoffAt: new Date(Date.now() + 3_600_000), totalCostCents: 500,
-        pricingMode: PricingMode.FIXED_PER_HEAD, cashAllowed: true,
+        pricingMode: PricingMode.FIXED_PER_HEAD, openToNonMembers: true, cashAllowed: true,
       });
       const { caller } = await makePlayer("Ann", "+353830000002");
 

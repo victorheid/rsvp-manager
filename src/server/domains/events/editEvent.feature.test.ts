@@ -26,7 +26,7 @@ describe.skipIf(!hasTestDb)("editEvent", () => {
 
   async function setup() {
     const organizer = await db.user.create({
-      data: { phoneNumber: "+353810000001", firstName: "Org", email: "+353810000001@example.test", emailVerifiedAt: new Date(), lastInitial: "O" },
+      data: { phoneNumber: "+353810000001", name: "Org", email: "+353810000001@example.test", emailVerifiedAt: new Date() },
     });
     const organizerCaller = callerAs(organizer.id, organizer.phoneNumber);
     const group = await organizerCaller.groups.create({ name: "Monday Squash" });
@@ -42,7 +42,7 @@ describe.skipIf(!hasTestDb)("editEvent", () => {
       minPlayers: 1,
       maxPlayers: 6,
       totalCostCents: 1000,
-      pricingMode: PricingMode.FIXED_PER_HEAD,
+      pricingMode: PricingMode.FIXED_PER_HEAD, openToNonMembers: true,
       cashAllowed: true,
     });
 
@@ -79,7 +79,7 @@ describe.skipIf(!hasTestDb)("editEvent", () => {
   it("rejects a price increase once someone has RSVP'd, but allows a decrease", async () => {
     const { organizerCaller, event } = await setup();
     const player = await db.user.create({
-      data: { phoneNumber: "+353810000002", firstName: "Zed", lastInitial: "F" },
+      data: { phoneNumber: "+353810000002", name: "Zed" },
     });
     await callerAs(player.id, player.phoneNumber).rsvps.create({ eventId: event.id, paymentMethod: "CASH" });
 
@@ -94,7 +94,7 @@ describe.skipIf(!hasTestDb)("editEvent", () => {
   it("rejects a pricing mode change once someone has RSVP'd", async () => {
     const { organizerCaller, event } = await setup();
     const player = await db.user.create({
-      data: { phoneNumber: "+353810000003", firstName: "Yas", lastInitial: "G" },
+      data: { phoneNumber: "+353810000003", name: "Yas" },
     });
     await callerAs(player.id, player.phoneNumber).rsvps.create({ eventId: event.id, paymentMethod: "CASH" });
 
@@ -106,10 +106,10 @@ describe.skipIf(!hasTestDb)("editEvent", () => {
   it("rejects lowering max below the current headcount", async () => {
     const { organizerCaller, event } = await setup();
     const first = await db.user.create({
-      data: { phoneNumber: "+353810000004", firstName: "Xan", lastInitial: "H" },
+      data: { phoneNumber: "+353810000004", name: "Xan" },
     });
     const second = await db.user.create({
-      data: { phoneNumber: "+353810000007", firstName: "Una", lastInitial: "K" },
+      data: { phoneNumber: "+353810000007", name: "Una" },
     });
     await callerAs(first.id, first.phoneNumber).rsvps.create({ eventId: event.id, paymentMethod: "CASH" });
     await callerAs(second.id, second.phoneNumber).rsvps.create({ eventId: event.id, paymentMethod: "CASH" });
@@ -122,7 +122,7 @@ describe.skipIf(!hasTestDb)("editEvent", () => {
   it("rejects editing a confirmed event", async () => {
     const { organizerCaller, event } = await setup();
     const player = await db.user.create({
-      data: { phoneNumber: "+353810000005", firstName: "Wex", lastInitial: "I" },
+      data: { phoneNumber: "+353810000005", name: "Wex" },
     });
     await callerAs(player.id, player.phoneNumber).rsvps.create({ eventId: event.id, paymentMethod: "CASH" });
     await organizerCaller.events.confirm({ eventId: event.id });
@@ -135,7 +135,7 @@ describe.skipIf(!hasTestDb)("editEvent", () => {
   it("rejects a non-organizer editing the event", async () => {
     const { event } = await setup();
     const impostor = await db.user.create({
-      data: { phoneNumber: "+353810000006", firstName: "Vex", lastInitial: "J" },
+      data: { phoneNumber: "+353810000006", name: "Vex" },
     });
 
     await expect(
