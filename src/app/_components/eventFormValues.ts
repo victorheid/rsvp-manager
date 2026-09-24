@@ -28,6 +28,8 @@ export interface EventFormValues {
   cashAllowed: boolean;
   onlineAllowed: boolean;
   autoChargeAtCutoff: boolean;
+  waitlistMode: NonNullable<CreateEventInput["waitlistMode"]>;
+  waitlistHoldMinutes: number;
 }
 
 export const EMPTY_EVENT_FORM_VALUES: EventFormValues = {
@@ -46,6 +48,8 @@ export const EMPTY_EVENT_FORM_VALUES: EventFormValues = {
   cashAllowed: true,
   onlineAllowed: false,
   autoChargeAtCutoff: true,
+  waitlistMode: "IN_ORDER",
+  waitlistHoldMinutes: 60,
 };
 
 const pad = (n: number) => n.toString().padStart(2, "0");
@@ -80,6 +84,8 @@ type SourceEvent = Pick<
   | "cashAllowed"
   | "onlineAllowed"
   | "autoChargeAtCutoff"
+  | "waitlistMode"
+  | "waitlistHoldMinutes"
 >;
 
 /** Form values from an existing event, optionally moved later by `shiftMs` ("Repeat this game" uses +7 days). */
@@ -104,6 +110,8 @@ export function eventFormValuesFromEvent(event: SourceEvent, shiftMs = 0): Event
     cashAllowed: event.cashAllowed,
     onlineAllowed: event.onlineAllowed,
     autoChargeAtCutoff: event.autoChargeAtCutoff,
+    waitlistMode: event.waitlistMode,
+    waitlistHoldMinutes: event.waitlistHoldMinutes,
   };
 }
 
@@ -134,6 +142,8 @@ export function eventFormToInput(values: EventFormValues): Omit<CreateEventInput
     cashAllowed: values.cashAllowed,
     onlineAllowed: values.onlineAllowed,
     autoChargeAtCutoff: values.autoChargeAtCutoff,
+    waitlistMode: values.waitlistMode,
+    waitlistHoldMinutes: values.waitlistHoldMinutes,
   };
 }
 
@@ -192,6 +202,8 @@ export function applyEdits(base: EventFormValues, edits: EventFormEdits): EventF
     cashAllowed: pick("cashAllowed"),
     onlineAllowed: pick("onlineAllowed"),
     autoChargeAtCutoff: pick("autoChargeAtCutoff"),
+    waitlistMode: pick("waitlistMode"),
+    waitlistHoldMinutes: pick("waitlistHoldMinutes"),
   };
 }
 
@@ -215,5 +227,7 @@ export function eventFormValuesFromSuggestion(
     cashAllowed: suggestion.cashAllowed,
     onlineAllowed: suggestion.onlineAllowed,
     autoChargeAtCutoff: suggestion.autoChargeAtCutoff,
+    waitlistMode: suggestion.waitlistMode,
+    waitlistHoldMinutes: suggestion.waitlistHoldMinutes,
   };
 }

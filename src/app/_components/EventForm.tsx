@@ -16,7 +16,7 @@ import { formatCents, formatDateTime } from "@/lib/format";
 import { trpc } from "@/lib/trpc/client";
 import { useRequireVerifiedEmail } from "./useRequireVerifiedEmail";
 import { VerifyEmailSheet } from "./VerifyEmailSheet";
-import { perHeadPriceCents, splitPriceRangeCents } from "@/server/domains/events/rules";
+import { DEFAULT_WAITLIST_HOLD_MINUTES, WAITLIST_HOLD_MINUTES_OPTIONS, perHeadPriceCents, splitPriceRangeCents } from "@/server/domains/events/rules";
 import type { EventFormValues } from "./eventFormValues";
 
 /**
@@ -153,6 +153,17 @@ export function EventForm({ formId, values, onChange, onSubmit, error, lastGame,
                 secondary={hoursBefore(startsAt, cutoffAt)}
               />
             )}
+            {!values.noMax && (
+              <KeyFact
+                icon="clock"
+                primary={values.waitlistMode === "IN_ORDER" ? "Waitlist in order" : "Waitlist: first to claim"}
+                secondary={
+                  values.waitlistMode === "IN_ORDER"
+                    ? `Next in line gets ${holdLabel(values.waitlistHoldMinutes, "long")} to take a spot`
+                    : "Anyone waiting can take an open spot"
+                }
+              />
+            )}
             <Button variant="secondary" fullWidth onClick={() => setDetailsExpanded(true)}>
               Change details
             </Button>
@@ -184,6 +195,36 @@ export function EventForm({ formId, values, onChange, onSubmit, error, lastGame,
               />
             )}
           </Section>
+
+          {!values.noMax && (
+            <Section title="Waitlist" hint="When the game is full, people can join the waitlist. Choose what happens when a spot opens.">
+              <SegmentedControl
+                label="Waitlist mode"
+                value={values.waitlistMode}
+                onChange={(mode) => set("waitlistMode", mode)}
+                options={[
+                  { value: "IN_ORDER", label: "In order" },
+                  { value: "FIRST_TO_CLAIM", label: "First to claim" },
+                ]}
+              />
+              <p className="text-small text-text-secondary">
+                {values.waitlistMode === "IN_ORDER"
+                  ? "The spot is held for the next person in line. If they don’t take it in time, they go to the end of the waitlist and it’s held for the next one."
+                  : "Anyone on the waitlist can take an open spot. The first to take it gets it."}
+              </p>
+              {values.waitlistMode === "IN_ORDER" && (
+                <Stepper
+                  label="Hold a spot for"
+                  hint="From 30 min to 12 hours"
+                  value={holdIndex(values.waitlistHoldMinutes)}
+                  min={0}
+                  max={WAITLIST_HOLD_MINUTES_OPTIONS.length - 1}
+                  format={(index) => holdLabel(WAITLIST_HOLD_MINUTES_OPTIONS[index] ?? DEFAULT_WAITLIST_HOLD_MINUTES, "short")}
+                  onChange={(index) => set("waitlistHoldMinutes", WAITLIST_HOLD_MINUTES_OPTIONS[index] ?? DEFAULT_WAITLIST_HOLD_MINUTES)}
+                />
+              )}
+            </Section>
+          )}
 
           <Section title="Price">
             <SegmentedControl
@@ -251,6 +292,20 @@ export function EventForm({ formId, values, onChange, onSubmit, error, lastGame,
       )}
     </form>
   );
+}
+
+/** Where a hold time sits in the offered list (60 minutes if it isn't one of them). */
+function holdIndex(minutes: number): number {
+  const index = WAITLIST_HOLD_MINUTES_OPTIONS.findIndex((option) => option === minutes);
+  return index === -1 ? WAITLIST_HOLD_MINUTES_OPTIONS.findIndex((option) => option === DEFAULT_WAITLIST_HOLD_MINUTES) : index;
+}
+
+/** "1h" / "30m" for the stepper; "1 hour" / "30 minutes" in sentences. */
+function holdLabel(minutes: number, style: "short" | "long"): string {
+  if (minutes < 60) return style === "short" ? `${minutes}m` : `${minutes} minutes`;
+  const hours = minutes / 60;
+  if (style === "short") return `${hours}h`;
+  return hours === 1 ? "1 hour" : `${hours} hours`;
 }
 
 function paymentSummary(values: EventFormValues): string {

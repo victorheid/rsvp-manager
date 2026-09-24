@@ -47,6 +47,14 @@ describe("eventFormToInput", () => {
   it("omits an empty description", () => {
     expect(eventFormToInput({ ...filled, description: "" }).description).toBeUndefined();
   });
+
+  it("sends the waitlist mode and hold time, in order for 1 hour by default (§6)", () => {
+    expect(eventFormToInput(filled)).toMatchObject({ waitlistMode: "IN_ORDER", waitlistHoldMinutes: 60 });
+    expect(eventFormToInput({ ...filled, waitlistMode: "FIRST_TO_CLAIM", waitlistHoldMinutes: 120 })).toMatchObject({
+      waitlistMode: "FIRST_TO_CLAIM",
+      waitlistHoldMinutes: 120,
+    });
+  });
 });
 
 describe("startsAtFromValues", () => {

@@ -3,6 +3,8 @@ import { Icon } from "./Icon";
 /**
  * A whole number with − and + buttons — for small counts like min/max
  * players where typing is slower than tapping. Both buttons are 44px.
+ * With `format`, it steps through a short list instead ("30m", "1h",
+ * "2h"…): `value` is then the index into that list.
  */
 export interface StepperProps {
   label: string;
@@ -12,9 +14,11 @@ export interface StepperProps {
   onChange: (value: number) => void;
   min?: number;
   max?: number;
+  /** How to show the value, e.g. an index into a list of options. */
+  format?: (value: number) => string;
 }
 
-export function Stepper({ label, hint, value, onChange, min = 0, max = Number.MAX_SAFE_INTEGER }: StepperProps) {
+export function Stepper({ label, hint, value, onChange, min = 0, max = Number.MAX_SAFE_INTEGER, format }: StepperProps) {
   return (
     <div role="group" aria-label={label} className="flex items-center gap-3">
       <div className="min-w-0 flex-1">
@@ -30,8 +34,8 @@ export function Stepper({ label, hint, value, onChange, min = 0, max = Number.MA
       >
         <Icon name="minus" size={20} />
       </button>
-      <output aria-live="polite" className="w-8 text-center text-heading text-text-primary">
-        {value}
+      <output aria-live="polite" className="min-w-8 text-center text-heading text-text-primary">
+        {format ? format(value) : value}
       </output>
       <button
         type="button"
