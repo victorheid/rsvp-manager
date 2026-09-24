@@ -28,6 +28,18 @@ Everything else that can be built without these is built (against fakes). These 
 - [x] Web push setup (service worker, subscription storage) — `public/sw.js`, `PushSubscription` table, `notifications.subscribePush/unsubscribePush/sendTest`, `integrations/push` (real `web-push` sender once `VAPID_*` env keys are set, console logger otherwise). Entry point for now is the Home account menu ("Turn on notifications"); the `/me` screen and post-RSVP prompt (UI spec §9) come with §5
 - [ ] SMS/WhatsApp fallback provider wired up
 
+### Sign-in codes: cost, fraud and channel
+Decision: keep phone as the player identity; SMS is the default code channel, WhatsApp can join later. Launch market Ireland, realistically anywhere in Europe. Codes are the main messaging cost (roughly €0.08–0.15 each by SMS, about €0.05 by WhatsApp; verify against provider rate cards).
+- [ ] Get Ireland/EU quotes from Twilio (Verify + SMS), Bird/MessageBird, Sinch or Infobip, and pick one for the MVP (see the provider item in Pending from Tech Lead)
+- [ ] Use Twilio Verify (or the chosen provider's equivalent) for sign-in codes instead of our own OTP, for its fraud guard
+- [ ] Rate-limit code requests per phone number, per IP and globally (the 5-attempt limit on wrong codes exists; requests are a separate limit)
+- [ ] Country allow-list: only send codes to the countries we serve, and block premium and high-fraud prefixes
+- [ ] Daily spend alert and cap on the messaging provider account (SMS pumping is the main cost risk)
+- [ ] Make the code channel pluggable: turn `SmsSender` into a `CodeSender` with a channel field (SMS today, WhatsApp later) so domain code doesn't change
+- [ ] WhatsApp as the preferred code and money-fallback channel: Meta business verification, template approval (authentication and utility), WhatsApp adapter, SMS fallback when the number isn't on WhatsApp
+- [ ] "Didn't get the code? Send it by WhatsApp" fallback on the sign-in sheet, if delivery complaints show up
+- [ ] Passkeys as a returning-login shortcut — optional, after the MVP
+
 ## 0b. Identity: players vs organizers
 Decision: players sign in with a phone number alone; anyone who organizes needs a verified email too (a recovery and confirmation channel for lost, changed or recycled numbers).
 - [x] Verified email for organizers — required to create a group or game and to set up payouts; verify with a code (`VerifyEmailSheet`); replacing it alerts the old address and the phone
@@ -83,6 +95,18 @@ Decision: players sign in with a phone number alone; anyone who organizes needs 
 - [x] Spot opens → auto-join next (skip if wallet can't cover it) — `promoteFromWaitlist` on drop-out / removal, and a worker sweep for raised max; moved-in and skipped notifications
 - [x] Only notify-me entries left → notify all, first to claim wins (claim = normal RSVP, cash allowed) — no push/SMS to "notify all" (§9), but claiming works: first successful RSVP wins, the DB capacity check handles the race, and it clears their waitlist entry
 - [x] Close waitlist at event start
+
+### List-first event page and per-event waitlist mode
+Decision (2026-09-24): replace the per-person auto-join / notify-me choice with one waitlist mode per event, **in order** (default: the spot is held for #1 for the event's hold time, 1h default; expired hold → end of the list; no hold if it would run past start) or **first to claim**. The event page leads with the list, and organizers can mark anyone dropped out, waitlisters included. Supersedes the auto-join items above. See feature spec §6, §8 and decisions 8 and 20, UI spec §4, §7.2–7.3, §10.3, §10.5.
+- [ ] Schema: `waitlistMode` (IN_ORDER / FIRST_TO_CLAIM, default IN_ORDER) and `waitlistHoldMinutes` (default 60) on `Event`; `heldUntil` on `WaitlistEntry`; a dropped-out state for waitlist entries so they show under Dropped out; retire `promotionMode`, `paymentMethod` and the saved-card fields on `WaitlistEntry` (migrate existing entries to plain ones)
+- [ ] Rules in `waitlist/rules.ts`, table-tested: order by join time, who gets the next hold, hold end time (none if it would pass start), expired hold → end of the list (a new join time), held spots count against max but not towards min
+- [ ] Actions: hold spots when they open (drop-out, marked dropped out, max raised); take a held/open spot through the normal RSVP (rejects after the hold ends, never charges after expiry); leave waitlist (passes a hold on); worker sweep for expired holds; replace `promoteFromWaitlist` / auto-join and remove `setWaitlistMode`
+- [ ] Organizer "Mark as dropped out" on Going and Waitlist rows (rename `removeRsvp`; add the waitlist case to `organizerRowActions`), before start only
+- [ ] Event form: waitlist mode and hold time (§10.3), editable in Edit event; changing mode leaves running holds alone
+- [ ] Event page list-first layout: viewer status in the bottom bar (held spot with Take the spot / Leave waitlist and the hold end time; StickyActionBar gets a status row), In / Waitlist (numbered) / Dropped out, viewer's row highlighted, organizer ••• menu on rows
+- [ ] Join waitlist becomes one tap (drop the mode and payment step from the waitlist sheet)
+- [ ] Notifications: "spot held for you" and "spot open" (first to claim) replace moved-in, skipped and notify-me kinds; "removed" becomes "marked as dropped out"
+- [ ] Figma first: event page list-first, held-spot banner, waitlist settings in the event form
 
 ## 7. Event lifecycle
 - [x] States: Open / Confirmed / Cancelled / Expired — all four reachable

@@ -90,15 +90,20 @@ The cut-off is the auto-confirm moment, not an RSVP deadline.
 ## 6. Waitlist
 
 - Kicks in once the event is full.
-- On joining the waitlist, the user picks one of two modes:
-  - **Auto-join and pay** (default): when a spot opens they're moved in automatically and paid online. They pick wallet or card when joining the waitlist (a card is saved, nothing is charged or held yet). **Not available with cash**, since cash can't be taken automatically.
-  - **Notify me**: when a spot opens they're alerted and decide then. Claiming the spot is a normal RSVP, with a payment choice that includes cash if the event allows it. No payment method is picked when joining the waitlist.
-- The copy makes clear what happens in each mode, and that auto-join entries get priority.
-- **Order**: auto-join entries first, then notify-me entries; first come, first served within each. A user can switch mode at any time and keeps their original join time (switching to auto-join asks for a wallet/card choice).
-- When a spot opens (a player drops out, max is raised, or the organizer removes someone):
-  - **Auto-join entry available** → the next one is moved in and notified. Normal rules apply: before confirmation a wallet hold is placed / the saved card waits for confirmation, and they can drop out free; after confirmation they're charged immediately. If they chose wallet and their balance can't cover it, they're skipped and notified.
-  - **Only notify-me entries left** → all of them are notified that a spot is open, and the first to claim it gets it. No timer.
-- The waitlist closes when the event starts.
+- Joining the waitlist is one tap: no mode or payment method to pick. Payment is chosen when the person takes a spot.
+- **Order**: first come, first served, by join time. Everyone can see the numbered waitlist on the event page (§ event page in the UI spec).
+- The organizer picks the **waitlist mode** per event, and can change it at any time:
+  - **In order** (default): when a spot opens, it's **held** for the first person on the waitlist for the **hold time**: 1 hour by default, set by the organizer per event. While it's held nobody else can take it.
+    - They **take the spot**: a normal RSVP with the normal payment choice (wallet, card, or cash if the event allows it). Before confirmation nothing is charged; after confirmation they're charged straight away.
+    - They **leave the waitlist**: the spot is held for the next person.
+    - The hold **runs out**: they move to the **end of the waitlist** and the spot is held for the next person.
+    - If a hold would run past the event's start time, the spot isn't held: it's open to the whole waitlist, first to take it gets it.
+  - **First to claim**: when a spot opens, anyone on the waitlist can take it, and the first to do so gets it. No hold, no timer.
+- A spot opens when a player drops out, the organizer marks someone as dropped out, or max is raised. Two spots open → two holds, for the first two people.
+- Changing the mode doesn't touch holds already running; spots that open afterwards follow the new mode.
+- A held spot counts against max but not towards the minimum, so it never makes a game confirm.
+- The person the spot is held for sees it at the top of the event page with **Take the spot** / **Leave waitlist** and when the hold runs out. Nothing depends on them getting a notification: the event link always shows it.
+- The waitlist closes when the event starts. Holds still running end then.
 
 ## 7. Event lifecycle
 
@@ -118,7 +123,10 @@ Attendance, reconciliation and refunds all happen on **one screen per event**. E
 
 Actions:
 - Confirm or cancel the event.
-- **Remove a player** *(proposed, to confirm)* (e.g. someone who said in WhatsApp they can't come but didn't drop out). Same effect as them dropping out: before confirmation their hold is released and nothing is charged; after confirmation the payment stays and they show as dropped out, refundable like anyone else. The player is notified, and the spot goes to the waitlist.
+- **Mark as dropped out**, for anyone who's in **or on the waitlist** (e.g. someone who said in WhatsApp they can't come but didn't drop out in the app). Only before the game starts; after that, someone who isn't there is a no-show.
+  - Someone who's in: same effect as them dropping out. Before confirmation their wallet hold is released and nothing is charged; after confirmation the payment stays and they show as dropped out, refundable like anyone else. The spot goes to the waitlist (§6).
+  - Someone on the waitlist (including one with a spot held for them): they leave the waitlist. Nothing to refund; a held spot passes to the next person.
+  - Either way they're listed under **Dropped out** on the event page, and the player is notified.
 - Mark attendance (after the event).
 - Mark a payment as **paid outside app** (cash collected, bank transfer, etc.). This is record-keeping only; no money moves.
 - **Add a walk-in**: a name-only record (no account) with a payment status. Walk-ins don't count against max.
@@ -130,19 +138,19 @@ Actions:
 
 ## 9. Notifications
 
-- **Web push** is the primary channel. **SMS/WhatsApp** is the fallback, used only for money-related messages (charged, payment failed, cancelled/refunded, moved in from waitlist) to keep costs down.
+- **Web push** is the primary channel. **SMS/WhatsApp** is the fallback, used only for money-related messages (charged, payment failed, cancelled/refunded, spot held for you) to keep costs down.
   - On iPhone, web push only works if the user has added the app to their Home Screen, so many iPhone users will only receive the fallback messages.
-- With auto-join there are no countdown timers, so nothing depends on near-instant delivery.
+- Nothing depends on a notification arriving: the event page always shows the current list and any action waiting for the viewer (a held spot, money owed). Notifications are a nudge to open the link.
 
 Triggers:
 | Trigger | Who |
 |---|---|
 | New event posted | Group members |
 | Cut-off reminder (e.g. 24h before) | Everyone in, and waitlist |
-| Moved in from waitlist | Promoted person |
+| Spot held for you (in-order waitlist) | That person |
 | Cut-off passed without min met, or auto-charge off (confirm or cancel) | Organizer |
-| Removed by organizer | That person |
-| Spot open (notify-me waitlist) | Notify-me waitlist entries |
+| Marked as dropped out by organizer | That person |
+| Spot open (first-to-claim waitlist) | Everyone on the waitlist |
 | Event confirmed + amount charged | Everyone in |
 | Event details changed | Everyone in, and waitlist |
 | Event cancelled + refund | Everyone in, and waitlist |
@@ -166,7 +174,7 @@ Kept here so the "why" doesn't get lost.
 5. **Split pricing: range before confirmation, locked at confirmation.** The wallet hold is the upper bound. Never recalculated after lock.
 6. **Auto-charge only touches prepaid RSVPs.** Cash never blocks confirmation.
 7. **Corrections after lock are manual and refund-only**, from one organizer list (§8). No automatic re-charges.
-8. **Waitlist: auto-join-and-pay by default, notify-me as the alternative, auto-join entries have priority.** Auto-join is online-only because cash can't be taken automatically. This removes the 30-minute claim timer and the dependency on instant notifications.
+8. **Waitlist mode is set per event: "in order" (spot held for the next person, 1h by default) or "first to claim".** Replaced the earlier per-person auto-join / notify-me choice, which needed a payment method at waitlist time and pushed a lot onto notifications. The event link is where people check their place, and groups already coordinate in WhatsApp, so a short hold that anyone can see on the page works without reliable notifications. An expired hold sends the person to the end of the list, so an unanswered hold costs them their place and not the group's spot. (2026-09-24)
 9. **Wallet stays in MVP.** Paying per game by card costs players more (see the fee comparison under [Wallet limits](#wallet-limits--research-notes)). Balance capped at €150, refundable at full value.
 10. **Payouts via Stripe Connect, after the event.** Refunds never need clawing back from organizers.
 11. **Organizers belong to the group**, not the event. Co-organizers of a recurring game is a group-level concept.
@@ -178,6 +186,7 @@ Kept here so the "why" doesn't get lost.
 17. **Dropping out is always possible; refunds after confirmation are the organizer's call.** The spot goes back to the waitlist straight away. There's no refund-decision step: the entry just shows as dropped out with what they paid, and the organizer refunds if they want to.
 18. **Payment options per event: cash only / online only / both.** Online needs finished Stripe onboarding, so a new organizer can run cash games from day one.
 19. **When a game doesn't reach its minimum by cut-off, the organizer is alerted** to confirm anyway or cancel. If they do neither, it expires 48h after start (§7).
+20. **The event page leads with the list.** Most visits are someone checking "am I in, where am I in the queue", so In / Waitlist / Dropped out sit right under the title, with the viewer's own row highlighted. Everything about the viewer (their status, a held spot and until when, money owed, and the action for it) sits in the bottom action bar, so the page body stays about the game. The organizer can mark anyone dropped out, including waitlisters, so the list matches what was said in the chat. (2026-09-24)
 
 ## Wallet limits — research notes
 

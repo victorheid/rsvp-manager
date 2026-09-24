@@ -69,7 +69,7 @@ Organizers are also players (§ Assumptions: min/max includes the organizer if t
 ### Shared UI patterns
 
 - **Bottom sheet (mobile) / centred dialog (desktop)** for every multi-step flow started from a page: RSVP, sign-in, cancel, confirm, refund, add walk-in. The page stays underneath so closing the sheet returns to context.
-- **Sticky action bar** at the bottom of the event page and forms, holding the primary CTA and one line of context ("Nothing charged now").
+- **Sticky action bar** at the bottom of the event page and forms, holding the primary CTA and one line of context ("Nothing charged now"). On the event page it also carries **the viewer's own status** (a title, one line of detail and an optional secondary link), so everything about "you" sits in one place, next to what you can do about it.
 - **Toasts** for completed low-risk actions ("Marked as paid outside app" with **Undo** for 5s where the action is reversible record-keeping).
 - **Skeletons** while loading; never a blank page on a slow 3G connection at a sports hall.
 - **Pull to refresh** on event, manage, and Games screens; data also refreshes on window focus (people switch back from WhatsApp).
@@ -106,7 +106,9 @@ Edge cases
 
 ## 4. Event page `/e/{slug}` (the most important screen)
 
-This is where almost everyone lands. It must answer, in this order: **what/when/where → is it on → how much → who's in → what do I do.**
+This is where almost everyone lands, and where they come back to check. **The event link always opens this screen, and the list is the heart of it.** It must answer, in this order: **what/when → what do I need to do → who's in and where am I in the queue → is it on → how much.**
+
+The page body is about the game; everything about the viewer lives in the bottom bar (section 2). The list sits right under the header; key facts, the "is it on?" block, price and description follow. Nothing on this page depends on the viewer having received a notification.
 
 ### 4.1 Sections, top to bottom
 
@@ -114,14 +116,16 @@ This is where almost everyone lands. It must answer, in this order: **what/when/
    - Group name (link to `/g/{slug}`), event title.
    - **Event status chip**: Open · Confirmed · Cancelled · Didn't go ahead (Expired) · Finished (start time passed).
    - Share button (top right). Organizer also sees **Manage** (primary for them) and an overflow menu: Edit, Repeat this game, Cancel event.
-2. **Your status banner** (only if signed in and involved), e.g.
-   - "You're in · €10.00 held from wallet · drop out free until Wed 19:00"
-   - "You're in · €8.50 charged to card ending 4242"
-   - "You're in · paying €8.00 cash on the day"
-   - "You're on the waitlist · #2 · auto-join with wallet"
-   - "You dropped out · €8.50 paid" (after confirmation; becomes "€8.00 refunded" if the organizer refunds)
-   - "You owe €8.50 · **Pay now**" (failed card, §5)
-   - Links to the relevant action (Change payment, Can't make it, Pay now).
+2. **Your status, in the bottom bar** (not in the page body). The sticky bar shows the viewer's status above the primary action, so what they need to do is always in view while the page stays about the game. It's a title, one line of detail, the CTA, and at most one secondary link. Examples:
+   - Not in: no status, just **I'm in** · "Nothing charged now" (or **Join waitlist** when full).
+   - "**You're in** · €10.00 held from wallet" · "Drop out free until Wed 19:00" · **Can't make it** (secondary style) · link *Change payment*.
+   - "**You're in** · €8.50 charged to card ending 4242" · "If you drop out now, a refund is up to the organizer." · **Can't make it**.
+   - "**You're in** · paying €8.00 cash on the day".
+   - "**You're #2 on the waitlist**" · "If a spot opens for you, it's held for you for 1 hour." · **Leave waitlist** (secondary style).
+   - **A spot is held for you** (in-order waitlist, §6): "**A spot is yours, Niamh**" · "Held for you until 21:00, then it goes to the next person. Nothing charged now." · **Take the spot** (primary → RSVP payment step, §7.3) · link *Leave waitlist*.
+   - **A spot is open** (first-to-claim waitlist): "**A spot is open**" · "First on the waitlist to take it gets it." · **Take the spot** · link *Leave waitlist*.
+   - "**You dropped out** · €8.50 paid" (after confirmation; becomes "€8.00 refunded" if the organizer refunds) · **I'm in** again if there's room.
+   - "**You owe €8.50**" · **Pay now** (failed card, §5).
 3. **Key facts**
    - Date and time: "Thu 25 Sep · 19:00–20:30" plus relative ("in 2 days"). **Add to calendar** (.ics download / Google link) once the person is in.
    - Location: text, tappable → opens the maps app with the address.
@@ -142,14 +146,17 @@ This is where almost everyone lands. It must answer, in this order: **what/when/
    - After confirmation: "**€8.00** each (locked)".
    - Fee line underneath, small: "+ €0.50 service fee by card · no fee with wallet or cash" (only list the methods this event accepts).
    - **Cost breakdown** (collapsible, if provided): "Court booking — €80".
-7. **Who's in**
-   - List of "Aoife M." names in join order, organizer tagged "Organizer". Show first ~12, then "Show all 18". Walk-ins aren't shown publicly (they're organizer records).
-   - Waitlist names shown in a collapsed section "Waitlist (3)" in waitlist order.
+7. **The list** *(rendered straight after the header; numbered 7 here only to keep references stable)*
+   - **In · 13 of 14**: "Aoife M." names in join order, organizer tagged "Organizer". Show first ~12, then "Show all 18". A held spot shows as a row "Niamh K. · held until 21:00". Walk-ins aren't shown publicly (they're organizer records).
+   - **Waitlist · in order** (or "· first to claim"): numbered, expanded, in waitlist order.
+   - **Dropped out** (collapsed, with count): people who dropped out or were marked dropped out by the organizer, from both the list and the waitlist. Names only, no reason, no payment.
+   - The viewer's own row is highlighted in whichever section it's in, with "(you)".
    - No payment information about other people is ever shown to players.
+   - Organizers see the same list with a ••• menu on each row (§10.5 actions), so they can fix it straight from the event page.
 8. **Description** (free text, links auto-linked, collapsed after ~5 lines with "More").
 9. **Footer**: "Organized by Conor B. in Thursday Basketball Galway" → group link. If the event is over: "Next game: Thu 2 Oct" link if one exists.
 
-**Sticky action bar** (bottom): primary CTA + one line of context. See the matrix below.
+**Sticky action bar** (bottom): the viewer's status (section 2) + primary CTA. See the matrix below.
 
 ### 4.2 Primary action by state
 
@@ -159,13 +166,14 @@ Viewer = what the signed-in (or anonymous) person is relative to this event.
 |---|---|---|---|---|---|---|
 | **Not in** (incl. anonymous) | **I'm in** · "Nothing charged now" | **Join waitlist** | **Join and pay €X** · "Charged now" | **Join waitlist** | No CTA; "Game has started" | No CTA; link to group |
 | **Going** | **Can't make it** (secondary style) · status in banner | same | **Can't make it** (secondary style) · "No automatic refund" | same | "Game has started" | — |
-| **Waitlist, auto-join** | — | **Leave waitlist** + switch mode | — | same | "Waitlist closed" | — |
-| **Waitlist, notify-me, spot open** | **Claim spot** (primary, highlighted) | — | **Claim spot and pay €X** | — | — | — |
+| **Waitlist, waiting** | — | **Leave waitlist** (secondary) · "#2 on the waitlist" | — | same | "Waitlist closed" | — |
+| **Waitlist, spot held for them / spot open to claim** | **Take the spot** (primary, highlighted) + Leave waitlist | — | **Take the spot and pay €X** + Leave waitlist | — | — | — |
 | **Owes** | — | — | **Pay €X now** | same | **Pay €X now** (until payout) | — |
 | **Organizer** | Own player CTA as above + **Manage** in header | | | | **Mark attendance** shortcut after start | |
 
 Notes
-- "Open, full" for a *notify-me* waitlister whose spot hasn't opened: CTA is **Leave waitlist**, and a line "We'll notify you if a spot opens".
+- A waitlister whose turn hasn't come: CTA is **Leave waitlist**, with "#2 on the waitlist. If a spot opens for you, it'll show here."
+- A held spot that runs out while the page is open: the bottom bar switches to "Your hold ran out. You're now #4 on the waitlist." (no error styling).
 - "Can't make it" is one tap + confirm sheet (§7.4) in every state before start. Before confirmation the sheet says it's free; after confirmation it says clearly that there's no automatic refund.
 - If state changes while the page is open (e.g. it fills up between viewing and tapping), the RSVP sheet re-checks on submit and offers the waitlist instead (§7.1 edge cases).
 
@@ -264,29 +272,20 @@ Edge cases
 
 ### 7.2 Join waitlist
 
-Same sheet as RSVP, but the first step is choosing **how** to wait (§6):
-
-- ◉ **Auto-join and pay** (default, listed first)
-  - Copy: "If a spot opens, we'll put you in and pay for you automatically. Auto-join is served before notify-me."
-  - Game open: "You'll be in like everyone else: free to drop out until the game confirms."
-  - Game confirmed: "If you're moved in, you'll be charged €8.50 straight away."
-  - Then the payment step, **wallet or card only**. Cash isn't offered, with the reason: "Cash can't be paid automatically. Choose *Notify me* to pay cash."
-  - Card: saved now, nothing charged. Wallet: no hold yet; note "Keep at least €10.00 in your wallet, or we'll skip you and let you know."
-- ○ **Notify me**
-  - Copy: "We'll let you know when a spot opens. First to claim it gets it. You choose how to pay then (cash is fine)."
-  - No payment step. This is the shortest path: one tap after sign-in.
+One tap after sign-in (§3): no mode and no payment method to pick (§6).
 - CTA: **Join waitlist** · "Nothing charged now".
-- Success: "You're #3 on the waitlist" + chosen mode.
+- Copy by the event's waitlist mode:
+  - In order: "If a spot opens, it's held for the next person in line for 1 hour. You'll see it here when it's your turn."
+  - First to claim: "If a spot opens, anyone on the waitlist can take it. First to take it gets it."
+- Success: "You're #3 on the waitlist". The event page then shows their numbered row highlighted and **Leave waitlist**.
 
-On the event page afterwards: position ("#3 · auto-join with card ···· 4242"), **Switch to notify me / auto-join** (keeps join time; switching to auto-join opens the payment step; position may change because auto-join entries come first, and the copy says so), **Leave waitlist**.
+### 7.3 Take a held or open spot
 
-Auto-join, moved in: the person gets the "Moved in" notification (§9.3) and the page shows them as Going with the normal status banner.
-
-### 7.3 Claim a spot (notify-me waitlist)
-
-Triggered by the "Spot open" notification → deep link to the event page with the **Claim spot** CTA highlighted.
-- Tap → the normal RSVP payment step (§7.1), including **cash** if the event allows it, with the usual charge copy → "You're in".
-- Someone else got there first: "Someone just took that spot. You're still #1 on the waitlist." No error styling; it's expected behaviour.
+Reached from the bottom bar on the event page, whichever way they got there (the link in WhatsApp, a notification, Home).
+- **Take the spot** → the normal RSVP payment step (§7.1), including **cash** if the event allows it, with the usual charge copy (nothing charged before confirmation; charged now after) → "You're in".
+- **Leave waitlist** → confirm sheet: "Leave the waitlist? The spot goes to the next person." → they're listed under Dropped out.
+- The hold ran out while they were paying: if the payment step hasn't completed, "Your hold ran out and the spot went to the next person. You're now #4 on the waitlist." Never charge after a hold has expired.
+- First to claim, someone else got there first: "Someone just took that spot. You're still on the waitlist." No error styling; it's expected behaviour.
 
 ### 7.4 Can't make it (drop out)
 
@@ -301,7 +300,7 @@ Available any time up to the event start (§3). One sheet, copy depends on state
 
 ### 7.5 Change payment method (before confirmation)
 
-From the status banner: **Change** → the payment choice step pre-filled. Holds are swapped (release old, place new). Not available after confirmation. *(Feature spec doesn't mention changing method; proposed as a small convenience, see open questions.)*
+From the bottom bar: **Change payment** → the payment choice step pre-filled. Holds are swapped (release old, place new). Not available after confirmation. *(Feature spec doesn't mention changing method; proposed as a small convenience, see open questions.)*
 
 ### 7.6 Pay what you owe `/pay/{token}`
 
@@ -358,10 +357,9 @@ Every notification deep-links to a screen already in the right state. No in-app 
 |---|---|---|
 | New event posted | "New game in Thursday Basketball: Thu 2 Oct 19:00" | Event page, **I'm in** CTA |
 | Cut-off reminder | "Thu 5-a-side confirms tomorrow 19:00. 5/6 in so far." | Event page |
-| Moved in from waitlist | "You're in for Thu 5-a-side (moved from the waitlist). €8.50 charged." / "…Drop out free until Wed 19:00." | Event page, status banner |
-| Skipped (wallet too low) | "A spot opened but your wallet couldn't cover it. Top up to stay in line." | Wallet top-up, returns to event |
-| Spot open (notify-me) | "A spot opened in Thu 5-a-side. First to claim gets it." | Event page, **Claim spot** |
-| Removed by organizer | "Conor removed you from Thu 5-a-side." + refund outcome if paid | Event page |
+| Spot held for you | "A spot opened in Thu 5-a-side. It's yours until 21:00." | Event page, **Take the spot** |
+| Spot open (first to claim) | "A spot opened in Thu 5-a-side. First to take it gets it." | Event page, **Take the spot** |
+| Marked as dropped out | "Conor marked you as dropped out of Thu 5-a-side." + refund outcome if paid | Event page |
 | *Organizer:* cut-off passed, not confirmed | "Thu 5-a-side: 4 of 6 in at cut-off. Confirm anyway or cancel?" | Manage event, decision sheet (§10.9) |
 | Confirmed + charged | "Game on! Thu 5-a-side confirmed. €8.50 charged." (cash: "Bring €8 cash.") | Event page |
 | Details changed | "Thu 5-a-side moved to 20:00 at Westside Hall." (show what changed) | Event page, changed fields highlighted once |
@@ -401,13 +399,14 @@ One scrolling form with sections (short enough on mobile; no multi-page wizard).
    - **Online only** (wallet/card)
    - **Cash only** (default until payouts are set up)
    - If Stripe onboarding isn't finished, the two online options are shown but disabled with "Set up payouts to accept online payments · **Set up**" (§10.8). Setting up opens Stripe's onboarding and returns to this form with its values kept (local draft), with the online options now enabled.
-   - Helper per option: Cash only → "Players pay you in person. No fees, no waitlist auto-join." Online only → "Players pay by wallet or card; you get paid out 2 days after the game." 
+   - Helper per option: Cash only → "Players pay you in person. No fees." Online only → "Players pay by wallet or card; you get paid out 2 days after the game." 
 6. **Confirmation**
    - **Confirms on** (the cut-off): date/time picker, default **24h before start** (proposed default). Helper that restates the rule: "At this time, if at least 6 are in, the game confirms and online payers are charged. Before this, anyone can drop out for free."
    - **Auto-charge at cut-off** toggle (default on). Off helper: "You'll confirm it yourself. Nobody is charged until you do."
    - Validation: cut-off must be before start; warn if less than 2h before start.
-7. **Review & publish**: a preview of the public event page card.
-8. After publish → share screen (as §10.1) + "Group members are being notified."
+7. **Waitlist** (only when there's a max; part of the "Same as your last game" summary): segmented **In order** (default) / **First to claim**. In order shows **Hold a spot for** (default 1 hour; e.g. 30 min / 1h / 2h / 4h / 12h). Helpers: "The next person in line gets the spot held for them. If they don't take it in time, they go to the end of the list." / "Anyone on the waitlist can take an open spot. First to take it gets it." Editable later from Edit event.
+8. **Review & publish**: a preview of the public event page card.
+9. After publish → share screen (as §10.1) + "Group members are being notified."
 
 **Repeat this game** (duplicate, `?from=`): same form, pre-filled with everything, date moved to +7 days (and cut-off moved by the same offset), status reset. Banner: "Copied from Thu 25 Sep. Check the date and price." Uses the current fee schedule (invisible to the organizer; §5).
 
@@ -450,13 +449,13 @@ While Open, **Confirm now** leads instead of Share once the cut-off has passed o
   - **Mark as paid** (owes or cash due; only once confirmed — before that nothing has been charged, and cash is collected on the day). Toast with Undo.
   - **Mark as no-show / Undo no-show** (only once the game has started, never on the organizer's own row). Toast with Undo.
   - **Message player** (WhatsApp link, when the person has a number).
-  - **Remove from game** (**only before the game starts**; once it's running, someone who isn't there is a no-show). Opens a sheet stating what happens: their spot goes to the waitlist, and after confirmation their payment stays on record.
+  - **Mark as dropped out**, on Going **and Waitlist** rows (**only before the game starts**; once it's running, someone who isn't there is a no-show). Opens a sheet stating what happens: for someone who's in, their spot goes to the waitlist and after confirmation their payment stays on record; for a waitlister, they leave the waitlist (and a spot held for them passes to the next person). They move to Dropped out.
   - *Planned with §5:* Refund, and Send pay link again for failed cards.
 - **Why menus, not buttons:** a button next to a name is easy to hit by mistake while standing at the pitch, and the common actions are reversible anyway (toast + Undo). Two taps for "mark paid" is the price; the whole row being tappable and the menu leading with the right action keep it cheap.
 
-**Sections** in order: Going · Walk-ins · Waitlist (order, Auto-join / Notify-me tag and payment method; read-only in MVP) · **Dropped out**.
+**Sections** in order: Going (a held spot shows as its own row: "Niamh K. · held until 21:00") · Walk-ins · Waitlist (numbered, with the mode: "in order" or "first to claim"; the only row action is Mark as dropped out) · **Dropped out**.
 
-Dropped out: everyone who dropped out or was removed, each row tagged **Dropped out** with the time. If they paid, the payment is shown as clearly as on a Going row ("Paid online €8.50", "Cash due €8.00"), and the usual person-sheet actions apply (**Refund**, **Mark paid outside app**). Nothing prompts the organizer to act. The section is expanded when it contains anyone who paid, collapsed otherwise (only free, before-confirmation drop-outs).
+Dropped out: everyone who dropped out or was marked dropped out, from the list or the waitlist, each row tagged **Dropped out** with the time. If they paid, the payment is shown as clearly as on a Going row ("Paid online €8.50", "Cash due €8.00"), and the usual person-sheet actions apply (**Refund**, **Mark paid outside app**). Nothing prompts the organizer to act. The section is expanded when it contains anyone who paid, collapsed otherwise (only free, before-confirmation drop-outs).
 
 ### 10.6 Organizer money actions
 
@@ -578,7 +577,7 @@ The current Prisma `PaymentStatus` enum (PENDING/HELD/CHARGED/OWES/REFUNDED) doe
 | 1 | Event page (all states) | Everyone | §2, §3, §4, §7 |
 | 2 | Sign-in sheet | Players | §4, Decision 1 |
 | 3 | RSVP sheet: payment choice + review | Players | §4, §5 |
-| 4 | Waitlist sheet (auto-join / notify-me) | Players | §6 |
+| 4 | Join waitlist (one tap) and held-spot banner | Players | §6 |
 | 5 | Can't make it sheet (before / after confirmation) | Players | §3, §4 |
 | 6 | Pay what you owe | Players | §5 |
 | 7 | Group page | Everyone | §1 |
@@ -588,7 +587,7 @@ The current Prisma `PaymentStatus` enum (PENDING/HELD/CHARGED/OWES/REFUNDED) doe
 | 11 | Create / edit group + share screen | Organizers | §1 |
 | 12 | Create / edit / repeat event | Organizers | §2 |
 | 13 | Manage event (list, filters, person sheet) | Organizers | §8 |
-| 14 | Confirm / cancel / refund / refund all / add walk-in / remove / min-not-met sheets | Organizers | §3, §7, §8 |
+| 14 | Confirm / cancel / refund / refund all / add walk-in / mark dropped out / min-not-met sheets | Organizers | §3, §7, §8 |
 | 15 | Payouts + Stripe onboarding | Organizers | §5 |
 
 Suggested build order, matching the "link in WhatsApp" core loop: 1 → 2 → 3 (cash + card only) → 5 → 11 → 12 → 13/14 (confirm, cancel, mark paid) → 7 → 8 → 4 → 6 → 9 → 10 → 15.
@@ -597,11 +596,11 @@ Suggested build order, matching the "link in WhatsApp" core loop: 1 → 2 → 3 
 
 ## Open questions
 
-Resolved and folded into the feature spec: payment options per event (cash / online / both), waitlist modes (auto-join and pay vs notify me), dropping out after confirmation, organizer alert when the minimum isn't met, end time, "paid outside app" status (added to the schema when §8 is built).
+Resolved and folded into the feature spec: payment options per event (cash / online / both), waitlist mode per event (in order with a held spot / first to claim), organizer marking anyone dropped out, dropping out after confirmation, organizer alert when the minimum isn't met, end time, "paid outside app" status (added to the schema when §8 is built).
 
 Still open:
 
-1. **Organizer removing a player.** §6 lists "the organizer removes someone" as a way a spot opens, but no flow existed for it. Proposal (drafted in §10.5 and feature spec §8): a **Remove from game** action on the person sheet, for when someone says in WhatsApp they can't come but doesn't drop out in the app, or a no-show regular needs to make room. Behaves exactly like the player dropping out: before confirmation → hold released, nothing charged; after confirmation → payment stays, they show as Dropped out, and the organizer can refund like anyone else. The player is notified and the spot goes to the waitlist. Questions: (a) is this in MVP? (b) can the organizer also remove people from the waitlist? (c) should the organizer be able to add an optional reason that the player sees?
+1. **Reason when the organizer marks someone dropped out.** Marking anyone dropped out, including waitlisters, is in MVP (feature spec §8, §10.5). Still open: should the organizer be able to add an optional reason that the player sees?
 2. **Changing payment method** before confirmation (§7.5) — allowed?
 3. **Pricing mode changes after first RSVP** — assumed blocked; confirm.
 4. **Privacy of names and phone numbers.** Players see "First L."; do organizers see full names and phone numbers of group members? (The manage screen proposes yes, for chasing payments.)
