@@ -8,7 +8,7 @@ Tracks implementation status against [`feature-spec-mvp.md`](./feature-spec-mvp.
 
 ### Pending from Tech Lead
 Everything else that can be built without these is built (against fakes). These need a person to act or decide:
-- [ ] Stripe webhooks: set `STRIPE_WEBHOOK_SECRET` — locally from `stripe listen --forward-to localhost:3000/api/stripe/webhook`; in production add a dashboard endpoint for `payment_intent.succeeded`, `payment_intent.payment_failed`, `account.updated`
+- [ ] Stripe webhooks: set `STRIPE_WEBHOOK_SECRET` — locally from `stripe listen --events payment_intent.succeeded,payment_intent.payment_failed,account.updated --forward-to localhost:3000/api/stripe/webhook`; in production add a dashboard endpoint for `payment_intent.succeeded`, `payment_intent.payment_failed`, `account.updated`
 - [ ] Try Connect onboarding by hand in the browser (organizer → event form → "Set up payouts") with Stripe's test data, then a payout
 - [ ] Pick an SMS/WhatsApp provider (Twilio or similar) and provide an account, to replace the console SMS sender
 - [ ] Decide: allow confirming below the minimum ("confirm anyway", UI spec §10.9)? Today `confirmEvent` refuses and the organizer alert says "wait for more, or cancel"
